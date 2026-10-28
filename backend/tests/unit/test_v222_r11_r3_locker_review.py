@@ -19,7 +19,12 @@ from cold_storage.modules.layout.application.changing_locker_review import (
 from cold_storage.modules.layout.domain.changing_locker_screening import (
     HypotheticalLockerParameters,
 )
-from cold_storage.modules.layout.domain.functional_room_fit import STATES, BasisValue
+from cold_storage.modules.layout.domain.changing_shift_use import PLAN_FIELD
+from cold_storage.modules.layout.domain.functional_room_fit import (
+    STATES,
+    BasisValue,
+    evaluate_functional_room,
+)
 from cold_storage.modules.layout.infrastructure.changing_locker_review_page import (
     preview_request,
     render_page,
@@ -249,9 +254,12 @@ def complete_synthetic_design(binding):
         )
     for i in range(53):
         x = 500 + i * 400
-        add(f"person-{i + 1}", "PERSON", [x, 1000, x + 400, 1600])
-    add("front-low", "AISLE", [500, 1600, 26000, 2800])
-    add("front-high", "AISLE", [500, 5200, 26000, 6400])
+        add(
+            f"person-{i + 1}", "PERSON", [x, 1000, x + 400, 1600], shift=1, serves=f"locker-{i + 1}"
+        )
+        components[-1]["states"] = ["USE", "SHIFT_CHANGE"]
+    add("front-low", "AISLE", [500, 1600, 25000, 2800])
+    add("front-high", "AISLE", [500, 5200, 25000, 6400])
     add("link", "AISLE", [23800, 1600, 25000, 6400])
     add("main", "AISLE", [0, 3400, 26000, 4600])
     add("entry-pocket", "DOOR_OPERATION", [0, 4750, 100, 6250], portal_id="entry")
@@ -278,15 +286,61 @@ def complete_synthetic_design(binding):
     return room, refs, witness, basis
 
 
+def reviewed_dual_design(binding):
+    room, refs, first, basis = complete_synthetic_design(binding)
+    second = copy.deepcopy(first)
+    for c in second["components"]:
+        if c["role"] == "PERSON":
+            i = int(c["id"].split("-")[-1])
+            x = c["bounds_mm"][0]
+            c.update(shift=2, serves=f"locker-{i + 53}", bounds_mm=[x, 6400, x + 400, 7000])
+    plan = {}
+    for shift in (1, 2):
+        active = [
+            c["id"] for c in first["components"] if c["role"] == "LOCKER" and c["shift"] == shift
+        ]
+        plan[str(shift)] = {
+            state: dict(
+                active_locker_ids=active,
+                inactive_lockers_closed=True,
+                door_motion_basis=(
+                    "Synthetic reviewed no-floor-sweep unit locker, not a project selection"
+                ),
+                locker_door_motion={
+                    key: dict(mode="NO_FLOOR_SWEEP", exclusions_mm=[]) for key in active
+                },
+            )
+            for state in STATES
+        }
+    refs[PLAN_FIELD] = PLAN_FIELD
+    basis[PLAN_FIELD] = BasisValue(
+        plan,
+        "mapping",
+        "ENGINEERING_DERIVED",
+        "tests/unit/test_v222_r11_r3_locker_review.py#reviewed_dual_design:synthetic",
+        room["scope_id"],
+        PLAN_FIELD,
+    )
+    return room, refs, {1: first, 2: second}, basis
+
+
 def test_complete_reviewed_fixture_delegates_to_original_r11_all_four_states(catalog):
     binding = catalog["project_binding"]
-    room, refs, witness, basis = complete_synthetic_design(binding)
+    room, refs, witnesses, basis = reviewed_dual_design(binding)
     result = evaluate_reviewed_locker_witness(
-        room, binding, field_refs=refs, reviewed_basis=basis, witness=witness
+        room, binding, field_refs=refs, reviewed_basis=basis, shift_witnesses=witnesses
     )
     assert result["functional_status"] == "CONDITIONAL_FIT", result
-    assert set(result["state_results"]) == set(STATES)
-    assert all(r["valid"] for s in result["state_results"].values() for r in s["route_results"])
+    assert set(result["shift_results"]) == {"1", "2"}
+    for shift in ("1", "2"):
+        checked = result["shift_results"][shift]
+        assert checked["r3"]["status"] == "SHIFT_USE_VALIDATED"
+        assert set(checked["r3"]["state_results"]) == set(STATES)
+        for state in ("USE", "SHIFT_CHANGE"):
+            proof = checked["r3"]["state_results"][state]
+            assert proof["people_count"] == 53
+            assert len(set(proof["person_to_locker"].values())) == 53
+            assert len(proof["proven_portal_ids"]) == 2
     assert not result["engineering_approval"]
 
 
@@ -296,7 +350,8 @@ def test_complete_reviewed_fixture_delegates_to_original_r11_all_four_states(cat
 )
 def test_full_witness_failures_never_become_conditional_fit(catalog, failure):
     binding = catalog["project_binding"]
-    room, refs, witness, basis = complete_synthetic_design(binding)
+    room, refs, witnesses, basis = reviewed_dual_design(binding)
+    witness = witnesses[1]
     if failure == "person_missing":
         witness["components"] = [c for c in witness["components"] if c["id"] != "person-53"]
     elif failure == "duplicate_identity":
@@ -317,7 +372,7 @@ def test_full_witness_failures_never_become_conditional_fit(catalog, failure):
     else:
         basis["locker_model"] = replace(basis["locker_model"], scope_id="OTHER")
     result = evaluate_reviewed_locker_witness(
-        room, binding, field_refs=refs, reviewed_basis=basis, witness=witness
+        room, binding, field_refs=refs, reviewed_basis=basis, shift_witnesses=witnesses
     )
     assert result["functional_status"] in {"INPUT_REQUIRED", "CONFIGURATION_NOT_FIT"}
 
@@ -356,3 +411,171 @@ def test_preview_parameters_cannot_override_project_or_portals(catalog):
     result = preview_request(catalog, {"group": "G01", "parameters": {"bench_count": 1}})
     assert result["result"]["project_status"] == "INPUT_REQUIRED"
     assert result["result"]["design_counts"]["locker_count"] == 106
+
+
+@pytest.mark.parametrize("first,expected", [(53, 21200), (90, 36000), (1, 42000)])
+def test_unequal_opposed_rows_use_longest_row_not_half_total(catalog, first, expected):
+    r = hypothetical_review(catalog, "G01", HypotheticalLockerParameters(first_row_count=first))
+    assert r["screening"]["required_length_mm"] == expected
+    if first != 53:
+        assert r["screening"]["necessary_condition_status"] == "CONFIGURATION_NOT_FIT"
+        assert r["screening"]["unplaced_lockers"] > 0
+
+
+def test_single_shift_legacy_positive_is_not_two_shift_proof(catalog):
+    binding = catalog["project_binding"]
+    room, refs, witnesses, basis = reviewed_dual_design(binding)
+    assert (
+        evaluate_functional_room(room, refs, witnesses[1], reviewed_basis=basis)[
+            "functional_status"
+        ]
+        == "CONDITIONAL_FIT"
+    )
+    for supplied in ({1: witnesses[1]}, {2: witnesses[2]}):
+        r = evaluate_reviewed_locker_witness(
+            room, binding, field_refs=refs, reviewed_basis=basis, shift_witnesses=supplied
+        )
+        assert r["functional_status"] == "INPUT_REQUIRED"
+    r = evaluate_reviewed_locker_witness(
+        room, binding, field_refs=refs, reviewed_basis=basis, witness=witnesses[1]
+    )
+    assert r["functional_status"] == "INPUT_REQUIRED"
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "reused_first_shift_people",
+        "wrong_locker_front",
+        "same_locker_twice",
+        "changed_body",
+        "missing_motion_review",
+        "bad_review_scope",
+        "door_sweep_hits_person",
+    ],
+)
+def test_each_shift_needs_identity_front_and_motion_evidence(catalog, failure):
+    binding = catalog["project_binding"]
+    room, refs, w, basis = reviewed_dual_design(binding)
+    people = [c for c in w[2]["components"] if c["role"] == "PERSON"]
+    if failure == "reused_first_shift_people":
+        w[2] = copy.deepcopy(w[1])
+    elif failure == "wrong_locker_front":
+        people[0]["bounds_mm"] = [500, 1000, 900, 1600]
+    elif failure == "same_locker_twice":
+        people[0]["serves"] = people[1]["serves"]
+    elif failure == "changed_body":
+        next(c for c in w[2]["components"] if c["role"] == "LOCKER")["bounds_mm"][0] += 1
+    elif failure == "missing_motion_review":
+        del basis[PLAN_FIELD]
+    elif failure == "bad_review_scope":
+        basis[PLAN_FIELD] = replace(basis[PLAN_FIELD], scope_id="OTHER")
+    else:
+        plan = copy.deepcopy(basis[PLAN_FIELD].value)
+        plan["2"]["USE"]["locker_door_motion"]["locker-54"] = {
+            "mode": "EXCLUSION_RECTANGLES",
+            "exclusions_mm": [[500, 6400, 900, 7000]],
+        }
+        basis[PLAN_FIELD] = replace(basis[PLAN_FIELD], value=plan)
+    r = evaluate_reviewed_locker_witness(
+        room, binding, field_refs=refs, reviewed_basis=basis, shift_witnesses=w
+    )
+    assert r["functional_status"] != "CONDITIONAL_FIT"
+
+
+def test_original_r11_positive_with_people_in_net_aisle_is_rejected_by_r3(catalog):
+    binding = catalog["project_binding"]
+    room, refs, w, basis = reviewed_dual_design(binding)
+    next(c for c in w[1]["components"] if c["id"] == "front-low")["bounds_mm"][1] = 1000
+    old = evaluate_functional_room(room, refs, w[1], reviewed_basis=basis)
+    assert old["functional_status"] == "CONDITIONAL_FIT", old
+    r = evaluate_reviewed_locker_witness(
+        room, binding, field_refs=refs, reviewed_basis=basis, shift_witnesses=w
+    )
+    assert r["functional_status"] == "CONFIGURATION_NOT_FIT"
+    assert any(c["code"] == "OCCUPIED_SPACE_INTRUDES_NET_AISLE" for c in r["conflicts"])
+
+
+@pytest.mark.parametrize("state", ["USE", "SHIFT_CHANGE", "CLEANING", "MAINTENANCE"])
+def test_exclusive_occupancy_cannot_block_route_in_any_state(catalog, state):
+    binding = catalog["project_binding"]
+    room, refs, w, basis = reviewed_dual_design(binding)
+    w[1]["components"].append(
+        dict(
+            id="occupied-route",
+            role="MAINTENANCE",
+            bounds_mm=[1000, 3400, 2000, 4600],
+            states=[state],
+        )
+    )
+    old = evaluate_functional_room(room, refs, w[1], reviewed_basis=basis)
+    assert old["functional_status"] == "CONDITIONAL_FIT", old
+    r = evaluate_reviewed_locker_witness(
+        room, binding, field_refs=refs, reviewed_basis=basis, shift_witnesses=w
+    )
+    assert r["functional_status"] == "CONFIGURATION_NOT_FIT"
+    assert any(
+        c["code"] == "OCCUPIED_SPACE_INTRUDES_NET_ROUTE" and c["state"] == state
+        for c in r["conflicts"]
+    )
+
+
+def test_h5_staggered_example_proves_both_shifts_only_under_unapproved_assumptions(catalog):
+    r = response(hypothetical_review(catalog, "G01", HypotheticalLockerParameters()))
+    case = r["result"]["conditional_simulation"]
+    assert case["simulation_status"] == "GEOMETRY_VALID_ONLY_UNDER_HYPOTHESES", case
+    assert r["result"]["project_status"] == "INPUT_REQUIRED"
+    assert case["source_label"] == "HYPOTHETICAL_NOT_APPROVED"
+    assert [case["shifts"][s]["route_center_y_mm"] for s in ("1", "2")] == [1700, 1550]
+    for shift in ("1", "2"):
+        c = case["shifts"][shift]
+        assert c["r3"]["status"] == "SHIFT_USE_VALIDATED"
+        assert c["r3"]["state_results"]["USE"]["people_count"] == 53
+        assert len(c["r3"]["state_results"]["USE"]["proven_portal_ids"]) == 2
+        ET.fromstring(r["shift_svgs"][shift])
+
+
+@pytest.mark.parametrize("missing", ["closed_bank", "door_model", "second_plan"])
+def test_incomplete_reviewed_operation_plan_never_approves(catalog, missing):
+    binding = catalog["project_binding"]
+    room, refs, w, basis = reviewed_dual_design(binding)
+    plan = copy.deepcopy(basis[PLAN_FIELD].value)
+    if missing == "closed_bank":
+        del plan["2"]["USE"]["inactive_lockers_closed"]
+    elif missing == "door_model":
+        del plan["2"]["MAINTENANCE"]["locker_door_motion"]["locker-54"]
+    else:
+        del plan["2"]
+    basis[PLAN_FIELD] = replace(basis[PLAN_FIELD], value=plan)
+    r = evaluate_reviewed_locker_witness(
+        room, binding, field_refs=refs, reviewed_basis=basis, shift_witnesses=w
+    )
+    assert r["functional_status"] == "INPUT_REQUIRED"
+
+
+def test_h5_bench_conflict_is_not_hidden_by_staggered_usage(catalog):
+    r = response(hypothetical_review(catalog, "G01", HypotheticalLockerParameters(bench_count=1)))
+    assert (
+        r["result"]["conditional_simulation"]["simulation_status"]
+        != "GEOMETRY_VALID_ONLY_UNDER_HYPOTHESES"
+    )
+    assert r["result"]["project_status"] == "INPUT_REQUIRED"
+
+
+def test_p01_p02_have_independent_original_access_readbacks(sources):
+    preview = ROOT / "docs/previews/v2.2.2/r11-r3-locker-layout-review-r1"
+    data = json.loads((preview / "record-access-readbacks.json").read_bytes())
+    selected = {r["record"]: r for r in data if r["record"] in {"P01", "P02"}}
+    assert set(selected) == {"P01", "P02"}
+    assert selected["P01"]["source_sha256"] != selected["P02"]["source_sha256"]
+    originals = {
+        r["record"]: r
+        for r in sources[0]["room_evaluations"]
+        if r["room"]["room_code"] == "changing_room"
+    }
+    for record, row in selected.items():
+        assert row["source_sha256"] == originals[record]["source_candidate_sha256"]
+        assert row["candidate_hash"] == originals[record]["room"]["candidate_hash"]
+        assert row["two_access_passes"] and row["portal_geometry_matches"]
+        assert len(row["access_results"]) == 2
+        assert {a["status"] for a in row["access_results"]} == {"PASS"}

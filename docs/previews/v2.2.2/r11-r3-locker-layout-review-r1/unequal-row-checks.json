@@ -1,0 +1,23 @@
+[
+  {
+    "first_row_count": 53,
+    "second_row_count": 53,
+    "required_length_mm": 21200,
+    "status": "NECESSARY_CONDITIONS_MET_ONLY",
+    "source_label": "HYPOTHETICAL_NOT_APPROVED"
+  },
+  {
+    "first_row_count": 90,
+    "second_row_count": 16,
+    "required_length_mm": 36000,
+    "status": "CONFIGURATION_NOT_FIT",
+    "source_label": "HYPOTHETICAL_NOT_APPROVED"
+  },
+  {
+    "first_row_count": 1,
+    "second_row_count": 105,
+    "required_length_mm": 42000,
+    "status": "CONFIGURATION_NOT_FIT",
+    "source_label": "HYPOTHETICAL_NOT_APPROVED"
+  }
+]

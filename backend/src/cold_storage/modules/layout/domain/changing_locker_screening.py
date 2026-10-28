@@ -10,7 +10,7 @@ from cold_storage.modules.layout.domain.functional_room_fit import (
     rectangle,
 )
 
-VERSION = "changing-locker-screening@1.0.0"
+VERSION = "changing-locker-screening@1.1.0"
 
 
 def _box(values: list[int]) -> tuple[int, int, int, int]:
@@ -95,7 +95,7 @@ def screen_locker_rows(
     if length <= 0 or width <= 0:
         raise ValueError("HYPOTHETICAL_FINISH_REMOVES_ROOM")
     row_count = 1 if p.arrangement == "SINGLE_SIDE" else 2
-    ideal_per_row = count if row_count == 1 else (count + 1) // 2
+    ideal_per_row = count if row_count == 1 else max(p.first_row_count, count - p.first_row_count)
     required_length = ideal_per_row * p.locker_width_mm
     required_width = row_count * p.locker_depth_mm + p.aisle_mm
     reasons = []
@@ -297,7 +297,7 @@ def screen_locker_rows(
         functional_status="INPUT_REQUIRED",
         formulas=[
             "single required length=N*locker_width",
-            "opposed required length=ceil(N/2)*locker_width",
+            "opposed required length=max(first_row_count,N-first_row_count)*locker_width",
             "opposed required width=2*locker_depth+clear_aisle",
             "segmented row capacity=sum(floor(free_segment/locker_width))",
         ],

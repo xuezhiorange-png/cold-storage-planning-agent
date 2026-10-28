@@ -13,7 +13,13 @@ from cold_storage.modules.layout.domain.changing_locker_screening import (
     HypotheticalLockerParameters,
     screen_locker_rows,
 )
+from cold_storage.modules.layout.domain.changing_shift_use import (
+    PLAN_FIELD,
+    VERSION,
+    validate_shift_use,
+)
 from cold_storage.modules.layout.domain.functional_room_fit import (
+    BODY_ROLES,
     COMMON,
     REQUIRED,
     BasisValue,
@@ -68,6 +74,7 @@ def evaluate_reviewed_locker_witness(
     field_refs: Mapping[str, str] | None = None,
     reviewed_basis: Mapping[str, BasisValue] | None = None,
     witness: Mapping[str, Any] | None = None,
+    shift_witnesses: Mapping[int, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Use the original R11 oracle; hypothetical parameters cannot enter this port.
 
@@ -99,18 +106,89 @@ def evaluate_reviewed_locker_witness(
             scope_id=room["scope_id"],
             field_name=field,
         )
+    # A legacy single-shift witness cannot establish either/both shift identities.
     result = evaluate_functional_room(room, refs, witness, reviewed_basis=basis)
-    if result["functional_status"] != "INPUT_REQUIRED" and witness:
-        components = witness.get("components", [])
-        lockers = [c for c in components if c["role"] == "LOCKER"]
-        if len(lockers) != sum(values["shift_locker_counts"]) or any(
-            sum(c.get("shift") == i for c in lockers) != required
-            for i, required in enumerate(values["shift_locker_counts"], 1)
-        ):
-            result["conflicts"].append(
-                dict(code="R3_EXACT_INDEPENDENT_LOCKER_ALLOCATION_REQUIRED", components=[])
+    result["r3_validation_version"] = VERSION
+    result["shift_results"] = {}
+    datum = basis.get(refs.get(PLAN_FIELD, ""))
+    plan = None
+    if (
+        isinstance(datum, BasisValue)
+        and datum.field_name == PLAN_FIELD
+        and datum.scope_id == room["scope_id"]
+        and datum.unit == "mapping"
+        and datum.source_label in {"OWNER_CONFIRMED", "ENGINEERING_DERIVED"}
+        and datum.reference.strip()
+        and isinstance(datum.value, Mapping)
+        and set(datum.value) == {"1", "2"}
+    ):
+        plan = datum.value
+    else:
+        result["missing_inputs"].append("reviewed:" + PLAN_FIELD)
+    supplied = shift_witnesses or {}
+    if not isinstance(supplied, Mapping) or set(supplied) - {1, 2}:
+        raise ValueError("EXPLICIT_SHIFT_1_AND_SHIFT_2_WITNESSES_REQUIRED")
+    if witness is not None and shift_witnesses:
+        raise ValueError("AMBIGUOUS_LEGACY_AND_PER_SHIFT_WITNESS")
+    # The original physical/P1 facts are shared; state results live under each shift.
+    result["state_results"] = {}
+    all_missing: list[str] = []
+    all_conflicts: list[dict[str, Any]] = []
+    for shift in (1, 2):
+        current = supplied.get(shift)
+        if current is None:
+            all_missing.append(f"shift_{shift}:complete_independent_witness")
+            continue
+        legacy = evaluate_functional_room(room, refs, current, reviewed_basis=basis)
+        ext = validate_shift_use(
+            room,
+            current,
+            legacy,
+            shift,
+            values["shift_locker_counts"],
+            plan.get(str(shift)) if plan else None,
+        )
+        result["shift_results"][str(shift)] = dict(r11=legacy, r3=ext)
+        all_missing.extend(
+            f"shift_{shift}:" + m for m in legacy["missing_inputs"] + ext["missing_inputs"]
+        )
+        all_conflicts.extend(dict(c, shift=shift) for c in legacy["conflicts"] + ext["conflicts"])
+    if len(supplied) == 2:
+
+        def fixed_layout(current: Mapping[str, Any]) -> list[tuple[Any, ...]]:
+            return sorted(
+                (
+                    c.get("id"),
+                    c.get("role"),
+                    tuple(c.get("bounds_mm", [])),
+                    c.get("front"),
+                    c.get("shift"),
+                )
+                for c in current.get("components", [])
+                if c.get("role") in BODY_ROLES
             )
-            result["functional_status"] = "CONFIGURATION_NOT_FIT"
+
+        try:
+            if fixed_layout(supplied[1]) != fixed_layout(supplied[2]):
+                all_conflicts.append(
+                    dict(code="FIXED_BODIES_MUST_MATCH_BETWEEN_SHIFTS", components=[])
+                )
+        except (TypeError, KeyError, ValueError):
+            all_missing.append("cross_shift:complete_fixed_body_identity")
+    # Missing design data from the metadata-only R11 call is superseded by the
+    # actual per-shift oracle calls; its absent single witness is not a new gap.
+    source_missing = [m for m in result["missing_inputs"] if m != "explicit_layout_witness"]
+    result["missing_inputs"] = sorted(set(source_missing + all_missing))
+    result["conflicts"] = all_conflicts
+    result["functional_status"] = (
+        "INPUT_REQUIRED"
+        if result["missing_inputs"]
+        else "CONFIGURATION_NOT_FIT"
+        if all_conflicts
+        else "CONDITIONAL_FIT"
+    )
+    result["source_label"] = "INPUT_REQUIRED" if result["missing_inputs"] else "ENGINEERING_DERIVED"
+    result["proof_scope"] = "BOTH_REVIEWED_SHIFT_WITNESSES_ALL_FOUR_STATES_ONLY"
     return result
 
 
@@ -201,4 +279,5 @@ def hypothetical_review(
         screening=screening,
         external_access_status="ARCHIVED_STAGE_B_PASS_NOT_INTERIOR_FUNCTIONAL_APPROVAL",
         external_routes=row.get("external_routes", []),
+        record_access_readbacks=row.get("record_access_readbacks", []),
     )

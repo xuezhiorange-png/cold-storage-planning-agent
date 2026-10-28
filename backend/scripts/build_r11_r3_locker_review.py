@@ -58,6 +58,7 @@ def load_sources(repo: Path, archive: Path) -> tuple[dict[str, Any], dict[str, s
     }
     for group in catalog["groups"]:
         room = group["room"]
+        group["record_access_readbacks"] = []
         for alias in group["aliases"]:
             relative = alias["geometry_reference"].removeprefix("sealed-r10:").split("#", 1)[0]
             path = (archive / relative).resolve()
@@ -65,8 +66,6 @@ def load_sources(repo: Path, archive: Path) -> tuple[dict[str, Any], dict[str, s
                 raise ValueError("SEALED_CANDIDATE_PATH_REQUIRED")
             candidate = json.loads(_read_checked(path, alias["candidate_sha256"]))
             sources[str(path)] = alias["candidate_sha256"]
-            if alias != group["aliases"][0]:
-                continue
             routes = [
                 r
                 for r in candidate["engineering_validation"]["access_results"]
@@ -75,6 +74,34 @@ def load_sources(repo: Path, archive: Path) -> tuple[dict[str, Any], dict[str, s
             if len(routes) != 2 or any(r["status"] != "PASS" for r in routes):
                 raise ValueError("ORIGINAL_TWO_ACCESS_PASSES_REQUIRED")
             x, y = room["world_bounds_mm"][:2]
+            actual_portals = {}
+            for route in routes:
+                for p in (route.get("portal_from"), route.get("portal_to")):
+                    if p and p["access_ref"] == "changing_room":
+                        if p["status"] != "VALID":
+                            raise ValueError("ORIGINAL_CHANGING_PORTAL_NOT_VALID")
+                        points = [p["segment"][key] for key in ("start", "end")]
+                        actual_portals[p["identity"]] = (
+                            sorted([[_mm(v["x"]) - x, _mm(v["y"]) - y] for v in points]),
+                            _mm(p["clear_width_m"]),
+                        )
+            expected_portals = {
+                p["id"]: (sorted(p["segment_mm"]), p["clear_width_mm"]) for p in room["portals"]
+            }
+            if actual_portals != expected_portals:
+                raise ValueError("ARCHIVED_RECORD_PORTALS_DIFFER_FROM_R11_ROOM")
+            group["record_access_readbacks"].append(
+                dict(
+                    record=alias["record"],
+                    candidate_hash=alias["candidate_hash"],
+                    source_sha256=alias["candidate_sha256"],
+                    two_access_passes=True,
+                    portal_geometry_matches=True,
+                    access_results=routes,
+                )
+            )
+            if alias != group["aliases"][0]:
+                continue
             group["external_routes"] = [
                 dict(
                     requirement=r["requirement_identity"],
@@ -115,6 +142,31 @@ def write_review(repo: Path, archive: Path, output: Path) -> tuple[dict[str, Any
     # Read persisted calculations before producing report text, tables and SVGs.
     catalog = json.loads((output / "project-and-room-catalog.json").read_bytes())
     presets = json.loads((output / "hypothetical-screening.json").read_bytes())
+    conditional = presets["G01:DOUBLE_SIDE"]["result"]["conditional_simulation"]
+    (output / "h5-staggered-simulation.json").write_text(
+        json.dumps(conditional, ensure_ascii=False) + "\n"
+    )
+    readbacks = [a for group in catalog["groups"] for a in group["record_access_readbacks"]]
+    (output / "record-access-readbacks.json").write_text(
+        json.dumps(readbacks, ensure_ascii=False, indent=2) + "\n"
+    )
+    unequal = []
+    for first in (53, 90, 1):
+        result = hypothetical_review(
+            catalog, "G01", HypotheticalLockerParameters(first_row_count=first)
+        )
+        unequal.append(
+            dict(
+                first_row_count=first,
+                second_row_count=catalog["design_counts"]["locker_count"] - first,
+                required_length_mm=result["screening"]["required_length_mm"],
+                status=result["screening"]["necessary_condition_status"],
+                source_label="HYPOTHETICAL_NOT_APPROVED",
+            )
+        )
+    (output / "unequal-row-checks.json").write_text(
+        json.dumps(unequal, ensure_ascii=False, indent=2) + "\n"
+    )
     page = render_page(catalog, presets)
     (output / "index.html").write_text(page)
     design = catalog["design_counts"]
@@ -151,6 +203,45 @@ def write_review(repo: Path, archive: Path, output: Path) -> tuple[dict[str, Any
         f"H5双侧基本所需{h5['required_length_mm']}×{h5['required_width_mm']}mm，外包矩形{h5['available_length_mm']}×{h5['available_width_mm']}mm，故仅通过必要条件。当前假设两侧独立柜前操作区加净通道所需宽{h5['operation_width_required_mm']}mm，超过现有宽度；这是指定模板失败，不是所有模板无解。实际两门的净通行、人员、座凳及四状态仍需完整已审见证。",
         "",
         "完整已审输入由可信应用提供BasisValue后，evaluate_reviewed_locker_witness调用原R11校核器。页面参数不是审阅入口；假设预览永远不产生正式CONDITIONAL_FIT。零Native、MAIN、Grant/Claim。",
+    ]
+    lines += [
+        "",
+        "## 两班独立证明与净通行修正",
+        "",
+        "R3要求分别提交shift_witnesses[1]与[2]，各班53人必须与本班53柜一一关联并位于对应柜体操作面。两班固定柜体/座凳位置一致。原R11四状态先校核，再由R3排除人员、门扇、其他功能占用及当前活动柜门操作区侵占净AISLE或路线包络；未知柜门运动或另一排关闭条件不得默认通过。",
+        "",
+        "经审阅的r3_shift_operation_plan须逐班、逐状态声明活动柜、未用柜关闭依据及柜门排除范围。人员可使用自己的操作区，但不能占用另一用户的活动操作区；缺少任一班或任一状态的完整证据不能CONDITIONAL_FIT。",
+        "",
+        "## H5错峰条件模拟（不是实际项目批准）",
+        "",
+        f"模拟状态：{conditional['simulation_status']}。仍假设无侵入式柜门、房门无门扇、净高4000mm、无座凳、无需洁污分隔及完成面零内缩；这些均未确认。",
+    ]
+    for shift, case in conditional.get("shifts", {}).items():
+        proof = case["r3"]
+        use = proof["state_results"].get("USE", {})
+        lines.append(
+            f"- 班次{shift}：原R11={case['original_r11']['functional_status']}，R3={proof['status']}，记录使用人位={use.get('people_count', 'NOT_EVALUATED')}，内部路线中心y={case['route_center_y_mm']}mm，门洞证明={use.get('proven_portal_ids', [])}。"
+        )
+        (output / f"G01-shift-{shift}-staggered.svg").write_text(
+            presets["G01:DOUBLE_SIDE"]["shift_svgs"][shift]
+        )
+    lines += [
+        "",
+        "错峰时，仅当前班操作区保持活动，已明确假设关闭的另一班柜前地面可用于净通行。此条件下两班可以采用不同内部通道；并非要求106人同时使用，也不能把原3400mm同时双排操作模板的失败推广到所有安排。实际柜门机制、房门开启、净完成面、净宽、座凳和洁污条件仍缺失，8组真实房间均INPUT_REQUIRED。",
+        "",
+        "## 不均等柜排",
+        "",
+        "双侧理想必要长度=max(n1,N-n1)×柜宽；均分53/53只是特例。实际Portal分段容量另行检查，不能由总长公式替代。",
+    ]
+    lines += [
+        f"- 假设柜排{r['first_row_count']}/{r['second_row_count']}：理想必要长度{r['required_length_mm']}mm，H5基础状态{r['status']}。"
+        for r in unequal
+    ]
+    lines += ["", "## P01与P02分别回读", ""]
+    lines += [
+        f"- {r['record']}：源SHA={r['source_sha256']}；两条原Access均PASS={r['two_access_passes']}；原Portal坐标和净宽匹配={r['portal_geometry_matches']}。"
+        for r in readbacks
+        if r["record"] in {"P01", "P02"}
     ]
     (output / "results.md").write_text("\n".join(lines) + "\n")
     digests = {
@@ -200,7 +291,11 @@ def main() -> None:
         if current["project_binding"] != catalog["project_binding"]:
             raise ValueError("CURRENT_REVIEWED_PROJECT_BASIS_REQUIRED")
         for expected, saved in zip(current["groups"], catalog["groups"], strict=True):
-            if expected != {k: v for k, v in saved.items() if k != "external_routes"}:
+            if expected != {
+                k: v
+                for k, v in saved.items()
+                if k not in {"external_routes", "record_access_readbacks"}
+            }:
                 raise ValueError("SEALED_ROOM_OR_PORTAL_CHANGED")
         page = (args.output / "index.html").read_text()
     else:

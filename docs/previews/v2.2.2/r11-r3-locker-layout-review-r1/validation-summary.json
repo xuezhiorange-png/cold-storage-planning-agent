@@ -1,9 +1,9 @@
 {
-  "task": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1",
-  "base_head": "93d7d1520052daf2fccdf62e6dd7e61468ef007f",
+  "task": "V2_2_2_R11_R3_LOCKER_FUNCTIONAL_VALIDATION_FIX_R1",
+  "base_head": "d6d36b31d3a9c335ffdf5888bc79e4d0c171b699",
   "tests": {
     "R3": {
-      "passed": 42,
+      "passed": 64,
       "skipped": 0,
       "failed": 0
     },
@@ -23,10 +23,12 @@
       "failed": 0
     }
   },
+  "pytest_passed": 963,
+  "pytest_skipped": 16,
   "ci_contract_tests": 65,
   "ruff": "PASS",
-  "format": "PASS_1058_FILES",
-  "mypy": "PASS_473_FILES",
+  "format": "PASS_1060_FILES",
+  "mypy": "PASS_475_FILES",
   "local_native_calls": 0,
   "report_native_calls": "BOTH_SOLVE_APIS_FORBIDDEN",
   "archived_record_count": 9,
@@ -48,19 +50,38 @@
   "real_room_conditional_fit_count": 0,
   "all_real_rooms_input_required": true,
   "historical_files_hash_verified_unchanged": 291,
-  "old_tracked_files_unchanged_except": [
-    ".github/workflows/ci-fast.yml"
+  "old_tracked_changes": [
+    "backend/scripts/build_r11_r3_locker_review.py",
+    "backend/src/cold_storage/modules/layout/application/changing_locker_review.py",
+    "backend/src/cold_storage/modules/layout/domain/changing_locker_screening.py",
+    "backend/src/cold_storage/modules/layout/infrastructure/changing_locker_review_page.py",
+    "backend/tests/unit/test_v222_r11_r3_locker_review.py",
+    "docs/previews/v2.2.2/r11-r3-locker-layout-review-r1/hypothetical-screening.json",
+    "docs/previews/v2.2.2/r11-r3-locker-layout-review-r1/index.html",
+    "docs/previews/v2.2.2/r11-r3-locker-layout-review-r1/project-and-room-catalog.json",
+    "docs/previews/v2.2.2/r11-r3-locker-layout-review-r1/results.md",
+    "docs/previews/v2.2.2/r11-r3-locker-layout-review-r1/source-manifest.json",
+    "docs/tasks/V2_2_2-r11-r3-106-locker-layout-review-r1.md"
   ],
+  "dual_shift_witness_required": true,
+  "net_aisle_and_route_collision_false_positive_regression": "PASS",
+  "unequal_row_cases": [
+    "53/53:21200mm",
+    "90/16:36000mm",
+    "1/105:42000mm"
+  ],
+  "h5_staggered_simulation": "GEOMETRY_VALID_ONLY_UNDER_HYPOTHESES",
+  "p01_p02_access_read_separately": true,
   "real_main_executed": false,
   "grant_created": false,
   "claim_created": false,
   "full_ci": "NOT_REQUESTED",
   "production_default_changed": false,
   "browser_checks": [
-    "H5/H6 group and single/opposed templates",
-    "bench parameter preview and four-state layer switch",
-    "all sixteen HTTP group/template responses",
-    "approval/status/witness/count overrides rejected"
+    "Both 53-person shift diagrams and original portals",
+    "90/16 and 1/105 corrected lengths",
+    "H6 remains INPUT_REQUIRED",
+    "State layer controls and restored USE view"
   ],
   "hypothetical_values_approved": false
 }
