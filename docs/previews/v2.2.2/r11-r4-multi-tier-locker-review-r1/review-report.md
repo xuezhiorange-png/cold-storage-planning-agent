@@ -1,0 +1,96 @@
+# R11 R4 · 五层格口模型与真实更衣室评审
+
+## 实际项目结论
+
+8组房间全部 INPUT_REQUIRED。实际五层五门、每人独立格口已由本轮Owner确认；约300mm格高只是参考，实际柜型、宽深总高、隔断、并发操作人数、门扇和内部通行均未审定。快照通过仅说明指定假设下的静态占用与通道条件成立，不是 CONDITIONAL_FIT。
+
+原20t成品/天的R3项目审阅绑定原样复用，未改Owner V2通用规则。默认两班设计人数各53，106是独立储物格口需求，不是106个落地柜体；仍保留53人同时在室。
+
+## 分层实体与分隔方案
+
+物理柜体单元 → 竖向柜列 → 5个独立门格口 → 设计人员分配。厂家可将多列组合成一个实体柜，因此22列不能自动等同于22个实际柜体。每班独立列，不借用另一班备用格口；设计编号不是人员名册。
+
+|方案|每人格口|各班需求|各班列数|总列|容量|各班备用|洁污满足|
+|---|---:|---|---|---:|---:|---|---|
+|INTERNAL_PARTITION|1|[53, 53]|[11, 11]|22|110|[2, 2]|INPUT_REQUIRED|
+|TWO_COMPARTMENTS|2|[106, 106]|[22, 22]|44|220|[4, 4]|INPUT_REQUIRED|
+
+单格内部分隔方案只保留分隔需求，虚线不代表隔板厚度、两侧有效容积或卫生效果已证明。两格/人方案将工衣、私衣分别分配独立门格口，但交叉污染控制、操作顺序及洁污分区仍需工程确认。
+
+## 仅用于敏感性演示的参数
+
+列宽400mm、深500mm、总高1800mm；格口参考净高300mm、底座100mm、层板20mm；每实体柜1列；净通道1200mm；柜前操作深600mm；人员占位400×600mm；柜前最多11人并发；其余人仍在室并有独立占位。无座凳、完成面内缩0、净高3000mm、操作可达高度100–1700mm、柜门与房门无内侵均是 HYPOTHETICAL_NOT_APPROVED。不能把这些数值写入真实设计Authority。
+
+每列同一时刻最多一人操作，不因五层格口叠放就同时在同一地面安排五人。各班逐批覆盖全部已分配格口，USE/SHIFT_CHANGE每批始终保留53人；清洁/维护另用一名假设工作人员，生产人员离室也是待审假设。清洁/维护按列核对全部五层的假设可达高度与操作占位，但实际维护方式、梯具及转移路径尚未评估。
+
+## 8组真实矩形，原门洞逐记录复核
+
+|组|记录/Handoff|实际mm|分隔方案|排布|必要柜排长mm|柜深+净通道必要宽mm|假设模板状态|失败快照|实际功能|
+|---|---|---|---|---|---:|---:|---|---:|---|
+|G01|P01/P02/H5|26331×3250|INTERNAL_PARTITION|OPPOSED|4400|2200|SNAPSHOTS_VALID_UNDER_HYPOTHESES|0|INPUT_REQUIRED|
+|G01|P01/P02/H5|26331×3250|INTERNAL_PARTITION|SINGLE_SIDE|8800|1700|SNAPSHOTS_VALID_UNDER_HYPOTHESES|0|INPUT_REQUIRED|
+|G01|P01/P02/H5|26331×3250|TWO_COMPARTMENTS|OPPOSED|8800|2200|SNAPSHOTS_VALID_UNDER_HYPOTHESES|0|INPUT_REQUIRED|
+|G01|P01/P02/H5|26331×3250|TWO_COMPARTMENTS|SINGLE_SIDE|17600|1700|SNAPSHOTS_VALID_UNDER_HYPOTHESES|0|INPUT_REQUIRED|
+|G02|P03/H6|39683×1008|INTERNAL_PARTITION|OPPOSED|4400|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G02|P03/H6|39683×1008|INTERNAL_PARTITION|SINGLE_SIDE|8800|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G02|P03/H6|39683×1008|TWO_COMPARTMENTS|OPPOSED|8800|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G02|P03/H6|39683×1008|TWO_COMPARTMENTS|SINGLE_SIDE|17600|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G03|P04/H6|39635×1010|INTERNAL_PARTITION|OPPOSED|4400|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G03|P04/H6|39635×1010|INTERNAL_PARTITION|SINGLE_SIDE|8800|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G03|P04/H6|39635×1010|TWO_COMPARTMENTS|OPPOSED|8800|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G03|P04/H6|39635×1010|TWO_COMPARTMENTS|SINGLE_SIDE|17600|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G04|P05/H6|39633×1011|INTERNAL_PARTITION|OPPOSED|4400|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G04|P05/H6|39633×1011|INTERNAL_PARTITION|SINGLE_SIDE|8800|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G04|P05/H6|39633×1011|TWO_COMPARTMENTS|OPPOSED|8800|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G04|P05/H6|39633×1011|TWO_COMPARTMENTS|SINGLE_SIDE|17600|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G05|P06/H6|39630×1012|INTERNAL_PARTITION|OPPOSED|4400|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G05|P06/H6|39630×1012|INTERNAL_PARTITION|SINGLE_SIDE|8800|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G05|P06/H6|39630×1012|TWO_COMPARTMENTS|OPPOSED|8800|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G05|P06/H6|39630×1012|TWO_COMPARTMENTS|SINGLE_SIDE|17600|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G06|P07/H6|39627×1013|INTERNAL_PARTITION|OPPOSED|4400|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G06|P07/H6|39627×1013|INTERNAL_PARTITION|SINGLE_SIDE|8800|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G06|P07/H6|39627×1013|TWO_COMPARTMENTS|OPPOSED|8800|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G06|P07/H6|39627×1013|TWO_COMPARTMENTS|SINGLE_SIDE|17600|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G07|P08/H6|39624×1014|INTERNAL_PARTITION|OPPOSED|4400|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G07|P08/H6|39624×1014|INTERNAL_PARTITION|SINGLE_SIDE|8800|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G07|P08/H6|39624×1014|TWO_COMPARTMENTS|OPPOSED|8800|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G07|P08/H6|39624×1014|TWO_COMPARTMENTS|SINGLE_SIDE|17600|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G08|P09/H6|39621×1015|INTERNAL_PARTITION|OPPOSED|4400|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G08|P09/H6|39621×1015|INTERNAL_PARTITION|SINGLE_SIDE|8800|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G08|P09/H6|39621×1015|TWO_COMPARTMENTS|OPPOSED|8800|2200|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+|G08|P09/H6|39621×1015|TWO_COMPARTMENTS|SINGLE_SIDE|17600|1700|CONFIGURATION_NOT_FIT|0|INPUT_REQUIRED|
+
+## H5/H6的新柜型结论
+
+H5 G01（P01/P02，同一26.331×3.250m矩形）必须分别保留两份原Access读数。五层柜大幅改变了地面占用模型；表中通过的假设快照需要两班错峰、当前活动柜列之外格门关闭、零门扇内侵等条件。并未证明完整人员换位路径、排队吞吐、53人更衣动作、竖向操作人体工学、维护梯具或洁污隔断，不能批准功能适用。
+
+H6七组矩形短边1008–1015mm。示例单侧500mm柜深+1200mm净通道需1700mm，双侧需2200mm，均超出短边；且柜前/人员操作会另需空间。新柜型不能再使用旧“长度最多99柜<106”的拒绝理由：格口竖向叠放后，短边与实际净通道成为本次指定模板的明确冲突。未审柜型不能由这些假设推导所有布局均不可行。
+
+## 边界及后续设计输入
+
+全部柜门、人员、操作区、座凳和两处原Portal通行包络分别检查；人员不得占据净通道。每个操作人员必须关联其本班格口与所属柜列。任何失败保留具体组件ID。通过快照仍不证明动态换位、疏散或四状态的完整运行能力；真实数据未齐时从不返回CONDITIONAL_FIT。
+
+- selected_cabinet_model_and_column_grouping
+- cabinet_column_and_compartment_clear_dimensions
+- shelves_plinth_structure_and_finished_clear_height
+- compartment_door_sweep_and_simultaneous_operation_rules
+- cabinet_front_concurrent_users_and_staggered_service_plan
+- 53_person_changing_spaces_and_transition_paths
+- approved_reach_and_operating_clearance_for_all_five_tiers
+- internal_divider_or_two_compartment_hygiene_approval
+- finished_room_dimensions_and_internal_aisle_width
+- actual_room_door_leaf_motion_and_landing_clearance
+- benches_dimensions_quantity_and_operation_spaces
+- clean_unclean_separation_and_cleaning_maintenance_plan
+- both_shift_complete_reviewed_four_state_witnesses
+
+## 浏览和复算
+
+直接打开 index.html 可切换全部保存方案、两班及各批次。自定义参数请使用下列命令启动仅本机的假设预览；该接口不接受项目事实、source_label或批准状态。
+
+```bash
+cd backend
+PYTHONPATH=src:scripts uv run python scripts/build_r11_r4_multi_tier_review.py --serve-existing ../docs/previews/v2.2.2/r11-r4-multi-tier-locker-review-r1 --port 52990
+```
+
+源码和评审不调用原MAIN/Store，不执行Native；原R3实现、历史9记录/8矩形、P1、工程验收、九/十二指标及原始资源账本不变。未来任何已审功能尺寸转为P2约束须另经工程确认及显式版本化接线，本轮无此行为。
