@@ -1,0 +1,31 @@
+{
+  "task": "V2_2_2_R11_R6_H5_FULL_CHANGING_OPERATION_R1",
+  "base_head": "73e5ab0a12f8851298da9b8222321327e46edabb",
+  "local_tests": {
+    "tests": 1152,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 16
+  },
+  "passed": 1136,
+  "new_r6_tests": 57,
+  "ci_contract_tests": 65,
+  "ruff": "PASS",
+  "format": "PASS_1078_FILES",
+  "mypy": "PASS_484_SOURCE_FILES",
+  "yaml": "PASS",
+  "javascript_syntax": "PASS",
+  "browser_interaction": "NOT_EVALUATED_LOCAL_BROWSER_DISABLED",
+  "svg_render": "PASS_STATIC_RENDER",
+  "original_tracked_changes": [
+    ".github/workflows/ci-fast.yml"
+  ],
+  "original_domain_application_unchanged": true,
+  "native_solves": 0,
+  "main": false,
+  "grant": false,
+  "claim": false,
+  "full_ci": "NOT_REQUESTED",
+  "full_protocol": "53_INITIAL_OCCUPANTS_EACH_USER_DEPARTS_AFTER_COMPLETE_SERVICE",
+  "negative_retained_protocol": "PRESERVED_BLOCKED_AFTER_3_USERS"
+}
