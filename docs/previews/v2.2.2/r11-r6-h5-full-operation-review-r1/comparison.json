@@ -65,34 +65,20 @@
     "transitions_checked": 28,
     "transitions_verified": 28,
     "complete_users_by_shift": [
+      53,
+      53
+    ],
+    "retained_protocol_users": [
       3,
       3
     ],
     "blockers": [
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S1-P011",
-        "batch": "S1-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      },
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S2-P011",
-        "batch": "S2-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      }
-    ],
-    "full_shift_seconds": [
       null,
       null
+    ],
+    "full_shift_seconds": [
+      13796.76499999998,
+      12998.231666666657
     ],
     "timing": {
       "status": "HYPOTHETICAL_NOT_APPROVED",
@@ -183,34 +169,20 @@
     "transitions_checked": 54,
     "transitions_verified": 54,
     "complete_users_by_shift": [
+      53,
+      53
+    ],
+    "retained_protocol_users": [
       1,
       1
     ],
     "blockers": [
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S1-P001",
-        "batch": "S1-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      },
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S2-P001",
-        "batch": "S2-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      }
-    ],
-    "full_shift_seconds": [
       null,
       null
+    ],
+    "full_shift_seconds": [
+      14056.764999999981,
+      13258.231666666652
     ],
     "timing": {
       "status": "HYPOTHETICAL_NOT_APPROVED",
@@ -301,34 +273,20 @@
     "transitions_checked": 18,
     "transitions_verified": 18,
     "complete_users_by_shift": [
+      53,
+      53
+    ],
+    "retained_protocol_users": [
       5,
       5
     ],
     "blockers": [
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S1-P021",
-        "batch": "S1-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      },
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S2-P021",
-        "batch": "S2-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      }
-    ],
-    "full_shift_seconds": [
       null,
       null
+    ],
+    "full_shift_seconds": [
+      13696.764999999981,
+      12898.231666666652
     ],
     "timing": {
       "status": "HYPOTHETICAL_NOT_APPROVED",
@@ -419,34 +377,20 @@
     "transitions_checked": 28,
     "transitions_verified": 28,
     "complete_users_by_shift": [
+      53,
+      53
+    ],
+    "retained_protocol_users": [
       3,
       3
     ],
     "blockers": [
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S1-P011",
-        "batch": "S1-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      },
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S2-P011",
-        "batch": "S2-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      }
-    ],
-    "full_shift_seconds": [
       null,
       null
+    ],
+    "full_shift_seconds": [
+      13776.764999999976,
+      12978.231666666656
     ],
     "timing": {
       "status": "HYPOTHETICAL_NOT_APPROVED",
@@ -537,34 +481,20 @@
     "transitions_checked": 28,
     "transitions_verified": 28,
     "complete_users_by_shift": [
+      53,
+      53
+    ],
+    "retained_protocol_users": [
       3,
       3
     ],
     "blockers": [
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S1-P011",
-        "batch": "S1-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      },
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S2-P011",
-        "batch": "S2-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      }
-    ],
-    "full_shift_seconds": [
       null,
       null
+    ],
+    "full_shift_seconds": [
+      13816.764999999976,
+      13018.231666666652
     ],
     "timing": {
       "status": "HYPOTHETICAL_NOT_APPROVED",
@@ -655,34 +585,20 @@
     "transitions_checked": 28,
     "transitions_verified": 28,
     "complete_users_by_shift": [
+      53,
+      53
+    ],
+    "retained_protocol_users": [
       3,
       3
     ],
     "blockers": [
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S1-P011",
-        "batch": "S1-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      },
-      {
-        "operation": "VACATE_SERVICE_AREA",
-        "person_id": "S2-P011",
-        "batch": "S2-W01",
-        "conflicts": [
-          {
-            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
-          }
-        ]
-      }
-    ],
-    "full_shift_seconds": [
       null,
       null
+    ],
+    "full_shift_seconds": [
+      13788.098333333304,
+      12989.564999999986
     ],
     "timing": {
       "status": "HYPOTHETICAL_NOT_APPROVED",
@@ -773,6 +689,10 @@
     "transitions_checked": 28,
     "transitions_verified": 0,
     "complete_users_by_shift": [
+      0,
+      0
+    ],
+    "retained_protocol_users": [
       0,
       0
     ],
@@ -894,6 +814,10 @@
       0,
       0
     ],
+    "retained_protocol_users": [
+      0,
+      0
+    ],
     "blockers": [
       {
         "operation": "ENTRY_ROSTER_OR_GEOMETRY",
@@ -1009,6 +933,10 @@
     "transitions_checked": 28,
     "transitions_verified": 0,
     "complete_users_by_shift": [
+      0,
+      0
+    ],
+    "retained_protocol_users": [
       0,
       0
     ],

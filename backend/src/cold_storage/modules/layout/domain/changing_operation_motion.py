@@ -7,6 +7,7 @@ import copy
 from typing import Any
 
 from cold_storage.modules.layout.domain.changing_room_motion import (
+    door_hits_box,
     network_path,
     overlap3,
     prism,
@@ -14,7 +15,7 @@ from cold_storage.modules.layout.domain.changing_room_motion import (
     swept_segments,
 )
 from cold_storage.modules.layout.domain.functional_room_fit import covered, rectangle
-from cold_storage.modules.layout.domain.practical_changing_layout import H5Hypothesis
+from cold_storage.modules.layout.domain.practical_changing_layout import H5Hypothesis, validate_use
 
 PASS = "VERIFIED_UNDER_HYPOTHESES"
 
@@ -263,3 +264,50 @@ def portal_crossing(
         external_continuation="ARCHIVED_ACCESS_REFERENCE_ONLY_NOT_REVALIDATED",
         actual_door_motion="INPUT_REQUIRED",
     )
+
+
+def validate_live_locker_use(
+    result: dict[str, Any], snapshot: dict[str, Any], current: dict[str, Any], departed: set[str]
+) -> list[dict[str, Any]]:
+    """Dynamic occupancy after completed users leave; never a reduced design roster.
+
+    The original 53-user snapshot, fixed bodies, aisles, doors and portals must first
+    pass unchanged R5 validation. This adds checks for all actual remaining poses.
+    """
+    p = H5Hypothesis(**result["parameters"])
+    original = validate_use(result["room"], result["inventory"], result["model"], p, snapshot)
+    errors = list(original["conflicts"])
+    expected = {
+        a["person_id"]
+        for a in result["inventory"]["person_assignments"]
+        if a["shift"] == snapshot["shift"]
+    }
+    if set(current) & departed or set(current) | departed != expected:
+        errors.append(dict(code="COMPLETE_53_PERSON_ROSTER_REQUIRED"))
+    people = list(current.values())
+    bodies = [*result["inventory"]["cabinet_units"], *result["model"]["benches"]]
+    desired = {o["id"]: o for o in snapshot["people"]}
+    for action in snapshot["actions"]:
+        key = action["person_id"]
+        if key not in current or current[key] != desired[key]:
+            errors.append(dict(code="LIVE_ASSIGNED_OPERATOR_MISMATCH", person_id=key))
+    for i, o in enumerate(people):
+        errors += check_volumes(
+            o["volumes_mm"], people[i + 1 :], bodies, result["model"]["clear"], p.clear_height_mm
+        )
+        for aisle in snapshot["aisles"]:
+            a = o["bounds_mm"]
+            if max(a[0], aisle[0]) < min(a[2], aisle[2]) and max(a[1], aisle[1]) < min(
+                a[3], aisle[3]
+            ):
+                errors.append(dict(code="LIVE_PERSON_INTRUDES_NET_AISLE", person_id=o["id"]))
+        for door in snapshot["doors"]:
+            if any(door_hits_box(door, v) for v in o["volumes_mm"]):
+                errors.append(
+                    dict(
+                        code="LIVE_PERSON_DOOR_SWEEP_COLLISION",
+                        person_id=o["id"],
+                        door_id=door["id"],
+                    )
+                )
+    return errors

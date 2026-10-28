@@ -15,6 +15,7 @@ from cold_storage.modules.layout.domain.changing_operation_motion import (
     physical,
     portal_crossing,
     transfer,
+    validate_live_locker_use,
 )
 from cold_storage.modules.layout.domain.changing_room_motion import overlap3, standing_person
 from cold_storage.modules.layout.domain.functional_room_fit import intersection, rectangle
@@ -162,11 +163,14 @@ def full_shift(
     shift: int,
     options: OperationHypothesis,
     timing: TimingHypothesis | None,
+    *,
+    depart_after_service: bool = False,
 ) -> dict[str, Any]:
     """Execute one conservative serial protocol. On first conflict keep the prefix.
 
-    53 users remain inside throughout all service cycles. Only after all 53 finish
-    are departures evaluated. An unsuccessful relocation never changes state.
+    Both protocols start with all 53 inside. The retained-users negative reference
+    waits for everyone to finish; the departure protocol releases each person only
+    after their complete service chain. Failed moves never change state.
     """
     seq = [s for s in result["snapshots"] if s["shift"] == shift]
     p = H5Hypothesis(**result["parameters"])
@@ -175,6 +179,7 @@ def full_shift(
     homes = {o["id"]: copy.deepcopy(o) for o in first["home_people"]}
     events: list[dict[str, Any]] = []
     completed: list[str] = []
+    departed: set[str] = set()
     elapsed: float | None = 0.0 if timing else None
     blocked: dict[str, Any] | None = None
 
@@ -192,6 +197,8 @@ def full_shift(
             duration_seconds=seconds,
             status=proof["status"],
             proof=proof,
+            inside_before=proof.get("inside_people", len(current)),
+            roster_accounted=53,
         )
         events.append(event)
         if proof["status"] != PASS:
@@ -209,7 +216,12 @@ def full_shift(
         if current[target["id"]] == target:
             return True
         proof = transfer(
-            current, target, result, first, seat_allowance_mm=options.seat_motion_allowance_mm
+            current,
+            target,
+            result,
+            first,
+            seat_allowance_mm=options.seat_motion_allowance_mm,
+            exited=departed,
         )
         seconds = (
             None
@@ -298,7 +310,11 @@ def full_shift(
         if blocked:
             break
         actual = {**s, "people": list(current.values())}
-        validation = validate_use(result["room"], result["inventory"], result["model"], p, actual)
+        validation = (
+            dict(conflicts=validate_live_locker_use(result, s, current, departed))
+            if departed
+            else validate_use(result["room"], result["inventory"], result["model"], p, actual)
+        )
         if not record(
             "LOCKER_OPEN_USE_CLOSE",
             ",".join(a["person_id"] for a in s["actions"]),
@@ -365,6 +381,23 @@ def full_shift(
                 dict(status=PASS, people_before=copy.deepcopy(list(current.values()))),
                 timing.seated_seconds if timing else None,
             )
+            if depart_after_service:
+                proof = portal_crossing(
+                    current[key],
+                    result["room"]["portals"][1],
+                    result,
+                    [v for k, v in current.items() if k != key],
+                    entering=False,
+                )
+                if not move(proof["interior_person"], s["id"], "RISE_AND_TO_EXIT"):
+                    break
+                seconds = None if not timing else proof["length_mm"] / timing.walk_mm_per_second
+                if not record("EXIT_AFTER_COMPLETE_SERVICE", key, s["id"], proof, seconds):
+                    break
+                del current[key]
+                departed.add(key)
+                completed.append(key)
+                continue
             # Reuse an actually empty reviewed home; no disappearance of another person.
             candidates = [_retag(h, key) for h in homes.values()]
             home = next(
@@ -387,8 +420,10 @@ def full_shift(
             completed.append(key)
         if blocked:
             break
-    exit_result = None
-    if len(set(completed)) == 53 and not blocked:
+    exit_result: dict[str, Any] | None = None
+    if depart_after_service and len(departed) == 53 and not blocked:
+        exit_result = dict(status=PASS, final_inside=0, completed_people=53)
+    elif len(set(completed)) == 53 and not blocked:
         exit_result = portal_audit(
             result, shift, options, entering=False, people=list(current.values())
         )
@@ -404,8 +439,42 @@ def full_shift(
             )
             if not record("EXIT_AFTER_SERVICE", proof["person_id"], "EXIT", proof, seconds):
                 break
+    batch_results = []
+    for batch in seq:
+        ids = {a["person_id"] for a in batch["actions"]}
+        batch_events = [e["index"] for e in events if e["batch"] == batch["id"]]
+        batch_results.append(
+            dict(
+                batch=batch["id"],
+                users=sorted(ids),
+                completed=sorted(ids & set(completed)),
+                event_indices=batch_events,
+                status=PASS if ids <= set(completed) else "NOT_COMPLETED",
+            )
+        )
+    boundaries = [
+        dict(
+            from_batch=a["batch"],
+            to_batch=b["batch"],
+            status=PASS if a["status"] == b["status"] == PASS else "NOT_COMPLETED",
+            from_event=a["event_indices"][-1] if a["event_indices"] else None,
+            to_event=b["event_indices"][0] if b["event_indices"] else None,
+        )
+        for a, b in zip(batch_results, batch_results[1:], strict=False)
+    ]
+    duration_by_operation: dict[str, float] = {}
+    if timing:
+        for e in events:
+            if e["status"] == PASS:
+                name = e["operation"]
+                duration_by_operation[name] = (
+                    duration_by_operation.get(name, 0.0) + e["duration_seconds"]
+                )
     return dict(
         shift=shift,
+        duration_by_operation_seconds=duration_by_operation,
+        batch_results=batch_results,
+        batch_boundaries=boundaries,
         status="SERVICE_CYCLES_VERIFIED_UNDER_HYPOTHESES"
         if len(set(completed)) == 53 and not blocked
         else "BLOCKED",
@@ -422,7 +491,11 @@ def full_shift(
         full_shift_seconds=elapsed if exit_result and exit_result["status"] == PASS else None,
         departure=exit_result or "NOT_EVALUATED_SERVICE_SEQUENCE_INCOMPLETE",
         unvisited_people=sorted(set(homes) - set(completed)),
-        protocol="SERIAL_WALKING_AND_CHANGING;53_INSIDE_UNTIL_ALL_SERVICE_COMPLETE",
+        protocol="53_INITIAL_OCCUPANTS;DEPART_ONLY_AFTER_OWN_COMPLETE_SERVICE"
+        if depart_after_service
+        else "SERIAL_WALKING_AND_CHANGING;53_INSIDE_UNTIL_ALL_SERVICE_COMPLETE",
+        departed_people=sorted(departed),
+        peak_initial_occupancy=len(homes),
         alternative_schedules="NOT_PROVEN_IMPOSSIBLE",
     )
 
@@ -577,6 +650,9 @@ def evaluate_operation(
         expected_transitions=len(result["snapshots"]) - 2,
         verified_transitions=sum(t["status"] == PASS for t in transitions),
         full_shifts=[full_shift(result, s, options, timing) for s in (1, 2)],
+        departing_shifts=[
+            full_shift(result, s, options, timing, depart_after_service=True) for s in (1, 2)
+        ],
         portal_sequences=[
             portal_audit(result, s, options, entering=e) for s in (1, 2) for e in (True, False)
         ],

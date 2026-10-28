@@ -32,15 +32,21 @@ Default H5 retains 53 simultaneous occupants, 22 columns/110 cells and both
 1500mm Portals. All 30 snapshots and 28 independent adjacent pairs pass the
 stated hypothetical volume checks, including later seated participants.
 
-The complete protocol does **not** pass: after three complete service cycles in
-each shift, a service-area occupant cannot relocate to an empty reviewed standing
-home. The remaining 50 people have no completed service trace. Independent pair
-and Portal proofs cannot be concatenated into a false complete-use result.
+Two explicit protocols are retained. Waiting for everyone before any departure
+blocks after three service cycles per shift: a service-area occupant cannot
+relocate to a free reviewed standing home. That negative protocol remains intact.
 
-Full shift time therefore remains null. The recorded prefix has explicit
-hypothetical walking and service durations. One changing-operation place at
-90 seconds/person alone gives a 4770-second ideal workload lower bound; this is
-neither a completed schedule nor an approved throughput result.
+Departing immediately after each person's complete locker/changing/bench chain
+allows both shifts to finish 53 users, 15 batches and 14 batch boundaries in the
+hypothetical continuous model. All 53 must first be inside; each later departure
+is recorded only after a verified service chain and actual south-Portal crossing.
+No uncompleted user is removed. Remaining occupants still block movement.
+
+Default serial timing is about 229.95 / 216.64 minutes. This is an explicit
+hypothetical plan, not measured throughput or functional approval. A 90-second
+single changing operation alone has a 4770-second ideal workload lower bound.
+The negative protocol retains a null complete duration. Both protocols remain
+INPUT_REQUIRED for actual engineering use.
 
 Fixed-position body envelopes expanded by 10mm already expose aisle/support-model
 conflicts; 25mm also exposes adjacent-user overlap. Repacking larger bodies or

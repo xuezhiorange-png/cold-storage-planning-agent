@@ -5,10 +5,15 @@
   "all_adjacent_pairs_checked": 28,
   "pairs_verified": 28,
   "full_service_users": [
+    53,
+    53
+  ],
+  "retained_protocol_service_users": [
     3,
     3
   ],
-  "full_shift_verified": false,
+  "full_shift_verified_under_hypotheses": true,
+  "actual_functional_fit": "INPUT_REQUIRED",
   "native_solves": 0,
   "new_main": false,
   "new_grant": false,

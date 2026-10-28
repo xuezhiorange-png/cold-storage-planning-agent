@@ -314,3 +314,73 @@ def test_no_seat_capacity_cannot_compute_fake_throughput(result):
     t = timing_bounds(g, TimingHypothesis())
     assert t["status"] == "CONFIGURATION_NOT_FIT"
     assert t["complete_shift_seconds"] is None
+
+
+def test_depart_after_own_service_completes_all_53_and_15_batches(result):
+    for s in result["operation"]["departing_shifts"]:
+        assert s["complete_service_users"] == 53
+        assert len(set(s["departed_people"])) == 53
+        assert s["peak_initial_occupancy"] == s["required_room_users"] == 53
+        assert s["remaining_inside"] == 0 and s["final_people"] == []
+        assert len(s["batch_results"]) == 15
+        assert len(s["batch_boundaries"]) == 14
+        assert all(b["status"] == PASS for b in s["batch_results"] + s["batch_boundaries"])
+        assert s["full_shift_seconds"] == s["prefix_seconds"] > 4770
+        for key in s["departed_people"]:
+            actions = [e["operation"] for e in s["events"] if e["person_id"] == key]
+            ordered = [
+                "LOCKER_TO_CHANGING_ZONE",
+                "CHANGE_CLOTHES",
+                "CHANGING_TO_BENCH_AND_SIT",
+                "SEATED_USE",
+                "RISE_AND_TO_EXIT",
+                "EXIT_AFTER_COMPLETE_SERVICE",
+            ]
+            positions = [actions.index(a) for a in ordered]
+            assert positions == sorted(positions)
+        assert len([e for e in s["events"] if e["operation"] == "LOCKER_OPEN_USE_CLOSE"]) == 15
+        assert all(e["status"] == PASS for e in s["events"])
+    assert result["project_functional_status"] == "INPUT_REQUIRED"
+
+
+def test_live_users_never_disappear_without_completed_exit(result):
+    for s in result["operation"]["departing_shifts"]:
+        departed = set()
+        for e in s["events"]:
+            if e["batch"] == "ENTRY":
+                continue
+            assert e["inside_before"] + len(departed) == 53
+            if e["operation"] == "EXIT_AFTER_COMPLETE_SERVICE":
+                assert e["person_id"] not in departed
+                departed.add(e["person_id"])
+        assert len(departed) == 53
+
+
+def test_live_locker_use_still_rejects_overlap_and_missing_roster(result):
+    from cold_storage.modules.layout.domain.changing_operation_motion import (
+        validate_live_locker_use,
+    )
+
+    g = result["geometry"]
+    snap = g["snapshots"][0]
+    current = {p["id"]: copy.deepcopy(p) for p in snap["people"]}
+    absent = next(k for k in current if k not in {a["person_id"] for a in snap["actions"]})
+    del current[absent]
+    assert validate_live_locker_use(g, snap, current, set())
+    assert not validate_live_locker_use(g, snap, current, {absent})
+    other = next(
+        v for v in current.values() if v["id"] not in {a["person_id"] for a in snap["actions"]}
+    )
+    actor = current[snap["actions"][0]["person_id"]]
+    other["bounds_mm"] = actor["bounds_mm"][:]
+    other["volumes_mm"] = actor["volumes_mm"][:]
+    assert validate_live_locker_use(g, snap, current, {absent})
+
+
+def test_complete_geometric_protocol_without_time_does_not_claim_throughput(result):
+    a = evaluate_operation(result["geometry"], OperationHypothesis(), None)
+    for s in a["departing_shifts"]:
+        assert s["complete_service_users"] == 53
+        assert s["full_shift_seconds"] is None
+        assert s["prefix_seconds"] is None
+    assert a["timing"]["status"] == "INPUT_REQUIRED"
