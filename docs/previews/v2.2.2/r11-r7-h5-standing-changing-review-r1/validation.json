@@ -1,0 +1,32 @@
+{
+  "task": "V2_2_2_R11_R7_H5_NO_BENCH_STANDING_CHANGING_R1",
+  "base_head": "b1ca6be49e47d9e0c191205c7cee84ebcc269baf",
+  "python": "3.12.13",
+  "locked_dependencies": true,
+  "local_tests": {
+    "tests": 1195,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 16
+  },
+  "passed": 1179,
+  "new_r7_tests": 43,
+  "ci_contract_tests": 65,
+  "ruff": "PASS",
+  "format": "PASS_1084_FILES",
+  "mypy": "PASS_488_SOURCE_FILES",
+  "ci_scripts_static_checks": "PASS",
+  "yaml": "PASS",
+  "javascript_syntax": "PASS",
+  "svg_static_render": "PASS",
+  "browser_interaction": "NOT_EVALUATED_LOCAL_BROWSER_DISABLED",
+  "original_source_changes": [
+    ".github/workflows/ci-fast.yml"
+  ],
+  "historical_code_and_results_unchanged": true,
+  "native_solves": 0,
+  "main": false,
+  "grant": false,
+  "claim": false,
+  "full_ci": "NOT_REQUESTED"
+}

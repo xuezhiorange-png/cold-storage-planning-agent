@@ -1,0 +1,2716 @@
+[
+  {
+    "label": "A 分散站立 · 4人 · 420×700活动包络",
+    "parameters": {
+      "mode": "DISTRIBUTED",
+      "front_concurrency": 4,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "standing_height_mm": 1800,
+      "activity_width_mm": 420,
+      "activity_depth_mm": 700,
+      "activity_height_mm": 1800,
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "aisle_mm": 1200,
+      "room_door_intrusion_mm": 0,
+      "door_kind": "OUTWARD_HINGED_90"
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "batches": 30,
+      "static_pass_count": 30,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200
+    },
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "initial_service_occupancy": 53,
+        "completed_users": 53,
+        "expected_batches": 15,
+        "completed_batches": [
+          "S1-W01",
+          "S1-W02",
+          "S1-W03",
+          "S1-W04",
+          "S1-W05",
+          "S1-W06",
+          "S1-W07",
+          "S1-W08",
+          "S1-W09",
+          "S1-W10",
+          "S1-W11",
+          "S1-W12",
+          "S1-W13",
+          "S1-W14",
+          "S1-W15"
+        ],
+        "completed_batch_boundaries": 14,
+        "full_shift_seconds": 6204.2216666666745,
+        "full_shift_minutes": 103.40369444444458,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 1508.3583333333333,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 300.0,
+          "TO_DISTRIBUTED_STANDING_POSITION": 1508.3583333333333,
+          "PARALLEL_STANDING_CHANGE": 1350.0,
+          "TO_PACKAGING_PORTAL": 620.4,
+          "EXIT_PORTAL": 54.76666666666665
+        },
+        "total_route_m": 2732.533,
+        "personnel_route_mm": {
+          "S1-P001": 46171,
+          "S1-P002": 46171,
+          "S1-P003": 46171,
+          "S1-P004": 46171,
+          "S1-P005": 46171,
+          "S1-P006": 46121,
+          "S1-P007": 46961,
+          "S1-P008": 47801,
+          "S1-P009": 48641,
+          "S1-P010": 49481,
+          "S1-P011": 49481,
+          "S1-P012": 50321,
+          "S1-P013": 51161,
+          "S1-P014": 52001,
+          "S1-P015": 52841,
+          "S1-P016": 52881,
+          "S1-P017": 53721,
+          "S1-P018": 54561,
+          "S1-P019": 55401,
+          "S1-P020": 56241,
+          "S1-P021": 56241,
+          "S1-P022": 57081,
+          "S1-P023": 57921,
+          "S1-P024": 58761,
+          "S1-P025": 59601,
+          "S1-P026": 59641,
+          "S1-P027": 60481,
+          "S1-P028": 61321,
+          "S1-P029": 62161,
+          "S1-P030": 63001,
+          "S1-P031": 63001,
+          "S1-P032": 63841,
+          "S1-P033": 64681,
+          "S1-P034": 41251,
+          "S1-P035": 41251,
+          "S1-P036": 40451,
+          "S1-P037": 42881,
+          "S1-P038": 43721,
+          "S1-P039": 44561,
+          "S1-P040": 45401,
+          "S1-P041": 45401,
+          "S1-P042": 46241,
+          "S1-P043": 47081,
+          "S1-P044": 47921,
+          "S1-P045": 48761,
+          "S1-P046": 48801,
+          "S1-P047": 49641,
+          "S1-P048": 50481,
+          "S1-P049": 51321,
+          "S1-P050": 52161,
+          "S1-P051": 52161,
+          "S1-P052": 53001,
+          "S1-P053": 53841
+        },
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "initial_service_occupancy": 53,
+        "completed_users": 53,
+        "expected_batches": 15,
+        "completed_batches": [
+          "S2-W01",
+          "S2-W02",
+          "S2-W03",
+          "S2-W04",
+          "S2-W05",
+          "S2-W06",
+          "S2-W07",
+          "S2-W08",
+          "S2-W09",
+          "S2-W10",
+          "S2-W11",
+          "S2-W12",
+          "S2-W13",
+          "S2-W14",
+          "S2-W15"
+        ],
+        "completed_batch_boundaries": 14,
+        "full_shift_seconds": 5405.68833333334,
+        "full_shift_minutes": 90.09480555555567,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 1109.0916666666665,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 300.0,
+          "TO_DISTRIBUTED_STANDING_POSITION": 1109.0916666666665,
+          "PARALLEL_STANDING_CHANGE": 1350.0,
+          "TO_PACKAGING_PORTAL": 620.4,
+          "EXIT_PORTAL": 54.76666666666665
+        },
+        "total_route_m": 2253.413,
+        "personnel_route_mm": {
+          "S2-P001": 37131,
+          "S2-P002": 37131,
+          "S2-P003": 37131,
+          "S2-P004": 37131,
+          "S2-P005": 37131,
+          "S2-P006": 37081,
+          "S2-P007": 37921,
+          "S2-P008": 38761,
+          "S2-P009": 39601,
+          "S2-P010": 40441,
+          "S2-P011": 40441,
+          "S2-P012": 41281,
+          "S2-P013": 42121,
+          "S2-P014": 42961,
+          "S2-P015": 43801,
+          "S2-P016": 43841,
+          "S2-P017": 44681,
+          "S2-P018": 45521,
+          "S2-P019": 46361,
+          "S2-P020": 47201,
+          "S2-P021": 47201,
+          "S2-P022": 48041,
+          "S2-P023": 48881,
+          "S2-P024": 49721,
+          "S2-P025": 50561,
+          "S2-P026": 50601,
+          "S2-P027": 51441,
+          "S2-P028": 52281,
+          "S2-P029": 53121,
+          "S2-P030": 53961,
+          "S2-P031": 53961,
+          "S2-P032": 54801,
+          "S2-P033": 55641,
+          "S2-P034": 32211,
+          "S2-P035": 32211,
+          "S2-P036": 31411,
+          "S2-P037": 33841,
+          "S2-P038": 34681,
+          "S2-P039": 35521,
+          "S2-P040": 36361,
+          "S2-P041": 36361,
+          "S2-P042": 37201,
+          "S2-P043": 38041,
+          "S2-P044": 38881,
+          "S2-P045": 39721,
+          "S2-P046": 39761,
+          "S2-P047": 40601,
+          "S2-P048": 41441,
+          "S2-P049": 42281,
+          "S2-P050": 43121,
+          "S2-P051": 43121,
+          "S2-P052": 43961,
+          "S2-P053": 44801
+        },
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "B 柜前站立 · 4人 · 420×700活动包络",
+    "parameters": {
+      "mode": "CABINET_FRONT",
+      "front_concurrency": 4,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "standing_height_mm": 1800,
+      "activity_width_mm": 420,
+      "activity_depth_mm": 700,
+      "activity_height_mm": 1800,
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "aisle_mm": 1200,
+      "room_door_intrusion_mm": 0,
+      "door_kind": "OUTWARD_HINGED_90"
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "batches": 30,
+      "static_pass_count": 30,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200
+    },
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "BLOCKED",
+        "initial_service_occupancy": 53,
+        "completed_users": 0,
+        "expected_batches": 15,
+        "completed_batches": [],
+        "completed_batch_boundaries": 0,
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 102.36666666666666,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 20.0
+        },
+        "total_route_m": 578.823,
+        "personnel_route_mm": {
+          "S1-P001": 28806,
+          "S1-P002": 15571,
+          "S1-P003": 15151,
+          "S1-P004": 14731,
+          "S1-P005": 14311,
+          "S1-P006": 28406,
+          "S1-P007": 13471,
+          "S1-P008": 13051,
+          "S1-P009": 12631,
+          "S1-P010": 12211,
+          "S1-P011": 27986,
+          "S1-P012": 11371,
+          "S1-P013": 10951,
+          "S1-P014": 10531,
+          "S1-P015": 10111,
+          "S1-P016": 27586,
+          "S1-P017": 9271,
+          "S1-P018": 8851,
+          "S1-P019": 8431,
+          "S1-P020": 8011,
+          "S1-P021": 7591,
+          "S1-P022": 7171,
+          "S1-P023": 6751,
+          "S1-P024": 6331,
+          "S1-P025": 5911,
+          "S1-P026": 5491,
+          "S1-P027": 5071,
+          "S1-P028": 4651,
+          "S1-P029": 4231,
+          "S1-P030": 3811,
+          "S1-P031": 3391,
+          "S1-P032": 2971,
+          "S1-P033": 2551,
+          "S1-P034": 15991,
+          "S1-P035": 15571,
+          "S1-P036": 15151,
+          "S1-P037": 13051,
+          "S1-P038": 12631,
+          "S1-P039": 12211,
+          "S1-P040": 11791,
+          "S1-P041": 11371,
+          "S1-P042": 10951,
+          "S1-P043": 10531,
+          "S1-P044": 10111,
+          "S1-P045": 9691,
+          "S1-P046": 9271,
+          "S1-P047": 8851,
+          "S1-P048": 8431,
+          "S1-P049": 8011,
+          "S1-P050": 7591,
+          "S1-P051": 7171,
+          "S1-P052": 6751,
+          "S1-P053": 6331
+        },
+        "blocker": {
+          "operation": "PARALLEL_STANDING_CHANGE",
+          "batch": "S1-W01",
+          "conflicts": [
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S1-P006",
+              "segment": 0,
+              "volume_mm": [
+                710,
+                820,
+                0,
+                1130,
+                1520,
+                1800
+              ],
+              "person_id": "S1-P001"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S1-P016",
+              "segment": 0,
+              "volume_mm": [
+                1530,
+                820,
+                0,
+                1950,
+                1520,
+                1800
+              ],
+              "person_id": "S1-P011"
+            }
+          ]
+        }
+      },
+      {
+        "shift": 2,
+        "status": "BLOCKED",
+        "initial_service_occupancy": 53,
+        "completed_users": 0,
+        "expected_batches": 15,
+        "completed_batches": [],
+        "completed_batch_boundaries": 0,
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 72.23333333333333,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 20.0
+        },
+        "total_route_m": 560.743,
+        "personnel_route_mm": {
+          "S2-P001": 24286,
+          "S2-P002": 15571,
+          "S2-P003": 15151,
+          "S2-P004": 14731,
+          "S2-P005": 14311,
+          "S2-P006": 23886,
+          "S2-P007": 13471,
+          "S2-P008": 13051,
+          "S2-P009": 12631,
+          "S2-P010": 12211,
+          "S2-P011": 23466,
+          "S2-P012": 11371,
+          "S2-P013": 10951,
+          "S2-P014": 10531,
+          "S2-P015": 10111,
+          "S2-P016": 23066,
+          "S2-P017": 9271,
+          "S2-P018": 8851,
+          "S2-P019": 8431,
+          "S2-P020": 8011,
+          "S2-P021": 7591,
+          "S2-P022": 7171,
+          "S2-P023": 6751,
+          "S2-P024": 6331,
+          "S2-P025": 5911,
+          "S2-P026": 5491,
+          "S2-P027": 5071,
+          "S2-P028": 4651,
+          "S2-P029": 4231,
+          "S2-P030": 3811,
+          "S2-P031": 3391,
+          "S2-P032": 2971,
+          "S2-P033": 2551,
+          "S2-P034": 15991,
+          "S2-P035": 15571,
+          "S2-P036": 15151,
+          "S2-P037": 13051,
+          "S2-P038": 12631,
+          "S2-P039": 12211,
+          "S2-P040": 11791,
+          "S2-P041": 11371,
+          "S2-P042": 10951,
+          "S2-P043": 10531,
+          "S2-P044": 10111,
+          "S2-P045": 9691,
+          "S2-P046": 9271,
+          "S2-P047": 8851,
+          "S2-P048": 8431,
+          "S2-P049": 8011,
+          "S2-P050": 7591,
+          "S2-P051": 7171,
+          "S2-P052": 6751,
+          "S2-P053": 6331
+        },
+        "blocker": {
+          "operation": "PARALLEL_STANDING_CHANGE",
+          "batch": "S2-W01",
+          "conflicts": [
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S2-P006",
+              "segment": 0,
+              "volume_mm": [
+                5230,
+                820,
+                0,
+                5650,
+                1520,
+                1800
+              ],
+              "person_id": "S2-P001"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S2-P016",
+              "segment": 0,
+              "volume_mm": [
+                6050,
+                820,
+                0,
+                6470,
+                1520,
+                1800
+              ],
+              "person_id": "S2-P011"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "label": "C 柜前站立 · 1人 · 420×700活动包络",
+    "parameters": {
+      "mode": "CABINET_FRONT",
+      "front_concurrency": 1,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "standing_height_mm": 1800,
+      "activity_width_mm": 420,
+      "activity_depth_mm": 700,
+      "activity_height_mm": 1800,
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "aisle_mm": 1200,
+      "room_door_intrusion_mm": 0,
+      "door_kind": "OUTWARD_HINGED_90"
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "batches": 106,
+      "static_pass_count": 106,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200
+    },
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "initial_service_occupancy": 53,
+        "completed_users": 53,
+        "expected_batches": 53,
+        "completed_batches": [
+          "S1-W01",
+          "S1-W02",
+          "S1-W03",
+          "S1-W04",
+          "S1-W05",
+          "S1-W06",
+          "S1-W07",
+          "S1-W08",
+          "S1-W09",
+          "S1-W10",
+          "S1-W11",
+          "S1-W12",
+          "S1-W13",
+          "S1-W14",
+          "S1-W15",
+          "S1-W16",
+          "S1-W17",
+          "S1-W18",
+          "S1-W19",
+          "S1-W20",
+          "S1-W21",
+          "S1-W22",
+          "S1-W23",
+          "S1-W24",
+          "S1-W25",
+          "S1-W26",
+          "S1-W27",
+          "S1-W28",
+          "S1-W29",
+          "S1-W30",
+          "S1-W31",
+          "S1-W32",
+          "S1-W33",
+          "S1-W34",
+          "S1-W35",
+          "S1-W36",
+          "S1-W37",
+          "S1-W38",
+          "S1-W39",
+          "S1-W40",
+          "S1-W41",
+          "S1-W42",
+          "S1-W43",
+          "S1-W44",
+          "S1-W45",
+          "S1-W46",
+          "S1-W47",
+          "S1-W48",
+          "S1-W49",
+          "S1-W50",
+          "S1-W51",
+          "S1-W52",
+          "S1-W53"
+        ],
+        "completed_batch_boundaries": 52,
+        "full_shift_seconds": 9401.771666666671,
+        "full_shift_minutes": 156.69619444444453,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 1508.3583333333327,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 1060.0,
+          "PARALLEL_STANDING_CHANGE": 4770.0,
+          "TO_PACKAGING_PORTAL": 1146.3083333333336,
+          "EXIT_PORTAL": 54.76666666666665
+        },
+        "total_route_m": 2143.063,
+        "personnel_route_mm": {
+          "S1-P001": 44371,
+          "S1-P002": 44371,
+          "S1-P003": 44371,
+          "S1-P004": 44371,
+          "S1-P005": 44371,
+          "S1-P006": 43571,
+          "S1-P007": 43571,
+          "S1-P008": 43571,
+          "S1-P009": 43571,
+          "S1-P010": 43571,
+          "S1-P011": 42731,
+          "S1-P012": 42731,
+          "S1-P013": 42731,
+          "S1-P014": 42731,
+          "S1-P015": 42731,
+          "S1-P016": 41931,
+          "S1-P017": 41931,
+          "S1-P018": 41931,
+          "S1-P019": 41931,
+          "S1-P020": 41931,
+          "S1-P021": 41091,
+          "S1-P022": 41091,
+          "S1-P023": 41091,
+          "S1-P024": 41091,
+          "S1-P025": 41091,
+          "S1-P026": 40291,
+          "S1-P027": 40291,
+          "S1-P028": 40291,
+          "S1-P029": 40291,
+          "S1-P030": 40291,
+          "S1-P031": 39451,
+          "S1-P032": 39451,
+          "S1-P033": 39451,
+          "S1-P034": 39451,
+          "S1-P035": 39451,
+          "S1-P036": 38651,
+          "S1-P037": 38651,
+          "S1-P038": 38651,
+          "S1-P039": 38651,
+          "S1-P040": 38651,
+          "S1-P041": 37811,
+          "S1-P042": 37811,
+          "S1-P043": 37811,
+          "S1-P044": 37811,
+          "S1-P045": 37811,
+          "S1-P046": 37011,
+          "S1-P047": 37011,
+          "S1-P048": 37011,
+          "S1-P049": 37011,
+          "S1-P050": 37011,
+          "S1-P051": 36171,
+          "S1-P052": 36171,
+          "S1-P053": 36171
+        },
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "initial_service_occupancy": 53,
+        "completed_users": 53,
+        "expected_batches": 53,
+        "completed_batches": [
+          "S2-W01",
+          "S2-W02",
+          "S2-W03",
+          "S2-W04",
+          "S2-W05",
+          "S2-W06",
+          "S2-W07",
+          "S2-W08",
+          "S2-W09",
+          "S2-W10",
+          "S2-W11",
+          "S2-W12",
+          "S2-W13",
+          "S2-W14",
+          "S2-W15",
+          "S2-W16",
+          "S2-W17",
+          "S2-W18",
+          "S2-W19",
+          "S2-W20",
+          "S2-W21",
+          "S2-W22",
+          "S2-W23",
+          "S2-W24",
+          "S2-W25",
+          "S2-W26",
+          "S2-W27",
+          "S2-W28",
+          "S2-W29",
+          "S2-W30",
+          "S2-W31",
+          "S2-W32",
+          "S2-W33",
+          "S2-W34",
+          "S2-W35",
+          "S2-W36",
+          "S2-W37",
+          "S2-W38",
+          "S2-W39",
+          "S2-W40",
+          "S2-W41",
+          "S2-W42",
+          "S2-W43",
+          "S2-W44",
+          "S2-W45",
+          "S2-W46",
+          "S2-W47",
+          "S2-W48",
+          "S2-W49",
+          "S2-W50",
+          "S2-W51",
+          "S2-W52",
+          "S2-W53"
+        ],
+        "completed_batch_boundaries": 52,
+        "full_shift_seconds": 8603.238333333347,
+        "full_shift_minutes": 143.3873055555558,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 1109.0916666666665,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 1060.0,
+          "PARALLEL_STANDING_CHANGE": 4770.0,
+          "TO_PACKAGING_PORTAL": 747.0416666666663,
+          "EXIT_PORTAL": 54.76666666666665
+        },
+        "total_route_m": 1663.943,
+        "personnel_route_mm": {
+          "S2-P001": 35331,
+          "S2-P002": 35331,
+          "S2-P003": 35331,
+          "S2-P004": 35331,
+          "S2-P005": 35331,
+          "S2-P006": 34531,
+          "S2-P007": 34531,
+          "S2-P008": 34531,
+          "S2-P009": 34531,
+          "S2-P010": 34531,
+          "S2-P011": 33691,
+          "S2-P012": 33691,
+          "S2-P013": 33691,
+          "S2-P014": 33691,
+          "S2-P015": 33691,
+          "S2-P016": 32891,
+          "S2-P017": 32891,
+          "S2-P018": 32891,
+          "S2-P019": 32891,
+          "S2-P020": 32891,
+          "S2-P021": 32051,
+          "S2-P022": 32051,
+          "S2-P023": 32051,
+          "S2-P024": 32051,
+          "S2-P025": 32051,
+          "S2-P026": 31251,
+          "S2-P027": 31251,
+          "S2-P028": 31251,
+          "S2-P029": 31251,
+          "S2-P030": 31251,
+          "S2-P031": 30411,
+          "S2-P032": 30411,
+          "S2-P033": 30411,
+          "S2-P034": 30411,
+          "S2-P035": 30411,
+          "S2-P036": 29611,
+          "S2-P037": 29611,
+          "S2-P038": 29611,
+          "S2-P039": 29611,
+          "S2-P040": 29611,
+          "S2-P041": 28771,
+          "S2-P042": 28771,
+          "S2-P043": 28771,
+          "S2-P044": 28771,
+          "S2-P045": 28771,
+          "S2-P046": 27971,
+          "S2-P047": 27971,
+          "S2-P048": 27971,
+          "S2-P049": 27971,
+          "S2-P050": 27971,
+          "S2-P051": 27131,
+          "S2-P052": 27131,
+          "S2-P053": 27131
+        },
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "D 分散站立 · 2人 · 420×700活动包络",
+    "parameters": {
+      "mode": "DISTRIBUTED",
+      "front_concurrency": 2,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "standing_height_mm": 1800,
+      "activity_width_mm": 420,
+      "activity_depth_mm": 700,
+      "activity_height_mm": 1800,
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "aisle_mm": 1200,
+      "room_door_intrusion_mm": 0,
+      "door_kind": "OUTWARD_HINGED_90"
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "batches": 56,
+      "static_pass_count": 56,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200
+    },
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "initial_service_occupancy": 53,
+        "completed_users": 53,
+        "expected_batches": 28,
+        "completed_batches": [
+          "S1-W01",
+          "S1-W02",
+          "S1-W03",
+          "S1-W04",
+          "S1-W05",
+          "S1-W06",
+          "S1-W07",
+          "S1-W08",
+          "S1-W09",
+          "S1-W10",
+          "S1-W11",
+          "S1-W12",
+          "S1-W13",
+          "S1-W14",
+          "S1-W15",
+          "S1-W16",
+          "S1-W17",
+          "S1-W18",
+          "S1-W19",
+          "S1-W20",
+          "S1-W21",
+          "S1-W22",
+          "S1-W23",
+          "S1-W24",
+          "S1-W25",
+          "S1-W26",
+          "S1-W27",
+          "S1-W28"
+        ],
+        "completed_batch_boundaries": 27,
+        "full_shift_seconds": 7634.221666666677,
+        "full_shift_minutes": 127.23702777777795,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 1508.3583333333331,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 560.0,
+          "TO_DISTRIBUTED_STANDING_POSITION": 1508.3583333333331,
+          "PARALLEL_STANDING_CHANGE": 2520.0,
+          "TO_PACKAGING_PORTAL": 620.4,
+          "EXIT_PORTAL": 54.76666666666665
+        },
+        "total_route_m": 2732.533,
+        "personnel_route_mm": {
+          "S1-P001": 46171,
+          "S1-P002": 46171,
+          "S1-P003": 46171,
+          "S1-P004": 46171,
+          "S1-P005": 46171,
+          "S1-P006": 46121,
+          "S1-P007": 46961,
+          "S1-P008": 47801,
+          "S1-P009": 48641,
+          "S1-P010": 49481,
+          "S1-P011": 49481,
+          "S1-P012": 50321,
+          "S1-P013": 51161,
+          "S1-P014": 52001,
+          "S1-P015": 52841,
+          "S1-P016": 52881,
+          "S1-P017": 53721,
+          "S1-P018": 54561,
+          "S1-P019": 55401,
+          "S1-P020": 56241,
+          "S1-P021": 56241,
+          "S1-P022": 57081,
+          "S1-P023": 57921,
+          "S1-P024": 58761,
+          "S1-P025": 59601,
+          "S1-P026": 59641,
+          "S1-P027": 60481,
+          "S1-P028": 61321,
+          "S1-P029": 62161,
+          "S1-P030": 63001,
+          "S1-P031": 63001,
+          "S1-P032": 63841,
+          "S1-P033": 64681,
+          "S1-P034": 41251,
+          "S1-P035": 41251,
+          "S1-P036": 40451,
+          "S1-P037": 42881,
+          "S1-P038": 43721,
+          "S1-P039": 44561,
+          "S1-P040": 45401,
+          "S1-P041": 45401,
+          "S1-P042": 46241,
+          "S1-P043": 47081,
+          "S1-P044": 47921,
+          "S1-P045": 48761,
+          "S1-P046": 48801,
+          "S1-P047": 49641,
+          "S1-P048": 50481,
+          "S1-P049": 51321,
+          "S1-P050": 52161,
+          "S1-P051": 52161,
+          "S1-P052": 53001,
+          "S1-P053": 53841
+        },
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "initial_service_occupancy": 53,
+        "completed_users": 53,
+        "expected_batches": 28,
+        "completed_batches": [
+          "S2-W01",
+          "S2-W02",
+          "S2-W03",
+          "S2-W04",
+          "S2-W05",
+          "S2-W06",
+          "S2-W07",
+          "S2-W08",
+          "S2-W09",
+          "S2-W10",
+          "S2-W11",
+          "S2-W12",
+          "S2-W13",
+          "S2-W14",
+          "S2-W15",
+          "S2-W16",
+          "S2-W17",
+          "S2-W18",
+          "S2-W19",
+          "S2-W20",
+          "S2-W21",
+          "S2-W22",
+          "S2-W23",
+          "S2-W24",
+          "S2-W25",
+          "S2-W26",
+          "S2-W27",
+          "S2-W28"
+        ],
+        "completed_batch_boundaries": 27,
+        "full_shift_seconds": 6835.688333333345,
+        "full_shift_minutes": 113.9281388888891,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 1109.0916666666665,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 560.0,
+          "TO_DISTRIBUTED_STANDING_POSITION": 1109.0916666666665,
+          "PARALLEL_STANDING_CHANGE": 2520.0,
+          "TO_PACKAGING_PORTAL": 620.4,
+          "EXIT_PORTAL": 54.76666666666665
+        },
+        "total_route_m": 2253.413,
+        "personnel_route_mm": {
+          "S2-P001": 37131,
+          "S2-P002": 37131,
+          "S2-P003": 37131,
+          "S2-P004": 37131,
+          "S2-P005": 37131,
+          "S2-P006": 37081,
+          "S2-P007": 37921,
+          "S2-P008": 38761,
+          "S2-P009": 39601,
+          "S2-P010": 40441,
+          "S2-P011": 40441,
+          "S2-P012": 41281,
+          "S2-P013": 42121,
+          "S2-P014": 42961,
+          "S2-P015": 43801,
+          "S2-P016": 43841,
+          "S2-P017": 44681,
+          "S2-P018": 45521,
+          "S2-P019": 46361,
+          "S2-P020": 47201,
+          "S2-P021": 47201,
+          "S2-P022": 48041,
+          "S2-P023": 48881,
+          "S2-P024": 49721,
+          "S2-P025": 50561,
+          "S2-P026": 50601,
+          "S2-P027": 51441,
+          "S2-P028": 52281,
+          "S2-P029": 53121,
+          "S2-P030": 53961,
+          "S2-P031": 53961,
+          "S2-P032": 54801,
+          "S2-P033": 55641,
+          "S2-P034": 32211,
+          "S2-P035": 32211,
+          "S2-P036": 31411,
+          "S2-P037": 33841,
+          "S2-P038": 34681,
+          "S2-P039": 35521,
+          "S2-P040": 36361,
+          "S2-P041": 36361,
+          "S2-P042": 37201,
+          "S2-P043": 38041,
+          "S2-P044": 38881,
+          "S2-P045": 39721,
+          "S2-P046": 39761,
+          "S2-P047": 40601,
+          "S2-P048": 41441,
+          "S2-P049": 42281,
+          "S2-P050": 43121,
+          "S2-P051": 43121,
+          "S2-P052": 43961,
+          "S2-P053": 44801
+        },
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "E 分散站立 · 6人 · 420×700活动包络",
+    "parameters": {
+      "mode": "DISTRIBUTED",
+      "front_concurrency": 6,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "standing_height_mm": 1800,
+      "activity_width_mm": 420,
+      "activity_depth_mm": 700,
+      "activity_height_mm": 1800,
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "aisle_mm": 1200,
+      "room_door_intrusion_mm": 0,
+      "door_kind": "OUTWARD_HINGED_90"
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "batches": 20,
+      "static_pass_count": 20,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200
+    },
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "initial_service_occupancy": 53,
+        "completed_users": 53,
+        "expected_batches": 10,
+        "completed_batches": [
+          "S1-W01",
+          "S1-W02",
+          "S1-W03",
+          "S1-W04",
+          "S1-W05",
+          "S1-W06",
+          "S1-W07",
+          "S1-W08",
+          "S1-W09",
+          "S1-W10"
+        ],
+        "completed_batch_boundaries": 9,
+        "full_shift_seconds": 5654.221666666672,
+        "full_shift_minutes": 94.23702777777787,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 1508.3583333333327,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 200.0,
+          "TO_DISTRIBUTED_STANDING_POSITION": 1508.3583333333327,
+          "PARALLEL_STANDING_CHANGE": 900.0,
+          "TO_PACKAGING_PORTAL": 620.3999999999999,
+          "EXIT_PORTAL": 54.76666666666665
+        },
+        "total_route_m": 2732.533,
+        "personnel_route_mm": {
+          "S1-P001": 46171,
+          "S1-P002": 46171,
+          "S1-P003": 46171,
+          "S1-P004": 46171,
+          "S1-P005": 46171,
+          "S1-P006": 46121,
+          "S1-P007": 46961,
+          "S1-P008": 47801,
+          "S1-P009": 48641,
+          "S1-P010": 49481,
+          "S1-P011": 49481,
+          "S1-P012": 50321,
+          "S1-P013": 51161,
+          "S1-P014": 52001,
+          "S1-P015": 52841,
+          "S1-P016": 52881,
+          "S1-P017": 53721,
+          "S1-P018": 54561,
+          "S1-P019": 55401,
+          "S1-P020": 56241,
+          "S1-P021": 56241,
+          "S1-P022": 57081,
+          "S1-P023": 57921,
+          "S1-P024": 58761,
+          "S1-P025": 59601,
+          "S1-P026": 59641,
+          "S1-P027": 60481,
+          "S1-P028": 61321,
+          "S1-P029": 62161,
+          "S1-P030": 63001,
+          "S1-P031": 63001,
+          "S1-P032": 63841,
+          "S1-P033": 64681,
+          "S1-P034": 41251,
+          "S1-P035": 41251,
+          "S1-P036": 40451,
+          "S1-P037": 42881,
+          "S1-P038": 43721,
+          "S1-P039": 44561,
+          "S1-P040": 45401,
+          "S1-P041": 45401,
+          "S1-P042": 46241,
+          "S1-P043": 47081,
+          "S1-P044": 47921,
+          "S1-P045": 48761,
+          "S1-P046": 48801,
+          "S1-P047": 49641,
+          "S1-P048": 50481,
+          "S1-P049": 51321,
+          "S1-P050": 52161,
+          "S1-P051": 52161,
+          "S1-P052": 53001,
+          "S1-P053": 53841
+        },
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "initial_service_occupancy": 53,
+        "completed_users": 53,
+        "expected_batches": 10,
+        "completed_batches": [
+          "S2-W01",
+          "S2-W02",
+          "S2-W03",
+          "S2-W04",
+          "S2-W05",
+          "S2-W06",
+          "S2-W07",
+          "S2-W08",
+          "S2-W09",
+          "S2-W10"
+        ],
+        "completed_batch_boundaries": 9,
+        "full_shift_seconds": 4855.688333333343,
+        "full_shift_minutes": 80.92813888888904,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 1109.0916666666667,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 200.0,
+          "TO_DISTRIBUTED_STANDING_POSITION": 1109.0916666666667,
+          "PARALLEL_STANDING_CHANGE": 900.0,
+          "TO_PACKAGING_PORTAL": 620.3999999999999,
+          "EXIT_PORTAL": 54.76666666666665
+        },
+        "total_route_m": 2253.413,
+        "personnel_route_mm": {
+          "S2-P001": 37131,
+          "S2-P002": 37131,
+          "S2-P003": 37131,
+          "S2-P004": 37131,
+          "S2-P005": 37131,
+          "S2-P006": 37081,
+          "S2-P007": 37921,
+          "S2-P008": 38761,
+          "S2-P009": 39601,
+          "S2-P010": 40441,
+          "S2-P011": 40441,
+          "S2-P012": 41281,
+          "S2-P013": 42121,
+          "S2-P014": 42961,
+          "S2-P015": 43801,
+          "S2-P016": 43841,
+          "S2-P017": 44681,
+          "S2-P018": 45521,
+          "S2-P019": 46361,
+          "S2-P020": 47201,
+          "S2-P021": 47201,
+          "S2-P022": 48041,
+          "S2-P023": 48881,
+          "S2-P024": 49721,
+          "S2-P025": 50561,
+          "S2-P026": 50601,
+          "S2-P027": 51441,
+          "S2-P028": 52281,
+          "S2-P029": 53121,
+          "S2-P030": 53961,
+          "S2-P031": 53961,
+          "S2-P032": 54801,
+          "S2-P033": 55641,
+          "S2-P034": 32211,
+          "S2-P035": 32211,
+          "S2-P036": 31411,
+          "S2-P037": 33841,
+          "S2-P038": 34681,
+          "S2-P039": 35521,
+          "S2-P040": 36361,
+          "S2-P041": 36361,
+          "S2-P042": 37201,
+          "S2-P043": 38041,
+          "S2-P044": 38881,
+          "S2-P045": 39721,
+          "S2-P046": 39761,
+          "S2-P047": 40601,
+          "S2-P048": 41441,
+          "S2-P049": 42281,
+          "S2-P050": 43121,
+          "S2-P051": 43121,
+          "S2-P052": 43961,
+          "S2-P053": 44801
+        },
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "F 分散站立 · 4人 · 600×900活动包络",
+    "parameters": {
+      "mode": "DISTRIBUTED",
+      "front_concurrency": 4,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "standing_height_mm": 1800,
+      "activity_width_mm": 600,
+      "activity_depth_mm": 900,
+      "activity_height_mm": 1800,
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "aisle_mm": 1200,
+      "room_door_intrusion_mm": 0,
+      "door_kind": "OUTWARD_HINGED_90"
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "batches": 30,
+      "static_pass_count": 30,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200
+    },
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "BLOCKED",
+        "initial_service_occupancy": 53,
+        "completed_users": 0,
+        "expected_batches": 15,
+        "completed_batches": [],
+        "completed_batch_boundaries": 0,
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 102.36666666666666,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 20.0,
+          "TO_DISTRIBUTED_STANDING_POSITION": 102.36666666666666
+        },
+        "total_route_m": 640.243,
+        "personnel_route_mm": {
+          "S1-P001": 41621,
+          "S1-P002": 15571,
+          "S1-P003": 15151,
+          "S1-P004": 14731,
+          "S1-P005": 14311,
+          "S1-P006": 42921,
+          "S1-P007": 13471,
+          "S1-P008": 13051,
+          "S1-P009": 12631,
+          "S1-P010": 12211,
+          "S1-P011": 44181,
+          "S1-P012": 11371,
+          "S1-P013": 10951,
+          "S1-P014": 10531,
+          "S1-P015": 10111,
+          "S1-P016": 45481,
+          "S1-P017": 9271,
+          "S1-P018": 8851,
+          "S1-P019": 8431,
+          "S1-P020": 8011,
+          "S1-P021": 7591,
+          "S1-P022": 7171,
+          "S1-P023": 6751,
+          "S1-P024": 6331,
+          "S1-P025": 5911,
+          "S1-P026": 5491,
+          "S1-P027": 5071,
+          "S1-P028": 4651,
+          "S1-P029": 4231,
+          "S1-P030": 3811,
+          "S1-P031": 3391,
+          "S1-P032": 2971,
+          "S1-P033": 2551,
+          "S1-P034": 15991,
+          "S1-P035": 15571,
+          "S1-P036": 15151,
+          "S1-P037": 13051,
+          "S1-P038": 12631,
+          "S1-P039": 12211,
+          "S1-P040": 11791,
+          "S1-P041": 11371,
+          "S1-P042": 10951,
+          "S1-P043": 10531,
+          "S1-P044": 10111,
+          "S1-P045": 9691,
+          "S1-P046": 9271,
+          "S1-P047": 8851,
+          "S1-P048": 8431,
+          "S1-P049": 8011,
+          "S1-P050": 7591,
+          "S1-P051": 7171,
+          "S1-P052": 6751,
+          "S1-P053": 6331
+        },
+        "blocker": {
+          "operation": "PARALLEL_STANDING_CHANGE",
+          "batch": "S1-W01",
+          "conflicts": [
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S1-P002",
+              "segment": 0,
+              "volume_mm": [
+                11140,
+                2225,
+                0,
+                11740,
+                3125,
+                1800
+              ],
+              "person_id": "S1-P001"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S1-P007",
+              "segment": 0,
+              "volume_mm": [
+                13240,
+                2225,
+                0,
+                13840,
+                3125,
+                1800
+              ],
+              "person_id": "S1-P006"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S1-P005",
+              "segment": 0,
+              "volume_mm": [
+                13240,
+                2225,
+                0,
+                13840,
+                3125,
+                1800
+              ],
+              "person_id": "S1-P006"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S1-P012",
+              "segment": 0,
+              "volume_mm": [
+                15340,
+                2225,
+                0,
+                15940,
+                3125,
+                1800
+              ],
+              "person_id": "S1-P011"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S1-P010",
+              "segment": 0,
+              "volume_mm": [
+                15340,
+                2225,
+                0,
+                15940,
+                3125,
+                1800
+              ],
+              "person_id": "S1-P011"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S1-P017",
+              "segment": 0,
+              "volume_mm": [
+                17440,
+                2225,
+                0,
+                18040,
+                3125,
+                1800
+              ],
+              "person_id": "S1-P016"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S1-P015",
+              "segment": 0,
+              "volume_mm": [
+                17440,
+                2225,
+                0,
+                18040,
+                3125,
+                1800
+              ],
+              "person_id": "S1-P016"
+            }
+          ]
+        }
+      },
+      {
+        "shift": 2,
+        "status": "BLOCKED",
+        "initial_service_occupancy": 53,
+        "completed_users": 0,
+        "expected_batches": 15,
+        "completed_batches": [],
+        "completed_batch_boundaries": 0,
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 72.23333333333333,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 20.0,
+          "TO_DISTRIBUTED_STANDING_POSITION": 72.23333333333333
+        },
+        "total_route_m": 604.083,
+        "personnel_route_mm": {
+          "S2-P001": 32581,
+          "S2-P002": 15571,
+          "S2-P003": 15151,
+          "S2-P004": 14731,
+          "S2-P005": 14311,
+          "S2-P006": 33881,
+          "S2-P007": 13471,
+          "S2-P008": 13051,
+          "S2-P009": 12631,
+          "S2-P010": 12211,
+          "S2-P011": 35141,
+          "S2-P012": 11371,
+          "S2-P013": 10951,
+          "S2-P014": 10531,
+          "S2-P015": 10111,
+          "S2-P016": 36441,
+          "S2-P017": 9271,
+          "S2-P018": 8851,
+          "S2-P019": 8431,
+          "S2-P020": 8011,
+          "S2-P021": 7591,
+          "S2-P022": 7171,
+          "S2-P023": 6751,
+          "S2-P024": 6331,
+          "S2-P025": 5911,
+          "S2-P026": 5491,
+          "S2-P027": 5071,
+          "S2-P028": 4651,
+          "S2-P029": 4231,
+          "S2-P030": 3811,
+          "S2-P031": 3391,
+          "S2-P032": 2971,
+          "S2-P033": 2551,
+          "S2-P034": 15991,
+          "S2-P035": 15571,
+          "S2-P036": 15151,
+          "S2-P037": 13051,
+          "S2-P038": 12631,
+          "S2-P039": 12211,
+          "S2-P040": 11791,
+          "S2-P041": 11371,
+          "S2-P042": 10951,
+          "S2-P043": 10531,
+          "S2-P044": 10111,
+          "S2-P045": 9691,
+          "S2-P046": 9271,
+          "S2-P047": 8851,
+          "S2-P048": 8431,
+          "S2-P049": 8011,
+          "S2-P050": 7591,
+          "S2-P051": 7171,
+          "S2-P052": 6751,
+          "S2-P053": 6331
+        },
+        "blocker": {
+          "operation": "PARALLEL_STANDING_CHANGE",
+          "batch": "S2-W01",
+          "conflicts": [
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S2-P002",
+              "segment": 0,
+              "volume_mm": [
+                11140,
+                2225,
+                0,
+                11740,
+                3125,
+                1800
+              ],
+              "person_id": "S2-P001"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S2-P007",
+              "segment": 0,
+              "volume_mm": [
+                13240,
+                2225,
+                0,
+                13840,
+                3125,
+                1800
+              ],
+              "person_id": "S2-P006"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S2-P005",
+              "segment": 0,
+              "volume_mm": [
+                13240,
+                2225,
+                0,
+                13840,
+                3125,
+                1800
+              ],
+              "person_id": "S2-P006"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S2-P012",
+              "segment": 0,
+              "volume_mm": [
+                15340,
+                2225,
+                0,
+                15940,
+                3125,
+                1800
+              ],
+              "person_id": "S2-P011"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S2-P010",
+              "segment": 0,
+              "volume_mm": [
+                15340,
+                2225,
+                0,
+                15940,
+                3125,
+                1800
+              ],
+              "person_id": "S2-P011"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S2-P017",
+              "segment": 0,
+              "volume_mm": [
+                17440,
+                2225,
+                0,
+                18040,
+                3125,
+                1800
+              ],
+              "person_id": "S2-P016"
+            },
+            {
+              "code": "SWEPT_BODY_COLLISION",
+              "component": "S2-P015",
+              "segment": 0,
+              "volume_mm": [
+                17440,
+                2225,
+                0,
+                18040,
+                3125,
+                1800
+              ],
+              "person_id": "S2-P016"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "label": "G 450×650人体 · 100间隙",
+    "parameters": {
+      "mode": "DISTRIBUTED",
+      "front_concurrency": 4,
+      "person_width_mm": 450,
+      "person_depth_mm": 650,
+      "person_gap_mm": 100,
+      "standing_height_mm": 1800,
+      "activity_width_mm": 600,
+      "activity_depth_mm": 900,
+      "activity_height_mm": 1800,
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "aisle_mm": 1200,
+      "room_door_intrusion_mm": 0,
+      "door_kind": "OUTWARD_HINGED_90"
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 47,
+      "batches": 30,
+      "static_pass_count": 0,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200
+    },
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "BLOCKED",
+        "initial_service_occupancy": 0,
+        "completed_users": 0,
+        "expected_batches": 15,
+        "completed_batches": [],
+        "completed_batch_boundaries": 0,
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "duration_by_operation_seconds": {},
+        "total_route_m": 0.0,
+        "personnel_route_mm": {
+          "S1-P001": 0,
+          "S1-P002": 0,
+          "S1-P003": 0,
+          "S1-P004": 0,
+          "S1-P005": 0,
+          "S1-P006": 0,
+          "S1-P007": 0,
+          "S1-P008": 0,
+          "S1-P009": 0,
+          "S1-P010": 0,
+          "S1-P011": 0,
+          "S1-P012": 0,
+          "S1-P013": 0,
+          "S1-P014": 0,
+          "S1-P015": 0,
+          "S1-P016": 0,
+          "S1-P017": 0,
+          "S1-P018": 0,
+          "S1-P019": 0,
+          "S1-P020": 0,
+          "S1-P021": 0,
+          "S1-P022": 0,
+          "S1-P023": 0,
+          "S1-P024": 0,
+          "S1-P025": 0,
+          "S1-P026": 0,
+          "S1-P027": 0,
+          "S1-P028": 0,
+          "S1-P029": 0,
+          "S1-P030": 0,
+          "S1-P031": 0,
+          "S1-P032": 0,
+          "S1-P033": 0,
+          "S1-P034": 0,
+          "S1-P035": 0,
+          "S1-P036": 0,
+          "S1-P037": 0,
+          "S1-P038": 0,
+          "S1-P039": 0,
+          "S1-P040": 0,
+          "S1-P041": 0,
+          "S1-P042": 0,
+          "S1-P043": 0,
+          "S1-P044": 0,
+          "S1-P045": 0,
+          "S1-P046": 0,
+          "S1-P047": 0,
+          "S1-P048": 0,
+          "S1-P049": 0,
+          "S1-P050": 0,
+          "S1-P051": 0,
+          "S1-P052": 0,
+          "S1-P053": 0
+        },
+        "blocker": {
+          "operation": "STATIC_TEMPLATE",
+          "conflicts": [
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P001",
+                "S1-P006"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P006",
+                "S1-P011"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P011",
+                "S1-P016"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P002",
+                "S1-P007"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P007",
+                "S1-P012"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P012",
+                "S1-P017"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P003",
+                "S1-P008"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P008",
+                "S1-P013"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P013",
+                "S1-P018"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P004",
+                "S1-P009"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P009",
+                "S1-P014"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P014",
+                "S1-P019"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P005",
+                "S1-P010"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P010",
+                "S1-P015"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P015",
+                "S1-P020"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P021",
+                "S1-P026"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P026",
+                "S1-P031"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P031",
+                "S1-P036"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P022",
+                "S1-P027"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P027",
+                "S1-P032"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P032",
+                "S1-P037"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P023",
+                "S1-P028"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P028",
+                "S1-P033"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P033",
+                "S1-P038"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P024",
+                "S1-P029"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P029",
+                "S1-P034"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P034",
+                "S1-P039"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P025",
+                "S1-P030"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P030",
+                "S1-P035"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P035",
+                "S1-P040"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "ACTIVE_OPERATOR_ACTION_BINDING_MISMATCH",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P041",
+                "S1-P046"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "ACTIVE_OPERATOR_ACTION_BINDING_MISMATCH",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S1-P042",
+                "S1-P047"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "ACTIVE_OPERATOR_ACTION_BINDING_MISMATCH",
+              "components": []
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "ACTIVE_OPERATOR_ACTION_BINDING_MISMATCH",
+              "components": []
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "ACTIVE_OPERATOR_ACTION_BINDING_MISMATCH",
+              "components": []
+            }
+          ]
+        }
+      },
+      {
+        "shift": 2,
+        "status": "BLOCKED",
+        "initial_service_occupancy": 0,
+        "completed_users": 0,
+        "expected_batches": 15,
+        "completed_batches": [],
+        "completed_batch_boundaries": 0,
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "duration_by_operation_seconds": {},
+        "total_route_m": 0.0,
+        "personnel_route_mm": {
+          "S2-P001": 0,
+          "S2-P002": 0,
+          "S2-P003": 0,
+          "S2-P004": 0,
+          "S2-P005": 0,
+          "S2-P006": 0,
+          "S2-P007": 0,
+          "S2-P008": 0,
+          "S2-P009": 0,
+          "S2-P010": 0,
+          "S2-P011": 0,
+          "S2-P012": 0,
+          "S2-P013": 0,
+          "S2-P014": 0,
+          "S2-P015": 0,
+          "S2-P016": 0,
+          "S2-P017": 0,
+          "S2-P018": 0,
+          "S2-P019": 0,
+          "S2-P020": 0,
+          "S2-P021": 0,
+          "S2-P022": 0,
+          "S2-P023": 0,
+          "S2-P024": 0,
+          "S2-P025": 0,
+          "S2-P026": 0,
+          "S2-P027": 0,
+          "S2-P028": 0,
+          "S2-P029": 0,
+          "S2-P030": 0,
+          "S2-P031": 0,
+          "S2-P032": 0,
+          "S2-P033": 0,
+          "S2-P034": 0,
+          "S2-P035": 0,
+          "S2-P036": 0,
+          "S2-P037": 0,
+          "S2-P038": 0,
+          "S2-P039": 0,
+          "S2-P040": 0,
+          "S2-P041": 0,
+          "S2-P042": 0,
+          "S2-P043": 0,
+          "S2-P044": 0,
+          "S2-P045": 0,
+          "S2-P046": 0,
+          "S2-P047": 0,
+          "S2-P048": 0,
+          "S2-P049": 0,
+          "S2-P050": 0,
+          "S2-P051": 0,
+          "S2-P052": 0,
+          "S2-P053": 0
+        },
+        "blocker": {
+          "operation": "STATIC_TEMPLATE",
+          "conflicts": [
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P001",
+                "S2-P006"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P006",
+                "S2-P011"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P011",
+                "S2-P016"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P002",
+                "S2-P007"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P007",
+                "S2-P012"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P012",
+                "S2-P017"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P003",
+                "S2-P008"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P008",
+                "S2-P013"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P013",
+                "S2-P018"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P004",
+                "S2-P009"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P009",
+                "S2-P014"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P014",
+                "S2-P019"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P005",
+                "S2-P010"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P010",
+                "S2-P015"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P015",
+                "S2-P020"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P021",
+                "S2-P026"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P026",
+                "S2-P031"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P031",
+                "S2-P036"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P022",
+                "S2-P027"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P027",
+                "S2-P032"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P032",
+                "S2-P037"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P023",
+                "S2-P028"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P028",
+                "S2-P033"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P033",
+                "S2-P038"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P024",
+                "S2-P029"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P029",
+                "S2-P034"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P034",
+                "S2-P039"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P025",
+                "S2-P030"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P030",
+                "S2-P035"
+              ]
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P035",
+                "S2-P040"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "ACTIVE_OPERATOR_ACTION_BINDING_MISMATCH",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P041",
+                "S2-P046"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "ACTIVE_OPERATOR_ACTION_BINDING_MISMATCH",
+              "components": []
+            },
+            {
+              "code": "PERSON_3D_BODY_COLLISION",
+              "components": [
+                "S2-P042",
+                "S2-P047"
+              ]
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "ACTIVE_OPERATOR_ACTION_BINDING_MISMATCH",
+              "components": []
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "ACTIVE_OPERATOR_ACTION_BINDING_MISMATCH",
+              "components": []
+            },
+            {
+              "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+              "components": []
+            },
+            {
+              "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+              "components": []
+            },
+            {
+              "code": "ACTIVE_OPERATOR_ACTION_BINDING_MISMATCH",
+              "components": []
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "label": "H 柜前静态身体边界 · 非更衣可用性证明",
+    "parameters": {
+      "mode": "CABINET_FRONT",
+      "front_concurrency": 4,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "standing_height_mm": 1800,
+      "activity_width_mm": 400,
+      "activity_depth_mm": 600,
+      "activity_height_mm": 1800,
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "aisle_mm": 1200,
+      "room_door_intrusion_mm": 0,
+      "door_kind": "OUTWARD_HINGED_90"
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "batches": 30,
+      "static_pass_count": 30,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200
+    },
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "initial_service_occupancy": 53,
+        "completed_users": 53,
+        "expected_batches": 15,
+        "completed_batches": [
+          "S1-W01",
+          "S1-W02",
+          "S1-W03",
+          "S1-W04",
+          "S1-W05",
+          "S1-W06",
+          "S1-W07",
+          "S1-W08",
+          "S1-W09",
+          "S1-W10",
+          "S1-W11",
+          "S1-W12",
+          "S1-W13",
+          "S1-W14",
+          "S1-W15"
+        ],
+        "completed_batch_boundaries": 14,
+        "full_shift_seconds": 5221.771666666671,
+        "full_shift_minutes": 87.02952777777786,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 1508.3583333333333,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 300.0,
+          "PARALLEL_STANDING_CHANGE": 1350.0,
+          "TO_PACKAGING_PORTAL": 1146.3083333333332,
+          "EXIT_PORTAL": 54.76666666666665
+        },
+        "total_route_m": 2143.063,
+        "personnel_route_mm": {
+          "S1-P001": 44371,
+          "S1-P002": 44371,
+          "S1-P003": 44371,
+          "S1-P004": 44371,
+          "S1-P005": 44371,
+          "S1-P006": 43571,
+          "S1-P007": 43571,
+          "S1-P008": 43571,
+          "S1-P009": 43571,
+          "S1-P010": 43571,
+          "S1-P011": 42731,
+          "S1-P012": 42731,
+          "S1-P013": 42731,
+          "S1-P014": 42731,
+          "S1-P015": 42731,
+          "S1-P016": 41931,
+          "S1-P017": 41931,
+          "S1-P018": 41931,
+          "S1-P019": 41931,
+          "S1-P020": 41931,
+          "S1-P021": 41091,
+          "S1-P022": 41091,
+          "S1-P023": 41091,
+          "S1-P024": 41091,
+          "S1-P025": 41091,
+          "S1-P026": 40291,
+          "S1-P027": 40291,
+          "S1-P028": 40291,
+          "S1-P029": 40291,
+          "S1-P030": 40291,
+          "S1-P031": 39451,
+          "S1-P032": 39451,
+          "S1-P033": 39451,
+          "S1-P034": 39451,
+          "S1-P035": 39451,
+          "S1-P036": 38651,
+          "S1-P037": 38651,
+          "S1-P038": 38651,
+          "S1-P039": 38651,
+          "S1-P040": 38651,
+          "S1-P041": 37811,
+          "S1-P042": 37811,
+          "S1-P043": 37811,
+          "S1-P044": 37811,
+          "S1-P045": 37811,
+          "S1-P046": 37011,
+          "S1-P047": 37011,
+          "S1-P048": 37011,
+          "S1-P049": 37011,
+          "S1-P050": 37011,
+          "S1-P051": 36171,
+          "S1-P052": 36171,
+          "S1-P053": 36171
+        },
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "initial_service_occupancy": 53,
+        "completed_users": 53,
+        "expected_batches": 15,
+        "completed_batches": [
+          "S2-W01",
+          "S2-W02",
+          "S2-W03",
+          "S2-W04",
+          "S2-W05",
+          "S2-W06",
+          "S2-W07",
+          "S2-W08",
+          "S2-W09",
+          "S2-W10",
+          "S2-W11",
+          "S2-W12",
+          "S2-W13",
+          "S2-W14",
+          "S2-W15"
+        ],
+        "completed_batch_boundaries": 14,
+        "full_shift_seconds": 4423.238333333336,
+        "full_shift_minutes": 73.72063888888894,
+        "duration_by_operation_seconds": {
+          "ENTER_AND_REACH_WAITING_POSITION": 862.3383333333338,
+          "TO_PERSONAL_LOCKER": 1109.0916666666665,
+          "PARALLEL_LOCKER_USE_AND_CLOSE": 300.0,
+          "PARALLEL_STANDING_CHANGE": 1350.0,
+          "TO_PACKAGING_PORTAL": 747.0416666666663,
+          "EXIT_PORTAL": 54.76666666666665
+        },
+        "total_route_m": 1663.943,
+        "personnel_route_mm": {
+          "S2-P001": 35331,
+          "S2-P002": 35331,
+          "S2-P003": 35331,
+          "S2-P004": 35331,
+          "S2-P005": 35331,
+          "S2-P006": 34531,
+          "S2-P007": 34531,
+          "S2-P008": 34531,
+          "S2-P009": 34531,
+          "S2-P010": 34531,
+          "S2-P011": 33691,
+          "S2-P012": 33691,
+          "S2-P013": 33691,
+          "S2-P014": 33691,
+          "S2-P015": 33691,
+          "S2-P016": 32891,
+          "S2-P017": 32891,
+          "S2-P018": 32891,
+          "S2-P019": 32891,
+          "S2-P020": 32891,
+          "S2-P021": 32051,
+          "S2-P022": 32051,
+          "S2-P023": 32051,
+          "S2-P024": 32051,
+          "S2-P025": 32051,
+          "S2-P026": 31251,
+          "S2-P027": 31251,
+          "S2-P028": 31251,
+          "S2-P029": 31251,
+          "S2-P030": 31251,
+          "S2-P031": 30411,
+          "S2-P032": 30411,
+          "S2-P033": 30411,
+          "S2-P034": 30411,
+          "S2-P035": 30411,
+          "S2-P036": 29611,
+          "S2-P037": 29611,
+          "S2-P038": 29611,
+          "S2-P039": 29611,
+          "S2-P040": 29611,
+          "S2-P041": 28771,
+          "S2-P042": 28771,
+          "S2-P043": 28771,
+          "S2-P044": 28771,
+          "S2-P045": 28771,
+          "S2-P046": 27971,
+          "S2-P047": 27971,
+          "S2-P048": 27971,
+          "S2-P049": 27971,
+          "S2-P050": 27971,
+          "S2-P051": 27131,
+          "S2-P052": 27131,
+          "S2-P053": 27131
+        },
+        "blocker": null
+      }
+    ]
+  }
+]

@@ -1,0 +1,37 @@
+{
+  "base_head": "b1ca6be49e47d9e0c191205c7cee84ebcc269baf",
+  "source_files": {
+    "docs/previews/v2.2.2/r11-r5-h5-practical-changing-review-r1/project-and-room-catalog.json": "84d19280c1a9573c387de8576070ee24b681173054beb1f9b22e2a4d09e7e2f4",
+    "docs/previews/v2.2.2/r11-r5-h5-practical-changing-review-r1/source-manifest.json": "b0e139e9c586a564f4b2f6331cf5ea43a63744e1f7311f1d7c330da69955e5ab",
+    "docs/tasks/V2_2_2-r11-r7-reviewed-standing-project-facts.txt": "9dcf5d3b8a4a397af2179bdf4e86bc5dfa1a12d5325ed332796d48602fcf1e3e",
+    "docs/previews/v2.2.2/r11-r6-h5-full-operation-review-r1/receipt.json": "846292aeadf2184468e8d9a54b50b9a56772faffadc79ee2a446428f0e99e3db"
+  },
+  "derived_files": {
+    "case-05-shift-1.svg": "d0e613db0ecdf636be775dd3383c6d1dbc48182aa5164dde23a784a68e173a31",
+    "case-05-shift-2.svg": "5709522722e83563d56952cf2db0f8993203b6e9acede9367c74b73f680d3403",
+    "index.html": "9f29300e836efee47291b45b375d49036873ca16e36f92a31124e432175220af",
+    "case-03-shift-1.svg": "067d2ba10188d9b72a7b10b1185412622ddf4bb13fe49075225db12d2bf211e7",
+    "case-03-shift-2.svg": "83dae2f6009b2310f4b4a52ba824a428977ea95660fd22cbcb853d6fc851e8ef",
+    "case-06-shift-2.svg": "5e6afe2b636b4b01ecc8eda5e6f3d0071273914d4b47e56b16898861d08a9eb2",
+    "case-06-shift-1.svg": "a578fe6ed78166fafa99ca1aed6edaf99da79d365173831d023516326eb0ebd2",
+    "h5-no-bench-standing-plan.svg": "72410279f74b9c80ca89d447a93603b94304307d58ee8e0167d67fc9aedea42d",
+    "comparison.json": "5ee046c35c52f5a25244112a204618a4c66d4e596caa201d185cd7b407244fe7",
+    "case-01-shift-1.svg": "72410279f74b9c80ca89d447a93603b94304307d58ee8e0167d67fc9aedea42d",
+    "case-08-shift-2.svg": "4e661469e0e981cbbce48d8a43bb8af23b45f7d40a2112d971325c9769793179",
+    "case-01-shift-2.svg": "815dfa153128db446c965a96dab0acfbf3365e18d787f7316e392b938f6266b7",
+    "case-08-shift-1.svg": "17062a4a21d1e6a6c33ada3ef8fff6b92c272d3c1e038d1cb87fc617222d5229",
+    "standing-operation-report.md": "583d73de55cad4f04d58d20b0a2da4912a528aea383d36693c3510f3d60050c4",
+    "case-04-shift-2.svg": "1282fac08bfe182c4d797d950d10f75f5ef9c79aa50a8f168a4c111a4037ac44",
+    "standing-operation-results.json.gz": "b598703b509bc38e275b668b61a099c5914bb098246663c8f0382f017362231f",
+    "case-04-shift-1.svg": "9273d6598decd70b7f943818bf49848ff160f993299a4c09011b7e9dd43c1d29",
+    "case-07-shift-1.svg": "f9e8396fba4f577d006723d0179409f72073e09f9c8c6725337d59189fb75bfb",
+    "case-07-shift-2.svg": "c335f653a757ff48a670eb67506116ad023f7036944f37b6c278ff525e073954",
+    "project-binding.json": "df87ceca2e5a77fd91b216dc4d9944befc91a8b580ce9119b23526cbedc3dd31",
+    "case-02-shift-2.svg": "cabc48dcbb0cece64d54b8295da75feeaf8786c4a8960bfca8f5ad77755a1958",
+    "receipt.json": "f0b50451d3568211e3fca25dce9d845bed798fa07118996a3ca049e517553bf6",
+    "case-02-shift-1.svg": "43d373a41fd17685231386feb5f3b6bd34b3c5169fcedde8f678fac1e8a1003e",
+    "ci-contracts.txt": "7fc9cf221e049d792ba6272efb5261de5707f8adf76d44a26c727441a18b6f8d",
+    "validation.json": "bad2c1b227df8c9cb61671da191a7c811c97d48f78e0c0df9f95bb39b2605840",
+    "local-tests.xml": "613071984d1b36e8559a1771ed685b39ffc711df3cb346ea9771067ffdff83ac"
+  }
+}

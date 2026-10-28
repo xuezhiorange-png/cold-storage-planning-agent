@@ -1,0 +1,13 @@
+TASK_ID=V2_2_2_R11_R7_H5_NO_BENCH_STANDING_CHANGING_R1
+SOURCE=Owner instruction in this task, confirmed 2026-10-28
+PROJECT=Existing reviewed 20000 kg/day packaged-product project, frozen H5 P01/P02
+PROJECT_SCOPE=sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85
+BENCH_COUNT=0
+CHANGING_POSTURE=STANDING
+SHIFT_DESIGN_USERS=53,53
+SIMULTANEOUS_ROOM_DESIGN_USERS=53
+FIVE_TIER_COLUMNS=22
+INDEPENDENT_COMPARTMENT_CAPACITY=110
+REVIEW_BOUNDARY=No benches and standing posture are confirmed project facts. Cabinet-front changing, distributed changing, cabinet dimensions, human activity envelopes, aisle width, door motion, hygiene and timings are not approved by this confirmation.
+HISTORICAL_R5_R6_RESULTS=Preserved; do not apply their bench service requirement to this new project protocol.
+EXECUTION_AUTHORITY=None; this design fact source is not a Grant or MAIN authorization.
