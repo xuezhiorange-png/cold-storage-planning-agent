@@ -1,0 +1,120 @@
+test_commit_does_not_spawn_maintenance_even_at_forced_threshold (test_ci_matrix.EventTests.test_commit_does_not_spawn_maintenance_even_at_forced_threshold) ... ok
+test_fixture_disables_automatic_background_writers (test_ci_matrix.EventTests.test_fixture_disables_automatic_background_writers) ... ok
+test_invalid_missing_empty_or_unavailable_diff_is_full (test_ci_matrix.EventTests.test_invalid_missing_empty_or_unavailable_diff_is_full) ... ok
+test_manual_and_unknown_events_default_full (test_ci_matrix.EventTests.test_manual_and_unknown_events_default_full) ... ok
+test_nul_paths_preserve_newlines_in_filenames (test_ci_matrix.EventTests.test_nul_paths_preserve_newlines_in_filenames) ... ok
+test_pr_uses_base_and_head_not_synthetic_merge (test_ci_matrix.EventTests.test_pr_uses_base_and_head_not_synthetic_merge) ... ok
+test_push_uses_before_and_github_sha (test_ci_matrix.EventTests.test_push_uses_before_and_github_sha) ... ok
+test_rename_from_backend_to_docs_and_deletion_keep_backend_gate (test_ci_matrix.EventTests.test_rename_from_backend_to_docs_and_deletion_keep_backend_gate) ... ok
+test_tag_object_is_not_a_commit_sha (test_ci_matrix.EventTests.test_tag_object_is_not_a_commit_sha) ... ok
+test_event_fixtures_clean_up_in_fifty_independent_runs (test_ci_matrix.FixtureCleanupRegressionTests.test_event_fixtures_clean_up_in_fifty_independent_runs) ... CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 1, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 2, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 3, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 4, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 5, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 6, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 7, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 8, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 9, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 10, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 11, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 12, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 13, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 14, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 15, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 16, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 17, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 18, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 19, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 20, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 21, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 22, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 23, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 24, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 25, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 26, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 27, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 28, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 29, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 30, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 31, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 32, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 33, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 34, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 35, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 36, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 37, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 38, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 39, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 40, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 41, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 42, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 43, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 44, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 45, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 46, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 47, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 48, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 49, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+CLASSIFIER_CLEANUP_REPEAT {"failures": 0, "git": "git version 2.54.0 (Apple Git-157)", "iteration": 50, "platform": "darwin", "python": "3.12.13", "repositories_removed": 9, "tests": 9}
+ok
+test_classifier_failure_and_missing_output_fail_closed (test_ci_matrix.GateTests.test_classifier_failure_and_missing_output_fail_closed) ... ok
+test_each_scope_allows_only_expected_skips (test_ci_matrix.GateTests.test_each_scope_allows_only_expected_skips) ... ok
+test_every_required_job_failure_cancel_or_skip_fails_gate (test_ci_matrix.GateTests.test_every_required_job_failure_cancel_or_skip_fails_gate) ... ok
+test_executed_manual_failure_is_not_hidden (test_ci_matrix.GateTests.test_executed_manual_failure_is_not_hidden) ... ok
+test_classification_matrix (test_ci_matrix.PathTests.test_classification_matrix) ... ok
+test_current_pr_self_change_forces_full (test_ci_matrix.PathTests.test_current_pr_self_change_forces_full) ... ok
+test_infra_and_dependencies_override_lightweight_paths (test_ci_matrix.PathTests.test_infra_and_dependencies_override_lightweight_paths) ... ok
+test_pr269_simulation_has_no_heavy_job (test_ci_matrix.PathTests.test_pr269_simulation_has_no_heavy_job) ... ok
+test_unknown_and_noncanonical_paths_cannot_downgrade (test_ci_matrix.PathTests.test_unknown_and_noncanonical_paths_cannot_downgrade) ... ok
+test_cli_emits_parseable_plan (test_ci_matrix.WorkflowTests.test_cli_emits_parseable_plan) ... ok
+test_final_gate_depends_on_every_job_and_runs_always (test_ci_matrix.WorkflowTests.test_final_gate_depends_on_every_job_and_runs_always) ... ok
+test_lightweight_has_architecture_but_no_runtime_or_services (test_ci_matrix.WorkflowTests.test_lightweight_has_architecture_but_no_runtime_or_services) ... ok
+test_manual_authorization_inputs_and_job_bodies_are_unchanged (test_ci_matrix.WorkflowTests.test_manual_authorization_inputs_and_job_bodies_are_unchanged) ... ok
+test_actual_aggregate_programs_reject_missing_cancelled_and_skipped (test_ci_parallelization.ParallelWorkflowTests.test_actual_aggregate_programs_reject_missing_cancelled_and_skipped) ... ok
+test_cross_attempt_fix_does_not_change_other_job_contracts (test_ci_parallelization.ParallelWorkflowTests.test_cross_attempt_fix_does_not_change_other_job_contracts) ... ok
+test_every_parallel_job_is_required_and_non_success_fails_closed (test_ci_parallelization.ParallelWorkflowTests.test_every_parallel_job_is_required_and_non_success_fails_closed) ... ok
+test_partition_selectors_receipts_and_fixture_affinity (test_ci_parallelization.ParallelWorkflowTests.test_partition_selectors_receipts_and_fixture_affinity) ... ok
+test_rss_and_pg_integration_commands_preserved_verbatim (test_ci_parallelization.ParallelWorkflowTests.test_rss_and_pg_integration_commands_preserved_verbatim) ... ok
+test_second_rss_worker_requires_an_executed_first_worker_even_after_failure (test_ci_parallelization.ParallelWorkflowTests.test_second_rss_worker_requires_an_executed_first_worker_even_after_failure) ... ok
+test_fast_job_must_actually_succeed (test_ci_speed_refactor.AcceptanceBoundaryTests.test_fast_job_must_actually_succeed) ... ok
+test_fast_or_partial_cannot_satisfy_formal_gate (test_ci_speed_refactor.AcceptanceBoundaryTests.test_fast_or_partial_cannot_satisfy_formal_gate) ... ok
+test_triggers_names_and_cancellation_domains_are_disjoint (test_ci_speed_refactor.AcceptanceBoundaryTests.test_triggers_names_and_cancellation_domains_are_disjoint) ... ok
+test_full_cli_overrides_safe_or_document_only_scope (test_ci_speed_refactor.FastScopeTests.test_full_cli_overrides_safe_or_document_only_scope) ... ok
+test_only_complete_exact_allowlist_is_stage_b_fast (test_ci_speed_refactor.FastScopeTests.test_only_complete_exact_allowlist_is_stage_b_fast) ... ok
+test_unknown_or_high_risk_mixed_change_is_not_stage_b_fast (test_ci_speed_refactor.FastScopeTests.test_unknown_or_high_risk_mixed_change_is_not_stage_b_fast) ... ok
+test_actual_failed_or_missing_reports_rejected_even_with_valid_provenance (test_partitions.CrossAttemptTests.test_actual_failed_or_missing_reports_rejected_even_with_valid_provenance) ... ok
+test_ansi_elsewhere_in_log_preserves_raw_upload_proof (test_partitions.CrossAttemptTests.test_ansi_elsewhere_in_log_preserves_raw_upload_proof) ... ok
+test_ansi_logs_still_reject_bad_missing_duplicate_and_truncated_upload_proof (test_partitions.CrossAttemptTests.test_ansi_logs_still_reject_bad_missing_duplicate_and_truncated_upload_proof) ... ok
+test_cli_requires_live_source_and_rechecks_attempt_after_readback (test_partitions.CrossAttemptTests.test_cli_requires_live_source_and_rechecks_attempt_after_readback) ... ok
+test_duplicate_foreign_unfinished_jobs_rejected (test_partitions.CrossAttemptTests.test_duplicate_foreign_unfinished_jobs_rejected) ... ok
+test_every_missing_partition_and_duplicate_artifact_rejected (test_partitions.CrossAttemptTests.test_every_missing_partition_and_duplicate_artifact_rejected) ... ok
+test_expired_unknown_or_relabelled_inherited_artifact_rejected (test_partitions.CrossAttemptTests.test_expired_unknown_or_relabelled_inherited_artifact_rejected) ... ok
+test_foreign_run_head_repository_branch_and_attempt_rejected (test_partitions.CrossAttemptTests.test_foreign_run_head_repository_branch_and_attempt_rejected) ... ok
+test_initial_attempt_still_requires_all_ten_original_producers (test_partitions.CrossAttemptTests.test_initial_attempt_still_requires_all_ten_original_producers) ... ok
+test_job_log_api_exception_cannot_be_treated_as_successful_readback (test_partitions.CrossAttemptTests.test_job_log_api_exception_cannot_be_treated_as_successful_readback) ... ok
+test_latest_failed_or_missing_artifact_never_uses_older_success (test_partitions.CrossAttemptTests.test_latest_failed_or_missing_artifact_never_uses_older_success) ... ok
+test_latest_proven_success_selected_deterministically_not_overwritten (test_partitions.CrossAttemptTests.test_latest_proven_success_selected_deterministically_not_overwritten) ... ok
+test_log_upload_id_digest_interval_and_duplicate_lines_bound (test_partitions.CrossAttemptTests.test_log_upload_id_digest_interval_and_duplicate_lines_bound) ... ok
+test_merged_extra_files_and_symlink_directories_rejected (test_partitions.CrossAttemptTests.test_merged_extra_files_and_symlink_directories_rejected) ... ok
+test_nine_original_successes_and_one_rerun_with_failed_run_preserved (test_partitions.CrossAttemptTests.test_nine_original_successes_and_one_rerun_with_failed_run_preserved) ... ok
+test_paginated_api_rejects_missing_and_duplicate_pages (test_partitions.CrossAttemptTests.test_paginated_api_rejects_missing_and_duplicate_pages) ... ok
+test_third_attempt_can_inherit_proven_sources_from_both_earlier_attempts (test_partitions.CrossAttemptTests.test_third_attempt_can_inherit_proven_sources_from_both_earlier_attempts) ... ok
+test_unknown_inherited_job_and_incomplete_snapshots_rejected (test_partitions.CrossAttemptTests.test_unknown_inherited_job_and_incomplete_snapshots_rejected) ... ok
+test_unsuccessful_or_missing_upload_and_test_step_rejected (test_partitions.CrossAttemptTests.test_unsuccessful_or_missing_upload_and_test_step_rejected) ... ok
+test_workflow_and_attempt_metadata_bound (test_partitions.CrossAttemptTests.test_workflow_and_attempt_metadata_bound) ... ok
+test_zip_digest_and_local_receipt_cannot_be_forged (test_partitions.CrossAttemptTests.test_zip_digest_and_local_receipt_cannot_be_forged) ... ok
+test_job_log_api_failure_preserves_captured_error_without_echo_or_retry (test_partitions.GithubLogTransportTests.test_job_log_api_failure_preserves_captured_error_without_echo_or_retry) ... ok
+test_non_job_log_endpoints_keep_original_arguments_and_capture_behavior (test_partitions.GithubLogTransportTests.test_non_job_log_endpoints_keep_original_arguments_and_capture_behavior) ... ok
+test_normal_and_ansi_job_logs_are_captured_without_terminal_echo (test_partitions.GithubLogTransportTests.test_normal_and_ansi_job_logs_are_captured_without_terminal_echo) ... ok
+test_complete_execution (test_partitions.PartitionCoverageTests.test_complete_execution) ... ok
+test_delegated_composition_requires_real_pass (test_partitions.PartitionCoverageTests.test_delegated_composition_requires_real_pass) ... ok
+test_existing_setup_skip_is_visible (test_partitions.PartitionCoverageTests.test_existing_setup_skip_is_visible) ... ok
+test_fail_closed (test_partitions.PartitionCoverageTests.test_fail_closed) ... ok
+test_failed_report_cannot_be_hidden_by_success_exit (test_partitions.PartitionCoverageTests.test_failed_report_cannot_be_hidden_by_success_exit) ... ok
+test_original_coverage_predicates_unchanged (test_partitions.PartitionCoverageTests.test_original_coverage_predicates_unchanged) ... ok
+
+----------------------------------------------------------------------
+Ran 65 tests in 146.703s
+
+OK
