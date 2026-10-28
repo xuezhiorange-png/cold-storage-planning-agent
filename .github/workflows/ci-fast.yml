@@ -67,6 +67,7 @@ jobs:
           tests/unit/test_v222_stage_b_r10_r2_main_execution.py
           tests/unit/test_v222_functional_room_fit.py
           tests/unit/test_v222_functional_project_input_binding.py
+          tests/unit/test_v222_r11_r3_locker_review.py
           -m "not physical_rss_linux" -q
       - name: Partition execution and shared fixture contracts (no layout search)
         run: >-

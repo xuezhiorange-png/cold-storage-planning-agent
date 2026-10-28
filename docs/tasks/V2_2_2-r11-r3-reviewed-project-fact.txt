@@ -1,0 +1,10 @@
+Reviewed source: direct Owner instruction V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1, section 1.
+Owner confirms packaged finished-product daily mass, independently of historical inbound mass:
+PACKAGED_PRODUCT_MASS_KG_PER_DAY=20000 kg/day
+Applicable Plan: sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd
+Applicable P1: sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85
+No actual shift workforce override was supplied. Existing Owner V2 default split applies.
+Derived staff, lockers and tables are project design calculations, not an employee roster.
+Locker model, finished clear dimensions, aisle, person spaces, benches, door operation,
+clean/unclean separation and maintenance design remain INPUT_REQUIRED.
+This source does not modify historical inputs, P1, Stage B acceptance or MAIN authorization.
