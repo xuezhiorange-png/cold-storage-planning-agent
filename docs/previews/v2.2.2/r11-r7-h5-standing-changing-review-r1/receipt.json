@@ -1,0 +1,21 @@
+{
+  "task": "V2_2_2_R11_R7_H5_NO_BENCH_STANDING_CHANGING_R1",
+  "base_head": "b1ca6be49e47d9e0c191205c7cee84ebcc269baf",
+  "bench_count": 0,
+  "changing_posture": "STANDING",
+  "owner_fact_binding": "CONFIRMED_PROJECT_BASIS",
+  "full_service_users": [
+    53,
+    53
+  ],
+  "full_shift_seconds": [
+    6204.2216666666745,
+    5405.68833333334
+  ],
+  "functional_status": "INPUT_REQUIRED",
+  "native_solves": 0,
+  "main": false,
+  "grant": false,
+  "claim": false,
+  "full_ci": "NOT_REQUESTED"
+}
