@@ -1,0 +1,32 @@
+{
+  "task": "V2_2_2_R11_R8_CABINET_FRONT_CHANGING_R1",
+  "base_head": "214bd1acabee79031823e6fc05ad3548a1c8b73c",
+  "python": "3.12.13",
+  "locked_dependencies": true,
+  "local_tests": {
+    "tests": 1237,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 16
+  },
+  "passed": 1221,
+  "new_r8_tests": 42,
+  "ci_contract_tests": 65,
+  "ruff": "PASS",
+  "format": "PASS_1090_FILES",
+  "mypy": "PASS_492_SOURCE_FILES",
+  "ci_scripts_static_checks": "PASS",
+  "yaml": "PASS",
+  "javascript_syntax": "PASS",
+  "svg_static_render": "PASS_4_RENDERED_AND_INSPECTED",
+  "browser_interaction": "NOT_EVALUATED_BROWSER_TRANSPORT_UNAVAILABLE",
+  "original_file_changes": [
+    ".github/workflows/ci-fast.yml"
+  ],
+  "r1_r7_code_and_history_unchanged": true,
+  "native_solves": 0,
+  "main": false,
+  "grant": false,
+  "claim": false,
+  "full_ci": "NOT_REQUESTED"
+}
