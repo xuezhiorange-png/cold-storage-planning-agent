@@ -1,0 +1,107 @@
+{
+  "fast_demo": {
+    "input": {
+      "walk_mm_per_second": 600,
+      "locker_seconds": 20,
+      "changing_seconds": 60,
+      "seated_seconds": 30,
+      "sit_seconds": 4,
+      "rise_seconds": 4
+    },
+    "source_type": "demo",
+    "validity_status": "unverified",
+    "requires_review": true,
+    "source_label": "HYPOTHETICAL_NOT_APPROVED",
+    "result": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 60,
+        "seated_seconds": 30,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 280,
+        "changing": 3180,
+        "bench": 342
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 3180,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    }
+  },
+  "base_demo": {
+    "input": {
+      "walk_mm_per_second": 600,
+      "locker_seconds": 20,
+      "changing_seconds": 90,
+      "seated_seconds": 45,
+      "sit_seconds": 4,
+      "rise_seconds": 4
+    },
+    "source_type": "demo",
+    "validity_status": "unverified",
+    "requires_review": true,
+    "source_label": "HYPOTHETICAL_NOT_APPROVED",
+    "result": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 90,
+        "seated_seconds": 45,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 280,
+        "changing": 4770,
+        "bench": 477
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 4770,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    }
+  },
+  "slow_demo": {
+    "input": {
+      "walk_mm_per_second": 600,
+      "locker_seconds": 20,
+      "changing_seconds": 180,
+      "seated_seconds": 90,
+      "sit_seconds": 4,
+      "rise_seconds": 4
+    },
+    "source_type": "demo",
+    "validity_status": "unverified",
+    "requires_review": true,
+    "source_label": "HYPOTHETICAL_NOT_APPROVED",
+    "result": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 180,
+        "seated_seconds": 90,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 280,
+        "changing": 9540,
+        "bench": 882
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 9540,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    }
+  }
+}

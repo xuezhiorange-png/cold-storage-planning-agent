@@ -70,6 +70,7 @@ jobs:
           tests/unit/test_v222_r11_r3_locker_review.py
           tests/unit/test_v222_r11_r4_multi_tier_locker.py
           tests/unit/test_v222_r11_r5_practical_changing.py
+          tests/unit/test_v222_r11_r6_full_changing_operation.py
           -m "not physical_rss_linux" -q
       - name: Partition execution and shared fixture contracts (no layout search)
         run: >-

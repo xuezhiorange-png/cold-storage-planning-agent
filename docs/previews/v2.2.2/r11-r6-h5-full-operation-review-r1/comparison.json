@@ -1,0 +1,1064 @@
+[
+  {
+    "label": "A 原400×600 / 20间隙 / 4柜前 / 6座 / 800×900操作区",
+    "parameters": {
+      "arrangement": "SINGLE_SIDE",
+      "door_kind": "OUTWARD_HINGED_90",
+      "hinge": "LEFT",
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "cabinet_height_mm": 1800,
+      "cell_height_mm": 300,
+      "plinth_mm": 100,
+      "shelf_mm": 20,
+      "columns_per_unit": 2,
+      "finish_mm": 20,
+      "installation_gap_mm": 20,
+      "unit_gap_mm": 20,
+      "end_clearance_mm": 100,
+      "segment_gap_mm": 1200,
+      "frame_mm": 20,
+      "leaf_thickness_mm": 15,
+      "operator_standoff_mm": 380,
+      "aisle_mm": 1200,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "standing_height_mm": 1800,
+      "seated_height_mm": 1300,
+      "person_gap_mm": 20,
+      "front_concurrency": 4,
+      "changing_operation_width_mm": 800,
+      "changing_operation_depth_mm": 900,
+      "bench_count": 2,
+      "bench_length_mm": 1800,
+      "bench_depth_mm": 400,
+      "bench_height_mm": 450,
+      "seat_pitch_mm": 600,
+      "bench_gap_mm": 500,
+      "room_door_intrusion_mm": 0,
+      "entrance_landing_mm": 1200,
+      "reach_low_mm": 100,
+      "reach_high_mm": 1700,
+      "reach_horizontal_mm": 600,
+      "clear_height_mm": 3000
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "hypothetical_procurement_units": 12,
+      "occupied_cabinet_length_mm": 8800,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200,
+      "bench_count": 2,
+      "bench_seat_capacity": 6,
+      "distinct_home_positions": 53,
+      "changing_operation_zone_mm": [
+        24231,
+        2225,
+        25031,
+        3125
+      ],
+      "snapshots": 30,
+      "static_pass_count": 30,
+      "adjacent_batch_pass_count": 2
+    },
+    "transitions_checked": 28,
+    "transitions_verified": 28,
+    "complete_users_by_shift": [
+      3,
+      3
+    ],
+    "blockers": [
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S1-P011",
+        "batch": "S1-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      },
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S2-P011",
+        "batch": "S2-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      }
+    ],
+    "full_shift_seconds": [
+      null,
+      null
+    ],
+    "timing": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 90,
+        "seated_seconds": 45,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 280,
+        "changing": 4770,
+        "bench": 477
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 4770,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    },
+    "project_functional_status": "INPUT_REQUIRED"
+  },
+  {
+    "label": "B 柜前并发2人",
+    "parameters": {
+      "arrangement": "SINGLE_SIDE",
+      "door_kind": "OUTWARD_HINGED_90",
+      "hinge": "LEFT",
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "cabinet_height_mm": 1800,
+      "cell_height_mm": 300,
+      "plinth_mm": 100,
+      "shelf_mm": 20,
+      "columns_per_unit": 2,
+      "finish_mm": 20,
+      "installation_gap_mm": 20,
+      "unit_gap_mm": 20,
+      "end_clearance_mm": 100,
+      "segment_gap_mm": 1200,
+      "frame_mm": 20,
+      "leaf_thickness_mm": 15,
+      "operator_standoff_mm": 380,
+      "aisle_mm": 1200,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "standing_height_mm": 1800,
+      "seated_height_mm": 1300,
+      "person_gap_mm": 20,
+      "front_concurrency": 2,
+      "changing_operation_width_mm": 800,
+      "changing_operation_depth_mm": 900,
+      "bench_count": 2,
+      "bench_length_mm": 1800,
+      "bench_depth_mm": 400,
+      "bench_height_mm": 450,
+      "seat_pitch_mm": 600,
+      "bench_gap_mm": 500,
+      "room_door_intrusion_mm": 0,
+      "entrance_landing_mm": 1200,
+      "reach_low_mm": 100,
+      "reach_high_mm": 1700,
+      "reach_horizontal_mm": 600,
+      "clear_height_mm": 3000
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "hypothetical_procurement_units": 12,
+      "occupied_cabinet_length_mm": 8800,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200,
+      "bench_count": 2,
+      "bench_seat_capacity": 6,
+      "distinct_home_positions": 53,
+      "changing_operation_zone_mm": [
+        24231,
+        2225,
+        25031,
+        3125
+      ],
+      "snapshots": 56,
+      "static_pass_count": 56,
+      "adjacent_batch_pass_count": 2
+    },
+    "transitions_checked": 54,
+    "transitions_verified": 54,
+    "complete_users_by_shift": [
+      1,
+      1
+    ],
+    "blockers": [
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S1-P001",
+        "batch": "S1-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      },
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S2-P001",
+        "batch": "S2-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      }
+    ],
+    "full_shift_seconds": [
+      null,
+      null
+    ],
+    "timing": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 90,
+        "seated_seconds": 45,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 540,
+        "changing": 4770,
+        "bench": 477
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 4770,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    },
+    "project_functional_status": "INPUT_REQUIRED"
+  },
+  {
+    "label": "C 柜前并发6人",
+    "parameters": {
+      "arrangement": "SINGLE_SIDE",
+      "door_kind": "OUTWARD_HINGED_90",
+      "hinge": "LEFT",
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "cabinet_height_mm": 1800,
+      "cell_height_mm": 300,
+      "plinth_mm": 100,
+      "shelf_mm": 20,
+      "columns_per_unit": 2,
+      "finish_mm": 20,
+      "installation_gap_mm": 20,
+      "unit_gap_mm": 20,
+      "end_clearance_mm": 100,
+      "segment_gap_mm": 1200,
+      "frame_mm": 20,
+      "leaf_thickness_mm": 15,
+      "operator_standoff_mm": 380,
+      "aisle_mm": 1200,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "standing_height_mm": 1800,
+      "seated_height_mm": 1300,
+      "person_gap_mm": 20,
+      "front_concurrency": 6,
+      "changing_operation_width_mm": 800,
+      "changing_operation_depth_mm": 900,
+      "bench_count": 2,
+      "bench_length_mm": 1800,
+      "bench_depth_mm": 400,
+      "bench_height_mm": 450,
+      "seat_pitch_mm": 600,
+      "bench_gap_mm": 500,
+      "room_door_intrusion_mm": 0,
+      "entrance_landing_mm": 1200,
+      "reach_low_mm": 100,
+      "reach_high_mm": 1700,
+      "reach_horizontal_mm": 600,
+      "clear_height_mm": 3000
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "hypothetical_procurement_units": 12,
+      "occupied_cabinet_length_mm": 8800,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200,
+      "bench_count": 2,
+      "bench_seat_capacity": 6,
+      "distinct_home_positions": 53,
+      "changing_operation_zone_mm": [
+        24231,
+        2225,
+        25031,
+        3125
+      ],
+      "snapshots": 20,
+      "static_pass_count": 20,
+      "adjacent_batch_pass_count": 2
+    },
+    "transitions_checked": 18,
+    "transitions_verified": 18,
+    "complete_users_by_shift": [
+      5,
+      5
+    ],
+    "blockers": [
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S1-P021",
+        "batch": "S1-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      },
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S2-P021",
+        "batch": "S2-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      }
+    ],
+    "full_shift_seconds": [
+      null,
+      null
+    ],
+    "timing": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 90,
+        "seated_seconds": 45,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 180,
+        "changing": 4770,
+        "bench": 477
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 4770,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    },
+    "project_functional_status": "INPUT_REQUIRED"
+  },
+  {
+    "label": "D 1张凳3座",
+    "parameters": {
+      "arrangement": "SINGLE_SIDE",
+      "door_kind": "OUTWARD_HINGED_90",
+      "hinge": "LEFT",
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "cabinet_height_mm": 1800,
+      "cell_height_mm": 300,
+      "plinth_mm": 100,
+      "shelf_mm": 20,
+      "columns_per_unit": 2,
+      "finish_mm": 20,
+      "installation_gap_mm": 20,
+      "unit_gap_mm": 20,
+      "end_clearance_mm": 100,
+      "segment_gap_mm": 1200,
+      "frame_mm": 20,
+      "leaf_thickness_mm": 15,
+      "operator_standoff_mm": 380,
+      "aisle_mm": 1200,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "standing_height_mm": 1800,
+      "seated_height_mm": 1300,
+      "person_gap_mm": 20,
+      "front_concurrency": 4,
+      "changing_operation_width_mm": 800,
+      "changing_operation_depth_mm": 900,
+      "bench_count": 1,
+      "bench_length_mm": 1800,
+      "bench_depth_mm": 400,
+      "bench_height_mm": 450,
+      "seat_pitch_mm": 600,
+      "bench_gap_mm": 500,
+      "room_door_intrusion_mm": 0,
+      "entrance_landing_mm": 1200,
+      "reach_low_mm": 100,
+      "reach_high_mm": 1700,
+      "reach_horizontal_mm": 600,
+      "clear_height_mm": 3000
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "hypothetical_procurement_units": 12,
+      "occupied_cabinet_length_mm": 8800,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200,
+      "bench_count": 1,
+      "bench_seat_capacity": 3,
+      "distinct_home_positions": 53,
+      "changing_operation_zone_mm": [
+        24231,
+        2225,
+        25031,
+        3125
+      ],
+      "snapshots": 30,
+      "static_pass_count": 30,
+      "adjacent_batch_pass_count": 2
+    },
+    "transitions_checked": 28,
+    "transitions_verified": 28,
+    "complete_users_by_shift": [
+      3,
+      3
+    ],
+    "blockers": [
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S1-P011",
+        "batch": "S1-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      },
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S2-P011",
+        "batch": "S2-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      }
+    ],
+    "full_shift_seconds": [
+      null,
+      null
+    ],
+    "timing": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 90,
+        "seated_seconds": 45,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 280,
+        "changing": 4770,
+        "bench": 954
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 4770,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    },
+    "project_functional_status": "INPUT_REQUIRED"
+  },
+  {
+    "label": "E 3张凳9座",
+    "parameters": {
+      "arrangement": "SINGLE_SIDE",
+      "door_kind": "OUTWARD_HINGED_90",
+      "hinge": "LEFT",
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "cabinet_height_mm": 1800,
+      "cell_height_mm": 300,
+      "plinth_mm": 100,
+      "shelf_mm": 20,
+      "columns_per_unit": 2,
+      "finish_mm": 20,
+      "installation_gap_mm": 20,
+      "unit_gap_mm": 20,
+      "end_clearance_mm": 100,
+      "segment_gap_mm": 1200,
+      "frame_mm": 20,
+      "leaf_thickness_mm": 15,
+      "operator_standoff_mm": 380,
+      "aisle_mm": 1200,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "standing_height_mm": 1800,
+      "seated_height_mm": 1300,
+      "person_gap_mm": 20,
+      "front_concurrency": 4,
+      "changing_operation_width_mm": 800,
+      "changing_operation_depth_mm": 900,
+      "bench_count": 3,
+      "bench_length_mm": 1800,
+      "bench_depth_mm": 400,
+      "bench_height_mm": 450,
+      "seat_pitch_mm": 600,
+      "bench_gap_mm": 500,
+      "room_door_intrusion_mm": 0,
+      "entrance_landing_mm": 1200,
+      "reach_low_mm": 100,
+      "reach_high_mm": 1700,
+      "reach_horizontal_mm": 600,
+      "clear_height_mm": 3000
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "hypothetical_procurement_units": 12,
+      "occupied_cabinet_length_mm": 8800,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200,
+      "bench_count": 3,
+      "bench_seat_capacity": 9,
+      "distinct_home_positions": 53,
+      "changing_operation_zone_mm": [
+        24231,
+        2225,
+        25031,
+        3125
+      ],
+      "snapshots": 30,
+      "static_pass_count": 30,
+      "adjacent_batch_pass_count": 2
+    },
+    "transitions_checked": 28,
+    "transitions_verified": 28,
+    "complete_users_by_shift": [
+      3,
+      3
+    ],
+    "blockers": [
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S1-P011",
+        "batch": "S1-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      },
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S2-P011",
+        "batch": "S2-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      }
+    ],
+    "full_shift_seconds": [
+      null,
+      null
+    ],
+    "timing": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 90,
+        "seated_seconds": 45,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 280,
+        "changing": 4770,
+        "bench": 318
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 4770,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    },
+    "project_functional_status": "INPUT_REQUIRED"
+  },
+  {
+    "label": "F 操作区1000×1000",
+    "parameters": {
+      "arrangement": "SINGLE_SIDE",
+      "door_kind": "OUTWARD_HINGED_90",
+      "hinge": "LEFT",
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "cabinet_height_mm": 1800,
+      "cell_height_mm": 300,
+      "plinth_mm": 100,
+      "shelf_mm": 20,
+      "columns_per_unit": 2,
+      "finish_mm": 20,
+      "installation_gap_mm": 20,
+      "unit_gap_mm": 20,
+      "end_clearance_mm": 100,
+      "segment_gap_mm": 1200,
+      "frame_mm": 20,
+      "leaf_thickness_mm": 15,
+      "operator_standoff_mm": 380,
+      "aisle_mm": 1200,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "standing_height_mm": 1800,
+      "seated_height_mm": 1300,
+      "person_gap_mm": 20,
+      "front_concurrency": 4,
+      "changing_operation_width_mm": 1000,
+      "changing_operation_depth_mm": 1000,
+      "bench_count": 2,
+      "bench_length_mm": 1800,
+      "bench_depth_mm": 400,
+      "bench_height_mm": 450,
+      "seat_pitch_mm": 600,
+      "bench_gap_mm": 500,
+      "room_door_intrusion_mm": 0,
+      "entrance_landing_mm": 1200,
+      "reach_low_mm": 100,
+      "reach_high_mm": 1700,
+      "reach_horizontal_mm": 600,
+      "clear_height_mm": 3000
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "hypothetical_procurement_units": 12,
+      "occupied_cabinet_length_mm": 8800,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200,
+      "bench_count": 2,
+      "bench_seat_capacity": 6,
+      "distinct_home_positions": 53,
+      "changing_operation_zone_mm": [
+        24031,
+        2225,
+        25031,
+        3225
+      ],
+      "snapshots": 30,
+      "static_pass_count": 30,
+      "adjacent_batch_pass_count": 2
+    },
+    "transitions_checked": 28,
+    "transitions_verified": 28,
+    "complete_users_by_shift": [
+      3,
+      3
+    ],
+    "blockers": [
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S1-P011",
+        "batch": "S1-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      },
+      {
+        "operation": "VACATE_SERVICE_AREA",
+        "person_id": "S2-P011",
+        "batch": "S2-W01",
+        "conflicts": [
+          {
+            "code": "NO_VACANT_REVIEWED_WAITING_POSITION"
+          }
+        ]
+      }
+    ],
+    "full_shift_seconds": [
+      null,
+      null
+    ],
+    "timing": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 90,
+        "seated_seconds": 45,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 280,
+        "changing": 4770,
+        "bench": 477
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 4770,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    },
+    "project_functional_status": "INPUT_REQUIRED"
+  },
+  {
+    "label": "G 人员450×650 / 间隙100",
+    "parameters": {
+      "arrangement": "SINGLE_SIDE",
+      "door_kind": "OUTWARD_HINGED_90",
+      "hinge": "LEFT",
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "cabinet_height_mm": 1800,
+      "cell_height_mm": 300,
+      "plinth_mm": 100,
+      "shelf_mm": 20,
+      "columns_per_unit": 2,
+      "finish_mm": 20,
+      "installation_gap_mm": 20,
+      "unit_gap_mm": 20,
+      "end_clearance_mm": 100,
+      "segment_gap_mm": 1200,
+      "frame_mm": 20,
+      "leaf_thickness_mm": 15,
+      "operator_standoff_mm": 380,
+      "aisle_mm": 1200,
+      "person_width_mm": 450,
+      "person_depth_mm": 650,
+      "standing_height_mm": 1800,
+      "seated_height_mm": 1300,
+      "person_gap_mm": 100,
+      "front_concurrency": 4,
+      "changing_operation_width_mm": 800,
+      "changing_operation_depth_mm": 900,
+      "bench_count": 2,
+      "bench_length_mm": 1800,
+      "bench_depth_mm": 400,
+      "bench_height_mm": 450,
+      "seat_pitch_mm": 600,
+      "bench_gap_mm": 500,
+      "room_door_intrusion_mm": 0,
+      "entrance_landing_mm": 1200,
+      "reach_low_mm": 100,
+      "reach_high_mm": 1700,
+      "reach_horizontal_mm": 600,
+      "clear_height_mm": 3000
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "hypothetical_procurement_units": 12,
+      "occupied_cabinet_length_mm": 8800,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200,
+      "bench_count": 2,
+      "bench_seat_capacity": 6,
+      "distinct_home_positions": 44,
+      "changing_operation_zone_mm": [
+        24231,
+        2225,
+        25031,
+        3125
+      ],
+      "snapshots": 30,
+      "static_pass_count": 0,
+      "adjacent_batch_pass_count": 0
+    },
+    "transitions_checked": 28,
+    "transitions_verified": 0,
+    "complete_users_by_shift": [
+      0,
+      0
+    ],
+    "blockers": [
+      {
+        "operation": "ENTRY_ROSTER_OR_GEOMETRY",
+        "person_id": "ALL",
+        "batch": "ENTRY",
+        "conflicts": [
+          {
+            "code": "COMPLETE_53_PERSON_ROSTER_REQUIRED"
+          }
+        ]
+      },
+      {
+        "operation": "ENTRY_ROSTER_OR_GEOMETRY",
+        "person_id": "ALL",
+        "batch": "ENTRY",
+        "conflicts": [
+          {
+            "code": "COMPLETE_53_PERSON_ROSTER_REQUIRED"
+          }
+        ]
+      }
+    ],
+    "full_shift_seconds": [
+      null,
+      null
+    ],
+    "timing": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 90,
+        "seated_seconds": 45,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 280,
+        "changing": 4770,
+        "bench": 477
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 4770,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    },
+    "project_functional_status": "INPUT_REQUIRED"
+  },
+  {
+    "label": "H 人员500×700 / 间隙100",
+    "parameters": {
+      "arrangement": "SINGLE_SIDE",
+      "door_kind": "OUTWARD_HINGED_90",
+      "hinge": "LEFT",
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "cabinet_height_mm": 1800,
+      "cell_height_mm": 300,
+      "plinth_mm": 100,
+      "shelf_mm": 20,
+      "columns_per_unit": 2,
+      "finish_mm": 20,
+      "installation_gap_mm": 20,
+      "unit_gap_mm": 20,
+      "end_clearance_mm": 100,
+      "segment_gap_mm": 1200,
+      "frame_mm": 20,
+      "leaf_thickness_mm": 15,
+      "operator_standoff_mm": 380,
+      "aisle_mm": 1200,
+      "person_width_mm": 500,
+      "person_depth_mm": 700,
+      "standing_height_mm": 1800,
+      "seated_height_mm": 1300,
+      "person_gap_mm": 100,
+      "front_concurrency": 4,
+      "changing_operation_width_mm": 800,
+      "changing_operation_depth_mm": 900,
+      "bench_count": 2,
+      "bench_length_mm": 1800,
+      "bench_depth_mm": 400,
+      "bench_height_mm": 450,
+      "seat_pitch_mm": 600,
+      "bench_gap_mm": 500,
+      "room_door_intrusion_mm": 0,
+      "entrance_landing_mm": 1200,
+      "reach_low_mm": 100,
+      "reach_high_mm": 1700,
+      "reach_horizontal_mm": 600,
+      "clear_height_mm": 3000
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "hypothetical_procurement_units": 12,
+      "occupied_cabinet_length_mm": 8800,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200,
+      "bench_count": 2,
+      "bench_seat_capacity": 6,
+      "distinct_home_positions": 41,
+      "changing_operation_zone_mm": [
+        24231,
+        2225,
+        25031,
+        3125
+      ],
+      "snapshots": 30,
+      "static_pass_count": 0,
+      "adjacent_batch_pass_count": 0
+    },
+    "transitions_checked": 28,
+    "transitions_verified": 0,
+    "complete_users_by_shift": [
+      0,
+      0
+    ],
+    "blockers": [
+      {
+        "operation": "ENTRY_ROSTER_OR_GEOMETRY",
+        "person_id": "ALL",
+        "batch": "ENTRY",
+        "conflicts": [
+          {
+            "code": "COMPLETE_53_PERSON_ROSTER_REQUIRED"
+          }
+        ]
+      },
+      {
+        "operation": "ENTRY_ROSTER_OR_GEOMETRY",
+        "person_id": "ALL",
+        "batch": "ENTRY",
+        "conflicts": [
+          {
+            "code": "COMPLETE_53_PERSON_ROSTER_REQUIRED"
+          }
+        ]
+      }
+    ],
+    "full_shift_seconds": [
+      null,
+      null
+    ],
+    "timing": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 90,
+        "seated_seconds": 45,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 280,
+        "changing": 4770,
+        "bench": 477
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 4770,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    },
+    "project_functional_status": "INPUT_REQUIRED"
+  },
+  {
+    "label": "I 原400×600 / 间隙100",
+    "parameters": {
+      "arrangement": "SINGLE_SIDE",
+      "door_kind": "OUTWARD_HINGED_90",
+      "hinge": "LEFT",
+      "column_width_mm": 400,
+      "column_depth_mm": 500,
+      "cabinet_height_mm": 1800,
+      "cell_height_mm": 300,
+      "plinth_mm": 100,
+      "shelf_mm": 20,
+      "columns_per_unit": 2,
+      "finish_mm": 20,
+      "installation_gap_mm": 20,
+      "unit_gap_mm": 20,
+      "end_clearance_mm": 100,
+      "segment_gap_mm": 1200,
+      "frame_mm": 20,
+      "leaf_thickness_mm": 15,
+      "operator_standoff_mm": 380,
+      "aisle_mm": 1200,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "standing_height_mm": 1800,
+      "seated_height_mm": 1300,
+      "person_gap_mm": 100,
+      "front_concurrency": 4,
+      "changing_operation_width_mm": 800,
+      "changing_operation_depth_mm": 900,
+      "bench_count": 2,
+      "bench_length_mm": 1800,
+      "bench_depth_mm": 400,
+      "bench_height_mm": 450,
+      "seat_pitch_mm": 600,
+      "bench_gap_mm": 500,
+      "room_door_intrusion_mm": 0,
+      "entrance_landing_mm": 1200,
+      "reach_low_mm": 100,
+      "reach_high_mm": 1700,
+      "reach_horizontal_mm": 600,
+      "clear_height_mm": 3000
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "hypothetical_procurement_units": 12,
+      "occupied_cabinet_length_mm": 8800,
+      "cabinet_footprint_mm2": 4400000,
+      "reserved_aisle_mm": 1200,
+      "bench_count": 2,
+      "bench_seat_capacity": 6,
+      "distinct_home_positions": 48,
+      "changing_operation_zone_mm": [
+        24231,
+        2225,
+        25031,
+        3125
+      ],
+      "snapshots": 30,
+      "static_pass_count": 0,
+      "adjacent_batch_pass_count": 0
+    },
+    "transitions_checked": 28,
+    "transitions_verified": 0,
+    "complete_users_by_shift": [
+      0,
+      0
+    ],
+    "blockers": [
+      {
+        "operation": "ENTRY_ROSTER_OR_GEOMETRY",
+        "person_id": "ALL",
+        "batch": "ENTRY",
+        "conflicts": [
+          {
+            "code": "COMPLETE_53_PERSON_ROSTER_REQUIRED"
+          }
+        ]
+      },
+      {
+        "operation": "ENTRY_ROSTER_OR_GEOMETRY",
+        "person_id": "ALL",
+        "batch": "ENTRY",
+        "conflicts": [
+          {
+            "code": "COMPLETE_53_PERSON_ROSTER_REQUIRED"
+          }
+        ]
+      }
+    ],
+    "full_shift_seconds": [
+      null,
+      null
+    ],
+    "timing": {
+      "status": "HYPOTHETICAL_NOT_APPROVED",
+      "parameters": {
+        "walk_mm_per_second": 600,
+        "locker_seconds": 20,
+        "changing_seconds": 90,
+        "seated_seconds": 45,
+        "sit_seconds": 4,
+        "rise_seconds": 4
+      },
+      "ideal_resource_lower_bounds_seconds": {
+        "locker": 280,
+        "changing": 4770,
+        "bench": 477
+      },
+      "bottleneck": "changing",
+      "lower_bound_seconds": 4770,
+      "complete_shift_seconds": null,
+      "formula": "max(ceil(53/front)*locker,53*changing,ceil(53/seats)*(seat+sit+rise)); excludes walking, blocking and queues",
+      "throughput_satisfied": "INPUT_REQUIRED"
+    },
+    "project_functional_status": "INPUT_REQUIRED"
+  }
+]

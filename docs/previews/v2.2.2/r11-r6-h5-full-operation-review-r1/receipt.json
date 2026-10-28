@@ -1,0 +1,17 @@
+{
+  "task": "V2_2_2_R11_R6_H5_FULL_CHANGING_OPERATION_R1",
+  "base_head": "73e5ab0a12f8851298da9b8222321327e46edabb",
+  "project_functional_status": "INPUT_REQUIRED",
+  "all_adjacent_pairs_checked": 28,
+  "pairs_verified": 28,
+  "full_service_users": [
+    3,
+    3
+  ],
+  "full_shift_verified": false,
+  "native_solves": 0,
+  "new_main": false,
+  "new_grant": false,
+  "new_claim": false,
+  "full_ci": "NOT_REQUESTED"
+}
