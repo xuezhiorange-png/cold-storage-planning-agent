@@ -1,0 +1,2361 @@
+{
+  "task": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1",
+  "base_head": "93d7d1520052daf2fccdf62e6dd7e61468ef007f",
+  "project_binding": {
+    "version": "r11-project-functional-input-binding@2.0.1",
+    "task": "V2_2_2_R11_FUNCTIONAL_PROJECT_INPUT_BINDING_R2",
+    "project_identity": "FROZEN_20T_REGRESSION_FIXTURE_NOT_XINZHAO",
+    "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+    "owner_contract_sha256": "7c6d37327e4a3819332937473a6c1a37b3b324b7405b995a9ab963397c08392c",
+    "owner_contract_identity": "OwnerFactoryFunctionalInputsV2",
+    "original_records": 9,
+    "original_physical_groups": 8,
+    "original_room_records": 27,
+    "source_review_task": "V2_2_2_R11_FUNCTIONAL_ROOM_FIT_R1",
+    "user_supplied_inbound_kg_per_day_not_used": true,
+    "input_review_is_external_prerequisite": true,
+    "project_reviewed_facts": {
+      "PACKAGED_PRODUCT_MASS_KG_PER_DAY": {
+        "value": 20000,
+        "unit": "kg/day",
+        "source_label": "OWNER_CONFIRMED",
+        "reference": "Owner instruction V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1 section 1; docs/tasks/V2_2_2-r11-r3-reviewed-project-fact.txt; sha256:53ffa4e0e3584cabe7166d75214d0569fcaebfc34cc1e71bc35c70abedab7326",
+        "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85"
+      }
+    },
+    "owner_confirmed_policy": {
+      "shifts_per_day": 2,
+      "shift_change_policy": "NON_OVERLAPPING",
+      "locker_shared_between_shifts": false,
+      "locker_internal_separation": true,
+      "packaged_product_capacity_kg_per_person_shift": "192.0",
+      "packaged_product_mass_only": true,
+      "film_sealing_process": "PACKAGING_BOX_FILM_SEALING",
+      "design_film_ratio": "1.0",
+      "film_sealing_runtime_requires_separate_review": true
+    },
+    "workforce": {
+      "status": "REVIEWED_PROJECT_BASIS",
+      "shift_1_workers": 53,
+      "shift_2_workers": 53,
+      "separate_personal_lockers": [
+        53,
+        53
+      ],
+      "simultaneous_changing_users": 53,
+      "required_packing_tables": 18,
+      "source_reference": "OwnerV2:DEFAULT_EQUAL_SPLIT; Owner instruction V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1 section 1; docs/tasks/V2_2_2-r11-r3-reviewed-project-fact.txt; sha256:53ffa4e0e3584cabe7166d75214d0569fcaebfc34cc1e71bc35c70abedab7326",
+      "derived_from_packaged_product_mass": true,
+      "capacity_validation": "SATISFIED",
+      "aggregate_capacity_validation": "SUFFICIENT_TOTAL_ONLY",
+      "shift_workload_allocation_basis": "OWNER_V2_DEFAULT_EQUAL_SPLIT",
+      "shift_workload_source_reference": "OwnerV2:DEFAULT_EQUAL_SPLIT; Owner instruction V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1 section 1; docs/tasks/V2_2_2-r11-r3-reviewed-project-fact.txt; sha256:53ffa4e0e3584cabe7166d75214d0569fcaebfc34cc1e71bc35c70abedab7326",
+      "per_shift_capacity": [
+        {
+          "shift": 1,
+          "packaged_product_mass_kg": "10000.0",
+          "capacity_kg": "10176.0",
+          "status": "SATISFIED"
+        },
+        {
+          "shift": 2,
+          "packaged_product_mass_kg": "10000.0",
+          "capacity_kg": "10176.0",
+          "status": "SATISFIED"
+        }
+      ]
+    },
+    "office": {
+      "factory_size": null,
+      "staff_count": null,
+      "source_reference": null,
+      "status": "INPUT_REQUIRED"
+    },
+    "coating": {
+      "process_type": "PACKAGING_BOX_FILM_SEALING",
+      "design_film_ratio": "1.0",
+      "equipment_model": null,
+      "equipment_capacity": null,
+      "runtime_hours": null,
+      "status": "INPUT_REQUIRED_EQUIPMENT_AND_RUNTIME"
+    },
+    "missing_project_inputs": [
+      "FACTORY_SIZE"
+    ],
+    "conflict": null,
+    "binding_status": "INPUT_REQUIRED",
+    "functional_approval": false,
+    "p1_modified": false,
+    "original_engineering_acceptance_modified": false,
+    "quality_comparators_modified": false,
+    "old_grants_claims_modified": false,
+    "native_solves": 0,
+    "r3_project_basis_status": "CONFIRMED_PROJECT_BASIS",
+    "staffing_interpretation": "ENGINEERING_DERIVED_DESIGN_COUNTS_NOT_EMPLOYEE_ROSTER",
+    "historical_input_mutated": false
+  },
+  "design_counts": {
+    "packaged_mass_kg_per_day": 20000,
+    "shift_workers": [
+      53,
+      53
+    ],
+    "shift_mass_kg": [
+      "10000.0",
+      "10000.0"
+    ],
+    "locker_count": 106,
+    "simultaneous_users": 53,
+    "packing_tables": 18
+  },
+  "groups": [
+    {
+      "group": "G01",
+      "handoff": 5,
+      "records": [
+        "P01",
+        "P02"
+      ],
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece:changing_room",
+        "record": "P01",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          26331,
+          3250
+        ],
+        "world_bounds_mm": [
+          14700,
+          23650,
+          41031,
+          26900
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                26331,
+                875
+              ],
+              [
+                26331,
+                2375
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                12415,
+                0
+              ],
+              [
+                13915,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "original_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 85575750,
+        "physical_facts": {
+          "width_m": "26.331",
+          "depth_m": "3.25",
+          "area_m2": "85.57575",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "26331/3250",
+          "aspect_ratio_display": "8.101846",
+          "overallocation_ratio_exact": "182303/160000",
+          "overallocation_percent_display": "113.9394",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "project_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {
+          "simultaneous_users": {
+            "value": 53,
+            "unit": "people",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_locker_counts": {
+            "value": [
+              53,
+              53
+            ],
+            "unit": "lockers",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_change_policy": {
+            "value": "NON_OVERLAPPING",
+            "unit": "enum",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "internal_clothing_separation": {
+            "value": true,
+            "unit": "boolean",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          }
+        },
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 85575750,
+        "physical_facts": {
+          "width_m": "26.331",
+          "depth_m": "3.25",
+          "area_m2": "85.57575",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "26331/3250",
+          "aspect_ratio_display": "8.101846",
+          "overallocation_ratio_exact": "182303/160000",
+          "overallocation_percent_display": "113.9394",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "aliases": [
+        {
+          "record": "P01",
+          "candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+          "candidate_sha256": "faa7a645bef1be1b61e84102b041a1cfe4c0bf002a5f8485d47c039158406d9f",
+          "geometry_reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/zones/0"
+        },
+        {
+          "record": "P02",
+          "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+          "candidate_sha256": "c9e38907e5a6924ab261550c0478237924ac61f24f68e9185ba5782e8733c99b",
+          "geometry_reference": "sealed-r10:previews/proposal-02/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-01/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              13165,
+              0
+            ],
+            [
+              13165,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-01/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "34.679",
+          "turn_count": 2,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              60760,
+              1875
+            ],
+            [
+              59760,
+              1875
+            ],
+            [
+              59760,
+              1625
+            ],
+            [
+              26331,
+              1625
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G02",
+      "handoff": 6,
+      "records": [
+        "P03"
+      ],
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13:changing_room",
+        "record": "P03",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39683,
+          1008
+        ],
+        "world_bounds_mm": [
+          18214,
+          23650,
+          57897,
+          24658
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38183,
+                1008
+              ],
+              [
+                39683,
+                1008
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19091,
+                0
+              ],
+              [
+                20591,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "original_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40000464,
+        "physical_facts": {
+          "width_m": "39.683",
+          "depth_m": "1.008",
+          "area_m2": "40.000464",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "5669/144",
+          "aspect_ratio_display": "39.368056",
+          "overallocation_ratio_exact": "29/2500000",
+          "overallocation_percent_display": "0.0012",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "project_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {
+          "simultaneous_users": {
+            "value": 53,
+            "unit": "people",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_locker_counts": {
+            "value": [
+              53,
+              53
+            ],
+            "unit": "lockers",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_change_policy": {
+            "value": "NON_OVERLAPPING",
+            "unit": "enum",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "internal_clothing_separation": {
+            "value": true,
+            "unit": "boolean",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          }
+        },
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40000464,
+        "physical_facts": {
+          "width_m": "39.683",
+          "depth_m": "1.008",
+          "area_m2": "40.000464",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "5669/144",
+          "aspect_ratio_display": "39.368056",
+          "overallocation_ratio_exact": "29/2500000",
+          "overallocation_percent_display": "0.0012",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "aliases": [
+        {
+          "record": "P03",
+          "candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+          "candidate_sha256": "fe5aaff0bde6449082a0c46735d1e9b33ac4acbba553e759253ef36267093c80",
+          "geometry_reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-03/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19841,
+              0
+            ],
+            [
+              19841,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-03/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.696",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57246,
+              1625
+            ],
+            [
+              40683,
+              1625
+            ],
+            [
+              40683,
+              2008
+            ],
+            [
+              38933,
+              2008
+            ],
+            [
+              38933,
+              1008
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G03",
+      "handoff": 6,
+      "records": [
+        "P04"
+      ],
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb:changing_room",
+        "record": "P04",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39635,
+          1010
+        ],
+        "world_bounds_mm": [
+          18262,
+          23650,
+          57897,
+          24660
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38135,
+                1010
+              ],
+              [
+                39635,
+                1010
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19067,
+                0
+              ],
+              [
+                20567,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "original_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40031350,
+        "physical_facts": {
+          "width_m": "39.635",
+          "depth_m": "1.01",
+          "area_m2": "40.03135",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "7927/202",
+          "aspect_ratio_display": "39.242574",
+          "overallocation_ratio_exact": "627/800000",
+          "overallocation_percent_display": "0.0784",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "project_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {
+          "simultaneous_users": {
+            "value": 53,
+            "unit": "people",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_locker_counts": {
+            "value": [
+              53,
+              53
+            ],
+            "unit": "lockers",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_change_policy": {
+            "value": "NON_OVERLAPPING",
+            "unit": "enum",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "internal_clothing_separation": {
+            "value": true,
+            "unit": "boolean",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          }
+        },
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40031350,
+        "physical_facts": {
+          "width_m": "39.635",
+          "depth_m": "1.01",
+          "area_m2": "40.03135",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "7927/202",
+          "aspect_ratio_display": "39.242574",
+          "overallocation_ratio_exact": "627/800000",
+          "overallocation_percent_display": "0.0784",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "aliases": [
+        {
+          "record": "P04",
+          "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+          "candidate_sha256": "b3a944f0d46a302e329aa32df330297dc69c69936d7fd4469f4c21d2b80266bc",
+          "geometry_reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-04/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19817,
+              0
+            ],
+            [
+              19817,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-04/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.698",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57198,
+              1625
+            ],
+            [
+              40635,
+              1625
+            ],
+            [
+              40635,
+              2010
+            ],
+            [
+              38885,
+              2010
+            ],
+            [
+              38885,
+              1010
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G04",
+      "handoff": 6,
+      "records": [
+        "P05"
+      ],
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31:changing_room",
+        "record": "P05",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39633,
+          1011
+        ],
+        "world_bounds_mm": [
+          18261,
+          23650,
+          57894,
+          24661
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38133,
+                1011
+              ],
+              [
+                39633,
+                1011
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19066,
+                0
+              ],
+              [
+                20566,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "original_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40068963,
+        "physical_facts": {
+          "width_m": "39.633",
+          "depth_m": "1.011",
+          "area_m2": "40.068963",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "13211/337",
+          "aspect_ratio_display": "39.201780",
+          "overallocation_ratio_exact": "68963/40000000",
+          "overallocation_percent_display": "0.1724",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "project_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {
+          "simultaneous_users": {
+            "value": 53,
+            "unit": "people",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_locker_counts": {
+            "value": [
+              53,
+              53
+            ],
+            "unit": "lockers",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_change_policy": {
+            "value": "NON_OVERLAPPING",
+            "unit": "enum",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "internal_clothing_separation": {
+            "value": true,
+            "unit": "boolean",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          }
+        },
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40068963,
+        "physical_facts": {
+          "width_m": "39.633",
+          "depth_m": "1.011",
+          "area_m2": "40.068963",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "13211/337",
+          "aspect_ratio_display": "39.201780",
+          "overallocation_ratio_exact": "68963/40000000",
+          "overallocation_percent_display": "0.1724",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "aliases": [
+        {
+          "record": "P05",
+          "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+          "candidate_sha256": "1aef019ae7924c691fa08ac96855450095513af40df6cc13843e255433ae0e5c",
+          "geometry_reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-05/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19816,
+              0
+            ],
+            [
+              19816,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-05/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.702",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57199,
+              1625
+            ],
+            [
+              40636,
+              1625
+            ],
+            [
+              40636,
+              2011
+            ],
+            [
+              38883,
+              2011
+            ],
+            [
+              38883,
+              1011
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G05",
+      "handoff": 6,
+      "records": [
+        "P06"
+      ],
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8:changing_room",
+        "record": "P06",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39630,
+          1012
+        ],
+        "world_bounds_mm": [
+          18260,
+          23650,
+          57890,
+          24662
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38130,
+                1012
+              ],
+              [
+                39630,
+                1012
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19065,
+                0
+              ],
+              [
+                20565,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "original_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40105560,
+        "physical_facts": {
+          "width_m": "39.63",
+          "depth_m": "1.012",
+          "area_m2": "40.10556",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "19815/506",
+          "aspect_ratio_display": "39.160079",
+          "overallocation_ratio_exact": "2639/1000000",
+          "overallocation_percent_display": "0.2639",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "project_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {
+          "simultaneous_users": {
+            "value": 53,
+            "unit": "people",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_locker_counts": {
+            "value": [
+              53,
+              53
+            ],
+            "unit": "lockers",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_change_policy": {
+            "value": "NON_OVERLAPPING",
+            "unit": "enum",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "internal_clothing_separation": {
+            "value": true,
+            "unit": "boolean",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          }
+        },
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40105560,
+        "physical_facts": {
+          "width_m": "39.63",
+          "depth_m": "1.012",
+          "area_m2": "40.10556",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "19815/506",
+          "aspect_ratio_display": "39.160079",
+          "overallocation_ratio_exact": "2639/1000000",
+          "overallocation_percent_display": "0.2639",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "aliases": [
+        {
+          "record": "P06",
+          "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+          "candidate_sha256": "6273c6266804058b6251f1e3286cdcc0f5a19dcc676b773ba7e5684c9d5095e6",
+          "geometry_reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-06/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19815,
+              0
+            ],
+            [
+              19815,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-06/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.707",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57200,
+              1625
+            ],
+            [
+              40637,
+              1625
+            ],
+            [
+              40637,
+              2012
+            ],
+            [
+              38880,
+              2012
+            ],
+            [
+              38880,
+              1012
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G06",
+      "handoff": 6,
+      "records": [
+        "P07"
+      ],
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5:changing_room",
+        "record": "P07",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39627,
+          1013
+        ],
+        "world_bounds_mm": [
+          18259,
+          23650,
+          57886,
+          24663
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38127,
+                1013
+              ],
+              [
+                39627,
+                1013
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19063,
+                0
+              ],
+              [
+                20563,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "original_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40142151,
+        "physical_facts": {
+          "width_m": "39.627",
+          "depth_m": "1.013",
+          "area_m2": "40.142151",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "39627/1013",
+          "aspect_ratio_display": "39.118460",
+          "overallocation_ratio_exact": "142151/40000000",
+          "overallocation_percent_display": "0.3554",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "project_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {
+          "simultaneous_users": {
+            "value": 53,
+            "unit": "people",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_locker_counts": {
+            "value": [
+              53,
+              53
+            ],
+            "unit": "lockers",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_change_policy": {
+            "value": "NON_OVERLAPPING",
+            "unit": "enum",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "internal_clothing_separation": {
+            "value": true,
+            "unit": "boolean",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          }
+        },
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40142151,
+        "physical_facts": {
+          "width_m": "39.627",
+          "depth_m": "1.013",
+          "area_m2": "40.142151",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "39627/1013",
+          "aspect_ratio_display": "39.118460",
+          "overallocation_ratio_exact": "142151/40000000",
+          "overallocation_percent_display": "0.3554",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "aliases": [
+        {
+          "record": "P07",
+          "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+          "candidate_sha256": "73afb4edc7eebbec7643df5bd8d9b471b96b7dff65c5a128e07e20121487979c",
+          "geometry_reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-07/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19813,
+              0
+            ],
+            [
+              19813,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-07/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.712",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57201,
+              1625
+            ],
+            [
+              40638,
+              1625
+            ],
+            [
+              40638,
+              2013
+            ],
+            [
+              38877,
+              2013
+            ],
+            [
+              38877,
+              1013
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G07",
+      "handoff": 6,
+      "records": [
+        "P08"
+      ],
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68:changing_room",
+        "record": "P08",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39624,
+          1014
+        ],
+        "world_bounds_mm": [
+          18258,
+          23650,
+          57882,
+          24664
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38124,
+                1014
+              ],
+              [
+                39624,
+                1014
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19062,
+                0
+              ],
+              [
+                20562,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "original_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40178736,
+        "physical_facts": {
+          "width_m": "39.624",
+          "depth_m": "1.014",
+          "area_m2": "40.178736",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "508/13",
+          "aspect_ratio_display": "39.076923",
+          "overallocation_ratio_exact": "11171/2500000",
+          "overallocation_percent_display": "0.4468",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "project_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {
+          "simultaneous_users": {
+            "value": 53,
+            "unit": "people",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_locker_counts": {
+            "value": [
+              53,
+              53
+            ],
+            "unit": "lockers",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_change_policy": {
+            "value": "NON_OVERLAPPING",
+            "unit": "enum",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "internal_clothing_separation": {
+            "value": true,
+            "unit": "boolean",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          }
+        },
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40178736,
+        "physical_facts": {
+          "width_m": "39.624",
+          "depth_m": "1.014",
+          "area_m2": "40.178736",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "508/13",
+          "aspect_ratio_display": "39.076923",
+          "overallocation_ratio_exact": "11171/2500000",
+          "overallocation_percent_display": "0.4468",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "aliases": [
+        {
+          "record": "P08",
+          "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+          "candidate_sha256": "8e0181e431beebc33da70b34bbd8275e3a4c530b16a6bc09bd9a3dc9eaf93ba3",
+          "geometry_reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-08/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19812,
+              0
+            ],
+            [
+              19812,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-08/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.717",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57202,
+              1625
+            ],
+            [
+              40639,
+              1625
+            ],
+            [
+              40639,
+              2014
+            ],
+            [
+              38874,
+              2014
+            ],
+            [
+              38874,
+              1014
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G08",
+      "handoff": 6,
+      "records": [
+        "P09"
+      ],
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5:changing_room",
+        "record": "P09",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39621,
+          1015
+        ],
+        "world_bounds_mm": [
+          18257,
+          23650,
+          57878,
+          24665
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38121,
+                1015
+              ],
+              [
+                39621,
+                1015
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19060,
+                0
+              ],
+              [
+                20560,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "original_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40215315,
+        "physical_facts": {
+          "width_m": "39.621",
+          "depth_m": "1.015",
+          "area_m2": "40.215315",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "39621/1015",
+          "aspect_ratio_display": "39.035468",
+          "overallocation_ratio_exact": "43063/8000000",
+          "overallocation_percent_display": "0.5383",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "project_evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {
+          "simultaneous_users": {
+            "value": 53,
+            "unit": "people",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_locker_counts": {
+            "value": [
+              53,
+              53
+            ],
+            "unit": "lockers",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "shift_change_policy": {
+            "value": "NON_OVERLAPPING",
+            "unit": "enum",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          },
+          "internal_clothing_separation": {
+            "value": true,
+            "unit": "boolean",
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1; approved mass and unchanged Owner V2 policy"
+          }
+        },
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40215315,
+        "physical_facts": {
+          "width_m": "39.621",
+          "depth_m": "1.015",
+          "area_m2": "40.215315",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "39621/1015",
+          "aspect_ratio_display": "39.035468",
+          "overallocation_ratio_exact": "43063/8000000",
+          "overallocation_percent_display": "0.5383",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "aliases": [
+        {
+          "record": "P09",
+          "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+          "candidate_sha256": "f15eeab6015f77201f8db7a92d274cd29b95a700dddb52f673f3732e0fb68234",
+          "geometry_reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-09/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19810,
+              0
+            ],
+            [
+              19810,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-09/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.722",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57203,
+              1625
+            ],
+            [
+              40640,
+              1625
+            ],
+            [
+              40640,
+              2015
+            ],
+            [
+              38871,
+              2015
+            ],
+            [
+              38871,
+              1015
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "original_record_count": 9,
+  "unique_rectangle_count": 8,
+  "original_history_unchanged": true,
+  "functional_approval": false,
+  "native_solves": 0
+}

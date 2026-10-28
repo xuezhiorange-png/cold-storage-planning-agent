@@ -1,0 +1,39 @@
+{
+  "source_files": {
+    "/Users/charles/codex-v222-r11-r3-locker-layout-review/docs/previews/v2.2.2/r11-functional-room-fit-r1/review-data.json": "0794722c2547123497d7ed7d9cb97594cc993cc9db23080c90f50693a1640b4f",
+    "/Users/charles/codex-v222-r11-r3-locker-layout-review/docs/previews/v2.2.2/owner-functional-input-contract-r2/owner-confirmed-business-rules-v2.json": "7c6d37327e4a3819332937473a6c1a37b3b324b7405b995a9ab963397c08392c",
+    "/Users/charles/codex-v222-r11-r3-locker-layout-review/docs/tasks/V2_2_2-r11-r3-reviewed-project-fact.txt": "53ffa4e0e3584cabe7166d75214d0569fcaebfc34cc1e71bc35c70abedab7326",
+    "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-01/candidate-01/candidate.json": "faa7a645bef1be1b61e84102b041a1cfe4c0bf002a5f8485d47c039158406d9f",
+    "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-02/candidate-01/candidate.json": "c9e38907e5a6924ab261550c0478237924ac61f24f68e9185ba5782e8733c99b",
+    "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-03/candidate-01/candidate.json": "fe5aaff0bde6449082a0c46735d1e9b33ac4acbba553e759253ef36267093c80",
+    "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-04/candidate-01/candidate.json": "b3a944f0d46a302e329aa32df330297dc69c69936d7fd4469f4c21d2b80266bc",
+    "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-05/candidate-01/candidate.json": "1aef019ae7924c691fa08ac96855450095513af40df6cc13843e255433ae0e5c",
+    "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-06/candidate-01/candidate.json": "6273c6266804058b6251f1e3286cdcc0f5a19dcc676b773ba7e5684c9d5095e6",
+    "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-07/candidate-01/candidate.json": "73afb4edc7eebbec7643df5bd8d9b471b96b7dff65c5a128e07e20121487979c",
+    "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-08/candidate-01/candidate.json": "8e0181e431beebc33da70b34bbd8275e3a4c530b16a6bc09bd9a3dc9eaf93ba3",
+    "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-09/candidate-01/candidate.json": "f15eeab6015f77201f8db7a92d274cd29b95a700dddb52f673f3732e0fb68234"
+  },
+  "derived_files": {
+    "G01-double_side.svg": "24a6862700fbe996a4127c0f6b99746d8c9059dd52c80eb04e024db301c14572",
+    "G07-single_side.svg": "2fab26357345ea080584f2d342145ac904c7ccf2db5f63bcbe90303ffa7be280",
+    "G08-single_side.svg": "8deb16ae238a03ef0ae1146e68efaa9ffb96ea300d7dabe65be62613a65b69ad",
+    "index.html": "3bea584b530c983a198f106e5f4aaf0388fc5b36d83acf74df0742830d910869",
+    "G06-double_side.svg": "865a7670f68e87565d9f3d550c795a97970175dd38d31f7a6b61011351cb34db",
+    "G08-double_side.svg": "e531fa027b18a0f4720b02f03be04477a173be8b711adcf91d2b41333c3f754b",
+    "G07-double_side.svg": "3b390dd45f4a263573a5c38bb0dbccce5b74ec1f3750272fe64089ab6cef26fb",
+    "G01-single_side.svg": "56a89ab9dd706704af7afe91cb5a5d7414d78dddb2bc9479fd888bcce0ab22f4",
+    "G06-single_side.svg": "4be9424e40705e6f5402aa73525115a8b7432ff80593eae8a8294424249b11f2",
+    "project-and-room-catalog.json": "12ba928f793a35fad623c003cf683d86121148a762c163b65c48c0aafd1754f0",
+    "G05-double_side.svg": "238cf6311bad3c025b8f0e3becef414305ed2fd154995d0d06c734139d5f3911",
+    "G03-single_side.svg": "dfcf6ba1e3f2dc9018f1febbecbc48b860ca435044742f07a77d7b663ee644e6",
+    "results.md": "889b84c31f3c0d2689044972682c726391d3e98731be1b034563f3eed81c4bdf",
+    "G04-single_side.svg": "fb21d438242da91663565164d9f696b331190818c0256fe5cb5254db76446859",
+    "G02-double_side.svg": "8c79bca4dab0c244d057d5fe245a6fee15a0fe54927a591e5d107fcc8fbeb834",
+    "hypothetical-screening.json": "908dd7dc320777ac9e314fb2cc47c4e4229a70eaf93c7f522c5e20a0c2f39d3d",
+    "G03-double_side.svg": "3a9aced7fd93e8dead25f3d845c147843877beb4b47b3690c5644ce2dab28dab",
+    "G05-single_side.svg": "0eed606c820ff5b564c42d72c43900281d018179f8c55430ff91ce7f26bfa776",
+    "G02-single_side.svg": "30bde2ac23c83b88308448091d6f5d02c52ab1e9fb37433372808426f49407e5",
+    "G04-double_side.svg": "fbc9ff7a2196f45f02d9b332c365fa3b17852886edb3029c140ec7f53d5c83b3",
+    "validation-summary.json": "7c81a6b0ac18e5f6ab0f999b94336128b4e7c3feed65ca317604a696fd7a49b1"
+  }
+}

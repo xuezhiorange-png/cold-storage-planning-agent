@@ -1,0 +1,66 @@
+{
+  "task": "V2_2_2_R11_R3_106_LOCKER_LAYOUT_REVIEW_R1",
+  "base_head": "93d7d1520052daf2fccdf62e6dd7e61468ef007f",
+  "tests": {
+    "R3": {
+      "passed": 42,
+      "skipped": 0,
+      "failed": 0
+    },
+    "R2": {
+      "passed": 43,
+      "skipped": 0,
+      "failed": 0
+    },
+    "R1": {
+      "passed": 85,
+      "skipped": 0,
+      "failed": 0
+    },
+    "architecture": {
+      "passed": 771,
+      "skipped": 16,
+      "failed": 0
+    }
+  },
+  "ci_contract_tests": 65,
+  "ruff": "PASS",
+  "format": "PASS_1058_FILES",
+  "mypy": "PASS_473_FILES",
+  "local_native_calls": 0,
+  "report_native_calls": "BOTH_SOLVE_APIS_FORBIDDEN",
+  "archived_record_count": 9,
+  "unique_physical_rectangles": 8,
+  "design_counts": {
+    "packaged_mass_kg_per_day": 20000,
+    "shift_workers": [
+      53,
+      53
+    ],
+    "shift_mass_kg": [
+      "10000.0",
+      "10000.0"
+    ],
+    "locker_count": 106,
+    "simultaneous_users": 53,
+    "packing_tables": 18
+  },
+  "real_room_conditional_fit_count": 0,
+  "all_real_rooms_input_required": true,
+  "historical_files_hash_verified_unchanged": 291,
+  "old_tracked_files_unchanged_except": [
+    ".github/workflows/ci-fast.yml"
+  ],
+  "real_main_executed": false,
+  "grant_created": false,
+  "claim_created": false,
+  "full_ci": "NOT_REQUESTED",
+  "production_default_changed": false,
+  "browser_checks": [
+    "H5/H6 group and single/opposed templates",
+    "bench parameter preview and four-state layer switch",
+    "all sixteen HTTP group/template responses",
+    "approval/status/witness/count overrides rejected"
+  ],
+  "hypothetical_values_approved": false
+}
