@@ -1,0 +1,18 @@
+{
+  "task": "V2_2_2_R11_R5_H5_PRACTICAL_CHANGING_LAYOUT_R1",
+  "base_head": "bc031b50edda3a8e142eb2f0a89b850fc2e2811e",
+  "project_functional_status": "INPUT_REQUIRED",
+  "hypothetical_template": "TEMPLATE_AND_ADJACENT_TRANSITIONS_VERIFIED_UNDER_HYPOTHESES",
+  "source_records": [
+    "P01",
+    "P02"
+  ],
+  "physical_rooms": 1,
+  "room_users": 53,
+  "native_solves": 0,
+  "new_main": false,
+  "new_grant": false,
+  "new_claim": false,
+  "full_ci": "NOT_REQUESTED",
+  "historical_changed": false
+}

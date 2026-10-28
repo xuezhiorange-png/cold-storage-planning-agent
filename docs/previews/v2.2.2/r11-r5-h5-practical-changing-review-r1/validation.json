@@ -1,0 +1,29 @@
+{
+  "task": "V2_2_2_R11_R5_H5_PRACTICAL_CHANGING_LAYOUT_R1",
+  "base_head": "bc031b50edda3a8e142eb2f0a89b850fc2e2811e",
+  "python": "3.12.13",
+  "dependency_lock_unchanged": true,
+  "local_tests": {
+    "passed": 1079,
+    "original_skips": 16,
+    "r5_new_tests": 55,
+    "ci_contract_tests": 65
+  },
+  "ruff": "PASS",
+  "format": "PASS_1072_FILES",
+  "mypy": "PASS_480_SOURCE_FILES",
+  "shared_ci_static": "PASS",
+  "yaml": "PASS",
+  "historical_files_checked": 291,
+  "historical_files_changed": 0,
+  "original_tracked_files_changed": [
+    ".github/workflows/ci-fast.yml"
+  ],
+  "source_manifest": "PASS",
+  "native_solves": 0,
+  "new_main": false,
+  "new_grant": false,
+  "new_claim": false,
+  "full_ci": "NOT_REQUESTED",
+  "project_functional_status": "INPUT_REQUIRED"
+}
