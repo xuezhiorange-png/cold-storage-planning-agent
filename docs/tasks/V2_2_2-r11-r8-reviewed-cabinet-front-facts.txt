@@ -1,0 +1,15 @@
+TASK_ID=V2_2_2_R11_R8_CABINET_FRONT_CHANGING_R1
+SOURCE=Owner confirmation in this task, 2026-10-28
+PROJECT_SCOPE=sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85
+CHANGING_LOCATION=PERSONAL_CABINET_FRONT
+CHANGING_POSTURE=STANDING
+BENCH_COUNT=0
+SEPARATE_CHANGING_AREA_COUNT=0
+SHIFT_DESIGN_USERS=53,53
+SIMULTANEOUS_ROOM_DESIGN_USERS=53
+FIVE_TIER_COLUMNS=22
+INDEPENDENT_COMPARTMENT_CAPACITY=110
+H5=P01/P02 same physical rectangle,26331x3250mm; original east and south1500mm Portals
+REVIEW_BOUNDARY=Cabinet-front standing location is confirmed. Cabinet model/dimensions, human activity sizes, cabinet grouping/spacing, concurrency, waiting protocol,1200mm aisle, door motion, action times and hygiene remain unapproved.
+HISTORICAL_R7_DISTRIBUTED_CHANGING=Historical comparison only, not current project recommendation.
+EXECUTION_AUTHORITY=None; this is a reviewed project fact, not a Grant, Claim or MAIN authorization.

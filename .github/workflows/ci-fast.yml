@@ -72,6 +72,7 @@ jobs:
           tests/unit/test_v222_r11_r5_practical_changing.py
           tests/unit/test_v222_r11_r6_full_changing_operation.py
           tests/unit/test_v222_r11_r7_standing_changing.py
+          tests/unit/test_v222_r11_r8_cabinet_front.py
           -m "not physical_rss_linux" -q
       - name: Partition execution and shared fixture contracts (no layout search)
         run: >-

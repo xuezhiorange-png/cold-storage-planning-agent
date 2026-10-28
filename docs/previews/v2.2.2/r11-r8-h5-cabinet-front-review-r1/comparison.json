@@ -1,0 +1,1428 @@
+[
+  {
+    "label": "420×700活动 · 间隔柜列 · 请求2人",
+    "parameters": {
+      "requested_concurrency": 2,
+      "activity_width_mm": 420,
+      "activity_depth_mm": 700,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "reserved_aisle_mm": 1200,
+      "batches": 54,
+      "static_pass_count": 54,
+      "verified_front_groups": 54,
+      "activity_width_required_mm": 420,
+      "activity_depth_required_mm": 700,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": 280,
+      "minimum_active_column_x_separation_mm": 420,
+      "waiting_positions_missing": 0,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11240,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [
+      {
+        "shift": 1,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 27,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      },
+      {
+        "shift": 2,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 27,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      }
+    ],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 2,
+        "actual_peak_concurrency": 2,
+        "concurrency_histogram": {
+          "2": 26,
+          "1": 1
+        },
+        "expected_batches": 27,
+        "completed_batches": [
+          "S1-B01",
+          "S1-B02",
+          "S1-B03",
+          "S1-B04",
+          "S1-B05",
+          "S1-B06",
+          "S1-B07",
+          "S1-B08",
+          "S1-B09",
+          "S1-B10",
+          "S1-B11",
+          "S1-B12",
+          "S1-B13",
+          "S1-B14",
+          "S1-B15",
+          "S1-B16",
+          "S1-B17",
+          "S1-B18",
+          "S1-B19",
+          "S1-B20",
+          "S1-B21",
+          "S1-B22",
+          "S1-B23",
+          "S1-B24",
+          "S1-B25",
+          "S1-B26",
+          "S1-B27"
+        ],
+        "full_shift_seconds": 7405.771666666678,
+        "full_shift_minutes": 123.42952777777798,
+        "total_route_m": 2143.063,
+        "wall_walking_seconds": 3571.771666666667,
+        "wall_parallel_action_seconds": 3834.0,
+        "max_completed_person_waiting_seconds": 7168.331666666678,
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 2,
+        "actual_peak_concurrency": 2,
+        "concurrency_histogram": {
+          "2": 26,
+          "1": 1
+        },
+        "expected_batches": 27,
+        "completed_batches": [
+          "S2-B01",
+          "S2-B02",
+          "S2-B03",
+          "S2-B04",
+          "S2-B05",
+          "S2-B06",
+          "S2-B07",
+          "S2-B08",
+          "S2-B09",
+          "S2-B10",
+          "S2-B11",
+          "S2-B12",
+          "S2-B13",
+          "S2-B14",
+          "S2-B15",
+          "S2-B16",
+          "S2-B17",
+          "S2-B18",
+          "S2-B19",
+          "S2-B20",
+          "S2-B21",
+          "S2-B22",
+          "S2-B23",
+          "S2-B24",
+          "S2-B25",
+          "S2-B26",
+          "S2-B27"
+        ],
+        "full_shift_seconds": 6607.238333333344,
+        "full_shift_minutes": 110.12063888888906,
+        "total_route_m": 1663.943,
+        "wall_walking_seconds": 2773.2383333333337,
+        "wall_parallel_action_seconds": 3834.0,
+        "max_completed_person_waiting_seconds": 6384.865000000011,
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "420×700活动 · 间隔柜列 · 请求3人",
+    "parameters": {
+      "requested_concurrency": 3,
+      "activity_width_mm": 420,
+      "activity_depth_mm": 700,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "reserved_aisle_mm": 1200,
+      "batches": 38,
+      "static_pass_count": 38,
+      "verified_front_groups": 38,
+      "activity_width_required_mm": 420,
+      "activity_depth_required_mm": 700,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": 280,
+      "minimum_active_column_x_separation_mm": 420,
+      "waiting_positions_missing": 0,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11240,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [
+      {
+        "shift": 1,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 19,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      },
+      {
+        "shift": 2,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 19,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      }
+    ],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 3,
+        "actual_peak_concurrency": 3,
+        "concurrency_histogram": {
+          "3": 17,
+          "1": 2
+        },
+        "expected_batches": 19,
+        "completed_batches": [
+          "S1-B01",
+          "S1-B02",
+          "S1-B03",
+          "S1-B04",
+          "S1-B05",
+          "S1-B06",
+          "S1-B07",
+          "S1-B08",
+          "S1-B09",
+          "S1-B10",
+          "S1-B11",
+          "S1-B12",
+          "S1-B13",
+          "S1-B14",
+          "S1-B15",
+          "S1-B16",
+          "S1-B17",
+          "S1-B18",
+          "S1-B19"
+        ],
+        "full_shift_seconds": 6269.771666666676,
+        "full_shift_minutes": 104.4961944444446,
+        "total_route_m": 2143.063,
+        "wall_walking_seconds": 3571.771666666667,
+        "wall_parallel_action_seconds": 2698.0,
+        "max_completed_person_waiting_seconds": 6032.331666666675,
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 3,
+        "actual_peak_concurrency": 3,
+        "concurrency_histogram": {
+          "3": 17,
+          "1": 2
+        },
+        "expected_batches": 19,
+        "completed_batches": [
+          "S2-B01",
+          "S2-B02",
+          "S2-B03",
+          "S2-B04",
+          "S2-B05",
+          "S2-B06",
+          "S2-B07",
+          "S2-B08",
+          "S2-B09",
+          "S2-B10",
+          "S2-B11",
+          "S2-B12",
+          "S2-B13",
+          "S2-B14",
+          "S2-B15",
+          "S2-B16",
+          "S2-B17",
+          "S2-B18",
+          "S2-B19"
+        ],
+        "full_shift_seconds": 5471.238333333342,
+        "full_shift_minutes": 91.1873055555557,
+        "total_route_m": 1663.943,
+        "wall_walking_seconds": 2773.2383333333337,
+        "wall_parallel_action_seconds": 2698.0,
+        "max_completed_person_waiting_seconds": 5248.865000000009,
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "420×700活动 · 间隔柜列 · 请求4人",
+    "parameters": {
+      "requested_concurrency": 4,
+      "activity_width_mm": 420,
+      "activity_depth_mm": 700,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "reserved_aisle_mm": 1200,
+      "batches": 28,
+      "static_pass_count": 28,
+      "verified_front_groups": 28,
+      "activity_width_required_mm": 420,
+      "activity_depth_required_mm": 700,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": 280,
+      "minimum_active_column_x_separation_mm": 420,
+      "waiting_positions_missing": 0,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11240,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [
+      {
+        "shift": 1,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 14,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      },
+      {
+        "shift": 2,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 14,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      }
+    ],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 4,
+        "concurrency_histogram": {
+          "4": 12,
+          "3": 1,
+          "2": 1
+        },
+        "expected_batches": 14,
+        "completed_batches": [
+          "S1-B01",
+          "S1-B02",
+          "S1-B03",
+          "S1-B04",
+          "S1-B05",
+          "S1-B06",
+          "S1-B07",
+          "S1-B08",
+          "S1-B09",
+          "S1-B10",
+          "S1-B11",
+          "S1-B12",
+          "S1-B13",
+          "S1-B14"
+        ],
+        "full_shift_seconds": 5559.771666666673,
+        "full_shift_minutes": 92.66286111111121,
+        "total_route_m": 2143.063,
+        "wall_walking_seconds": 3571.771666666667,
+        "wall_parallel_action_seconds": 1988.0,
+        "max_completed_person_waiting_seconds": 5322.331666666672,
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 4,
+        "concurrency_histogram": {
+          "4": 12,
+          "3": 1,
+          "2": 1
+        },
+        "expected_batches": 14,
+        "completed_batches": [
+          "S2-B01",
+          "S2-B02",
+          "S2-B03",
+          "S2-B04",
+          "S2-B05",
+          "S2-B06",
+          "S2-B07",
+          "S2-B08",
+          "S2-B09",
+          "S2-B10",
+          "S2-B11",
+          "S2-B12",
+          "S2-B13",
+          "S2-B14"
+        ],
+        "full_shift_seconds": 4761.238333333337,
+        "full_shift_minutes": 79.35397222222228,
+        "total_route_m": 1663.943,
+        "wall_walking_seconds": 2773.2383333333337,
+        "wall_parallel_action_seconds": 1988.0,
+        "max_completed_person_waiting_seconds": 4538.865000000004,
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "420×700活动 · 间隔柜列 · 请求5人",
+    "parameters": {
+      "requested_concurrency": 5,
+      "activity_width_mm": 420,
+      "activity_depth_mm": 700,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "reserved_aisle_mm": 1200,
+      "batches": 22,
+      "static_pass_count": 22,
+      "verified_front_groups": 22,
+      "activity_width_required_mm": 420,
+      "activity_depth_required_mm": 700,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": 280,
+      "minimum_active_column_x_separation_mm": 420,
+      "waiting_positions_missing": 0,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11240,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [
+      {
+        "shift": 1,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 11,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      },
+      {
+        "shift": 2,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 11,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      }
+    ],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 5,
+        "actual_peak_concurrency": 5,
+        "concurrency_histogram": {
+          "5": 10,
+          "3": 1
+        },
+        "expected_batches": 11,
+        "completed_batches": [
+          "S1-B01",
+          "S1-B02",
+          "S1-B03",
+          "S1-B04",
+          "S1-B05",
+          "S1-B06",
+          "S1-B07",
+          "S1-B08",
+          "S1-B09",
+          "S1-B10",
+          "S1-B11"
+        ],
+        "full_shift_seconds": 5133.771666666671,
+        "full_shift_minutes": 85.56286111111119,
+        "total_route_m": 2143.063,
+        "wall_walking_seconds": 3571.771666666667,
+        "wall_parallel_action_seconds": 1562.0,
+        "max_completed_person_waiting_seconds": 4896.331666666671,
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 5,
+        "actual_peak_concurrency": 5,
+        "concurrency_histogram": {
+          "5": 10,
+          "3": 1
+        },
+        "expected_batches": 11,
+        "completed_batches": [
+          "S2-B01",
+          "S2-B02",
+          "S2-B03",
+          "S2-B04",
+          "S2-B05",
+          "S2-B06",
+          "S2-B07",
+          "S2-B08",
+          "S2-B09",
+          "S2-B10",
+          "S2-B11"
+        ],
+        "full_shift_seconds": 4335.2383333333355,
+        "full_shift_minutes": 72.25397222222226,
+        "total_route_m": 1663.943,
+        "wall_walking_seconds": 2773.2383333333337,
+        "wall_parallel_action_seconds": 1562.0,
+        "max_completed_person_waiting_seconds": 4112.8650000000025,
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "600×900活动 · 间隔柜列 · 请求2人",
+    "parameters": {
+      "requested_concurrency": 2,
+      "activity_width_mm": 600,
+      "activity_depth_mm": 900,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "reserved_aisle_mm": 1200,
+      "batches": 54,
+      "static_pass_count": 54,
+      "verified_front_groups": 54,
+      "activity_width_required_mm": 600,
+      "activity_depth_required_mm": 900,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": 80,
+      "minimum_active_column_x_separation_mm": 600,
+      "waiting_positions_missing": 0,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11240,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [
+      {
+        "shift": 1,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 27,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      },
+      {
+        "shift": 2,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 27,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      }
+    ],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 2,
+        "actual_peak_concurrency": 2,
+        "concurrency_histogram": {
+          "2": 26,
+          "1": 1
+        },
+        "expected_batches": 27,
+        "completed_batches": [
+          "S1-B01",
+          "S1-B02",
+          "S1-B03",
+          "S1-B04",
+          "S1-B05",
+          "S1-B06",
+          "S1-B07",
+          "S1-B08",
+          "S1-B09",
+          "S1-B10",
+          "S1-B11",
+          "S1-B12",
+          "S1-B13",
+          "S1-B14",
+          "S1-B15",
+          "S1-B16",
+          "S1-B17",
+          "S1-B18",
+          "S1-B19",
+          "S1-B20",
+          "S1-B21",
+          "S1-B22",
+          "S1-B23",
+          "S1-B24",
+          "S1-B25",
+          "S1-B26",
+          "S1-B27"
+        ],
+        "full_shift_seconds": 7405.771666666678,
+        "full_shift_minutes": 123.42952777777798,
+        "total_route_m": 2143.063,
+        "wall_walking_seconds": 3571.771666666667,
+        "wall_parallel_action_seconds": 3834.0,
+        "max_completed_person_waiting_seconds": 7168.331666666678,
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 2,
+        "actual_peak_concurrency": 2,
+        "concurrency_histogram": {
+          "2": 26,
+          "1": 1
+        },
+        "expected_batches": 27,
+        "completed_batches": [
+          "S2-B01",
+          "S2-B02",
+          "S2-B03",
+          "S2-B04",
+          "S2-B05",
+          "S2-B06",
+          "S2-B07",
+          "S2-B08",
+          "S2-B09",
+          "S2-B10",
+          "S2-B11",
+          "S2-B12",
+          "S2-B13",
+          "S2-B14",
+          "S2-B15",
+          "S2-B16",
+          "S2-B17",
+          "S2-B18",
+          "S2-B19",
+          "S2-B20",
+          "S2-B21",
+          "S2-B22",
+          "S2-B23",
+          "S2-B24",
+          "S2-B25",
+          "S2-B26",
+          "S2-B27"
+        ],
+        "full_shift_seconds": 6607.238333333344,
+        "full_shift_minutes": 110.12063888888906,
+        "total_route_m": 1663.943,
+        "wall_walking_seconds": 2773.2383333333337,
+        "wall_parallel_action_seconds": 3834.0,
+        "max_completed_person_waiting_seconds": 6384.865000000011,
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "600×900活动 · 间隔柜列 · 请求3人",
+    "parameters": {
+      "requested_concurrency": 3,
+      "activity_width_mm": 600,
+      "activity_depth_mm": 900,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "reserved_aisle_mm": 1200,
+      "batches": 36,
+      "static_pass_count": 36,
+      "verified_front_groups": 36,
+      "activity_width_required_mm": 600,
+      "activity_depth_required_mm": 900,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": 80,
+      "minimum_active_column_x_separation_mm": 600,
+      "waiting_positions_missing": 0,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11240,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [
+      {
+        "shift": 1,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 18,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      },
+      {
+        "shift": 2,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 18,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      }
+    ],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 3,
+        "actual_peak_concurrency": 3,
+        "concurrency_histogram": {
+          "3": 17,
+          "2": 1
+        },
+        "expected_batches": 18,
+        "completed_batches": [
+          "S1-B01",
+          "S1-B02",
+          "S1-B03",
+          "S1-B04",
+          "S1-B05",
+          "S1-B06",
+          "S1-B07",
+          "S1-B08",
+          "S1-B09",
+          "S1-B10",
+          "S1-B11",
+          "S1-B12",
+          "S1-B13",
+          "S1-B14",
+          "S1-B15",
+          "S1-B16",
+          "S1-B17",
+          "S1-B18"
+        ],
+        "full_shift_seconds": 6127.771666666676,
+        "full_shift_minutes": 102.12952777777792,
+        "total_route_m": 2143.063,
+        "wall_walking_seconds": 3571.771666666667,
+        "wall_parallel_action_seconds": 2556.0,
+        "max_completed_person_waiting_seconds": 5890.331666666675,
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 3,
+        "actual_peak_concurrency": 3,
+        "concurrency_histogram": {
+          "3": 17,
+          "2": 1
+        },
+        "expected_batches": 18,
+        "completed_batches": [
+          "S2-B01",
+          "S2-B02",
+          "S2-B03",
+          "S2-B04",
+          "S2-B05",
+          "S2-B06",
+          "S2-B07",
+          "S2-B08",
+          "S2-B09",
+          "S2-B10",
+          "S2-B11",
+          "S2-B12",
+          "S2-B13",
+          "S2-B14",
+          "S2-B15",
+          "S2-B16",
+          "S2-B17",
+          "S2-B18"
+        ],
+        "full_shift_seconds": 5329.23833333334,
+        "full_shift_minutes": 88.82063888888901,
+        "total_route_m": 1663.943,
+        "wall_walking_seconds": 2773.2383333333337,
+        "wall_parallel_action_seconds": 2556.0,
+        "max_completed_person_waiting_seconds": 5106.865000000007,
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "600×900活动 · 间隔柜列 · 请求4人",
+    "parameters": {
+      "requested_concurrency": 4,
+      "activity_width_mm": 600,
+      "activity_depth_mm": 900,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "reserved_aisle_mm": 1200,
+      "batches": 28,
+      "static_pass_count": 28,
+      "verified_front_groups": 28,
+      "activity_width_required_mm": 600,
+      "activity_depth_required_mm": 900,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": 80,
+      "minimum_active_column_x_separation_mm": 600,
+      "waiting_positions_missing": 0,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11240,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [
+      {
+        "shift": 1,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 14,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      },
+      {
+        "shift": 2,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 14,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      }
+    ],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 4,
+        "concurrency_histogram": {
+          "4": 12,
+          "3": 1,
+          "2": 1
+        },
+        "expected_batches": 14,
+        "completed_batches": [
+          "S1-B01",
+          "S1-B02",
+          "S1-B03",
+          "S1-B04",
+          "S1-B05",
+          "S1-B06",
+          "S1-B07",
+          "S1-B08",
+          "S1-B09",
+          "S1-B10",
+          "S1-B11",
+          "S1-B12",
+          "S1-B13",
+          "S1-B14"
+        ],
+        "full_shift_seconds": 5559.771666666673,
+        "full_shift_minutes": 92.66286111111121,
+        "total_route_m": 2143.063,
+        "wall_walking_seconds": 3571.771666666667,
+        "wall_parallel_action_seconds": 1988.0,
+        "max_completed_person_waiting_seconds": 5322.331666666672,
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 4,
+        "concurrency_histogram": {
+          "4": 12,
+          "3": 1,
+          "2": 1
+        },
+        "expected_batches": 14,
+        "completed_batches": [
+          "S2-B01",
+          "S2-B02",
+          "S2-B03",
+          "S2-B04",
+          "S2-B05",
+          "S2-B06",
+          "S2-B07",
+          "S2-B08",
+          "S2-B09",
+          "S2-B10",
+          "S2-B11",
+          "S2-B12",
+          "S2-B13",
+          "S2-B14"
+        ],
+        "full_shift_seconds": 4761.238333333336,
+        "full_shift_minutes": 79.35397222222227,
+        "total_route_m": 1663.943,
+        "wall_walking_seconds": 2773.2383333333337,
+        "wall_parallel_action_seconds": 1988.0,
+        "max_completed_person_waiting_seconds": 4538.865000000003,
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "600×900活动 · 间隔柜列 · 请求5人",
+    "parameters": {
+      "requested_concurrency": 5,
+      "activity_width_mm": 600,
+      "activity_depth_mm": 900,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "reserved_aisle_mm": 1200,
+      "batches": 22,
+      "static_pass_count": 22,
+      "verified_front_groups": 22,
+      "activity_width_required_mm": 600,
+      "activity_depth_required_mm": 900,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": 80,
+      "minimum_active_column_x_separation_mm": 600,
+      "waiting_positions_missing": 0,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11240,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [
+      {
+        "shift": 1,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 11,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      },
+      {
+        "shift": 2,
+        "status": "ALL_53_ASSIGNED",
+        "checks": 11,
+        "remaining_users": 0,
+        "rejected_group_count": 0
+      }
+    ],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 5,
+        "actual_peak_concurrency": 5,
+        "concurrency_histogram": {
+          "5": 10,
+          "3": 1
+        },
+        "expected_batches": 11,
+        "completed_batches": [
+          "S1-B01",
+          "S1-B02",
+          "S1-B03",
+          "S1-B04",
+          "S1-B05",
+          "S1-B06",
+          "S1-B07",
+          "S1-B08",
+          "S1-B09",
+          "S1-B10",
+          "S1-B11"
+        ],
+        "full_shift_seconds": 5133.771666666673,
+        "full_shift_minutes": 85.56286111111122,
+        "total_route_m": 2143.063,
+        "wall_walking_seconds": 3571.771666666667,
+        "wall_parallel_action_seconds": 1562.0,
+        "max_completed_person_waiting_seconds": 4824.740000000006,
+        "blocker": null
+      },
+      {
+        "shift": 2,
+        "status": "VERIFIED_UNDER_HYPOTHESES",
+        "completed_users": 53,
+        "requested_concurrency": 5,
+        "actual_peak_concurrency": 5,
+        "concurrency_histogram": {
+          "5": 10,
+          "3": 1
+        },
+        "expected_batches": 11,
+        "completed_batches": [
+          "S2-B01",
+          "S2-B02",
+          "S2-B03",
+          "S2-B04",
+          "S2-B05",
+          "S2-B06",
+          "S2-B07",
+          "S2-B08",
+          "S2-B09",
+          "S2-B10",
+          "S2-B11"
+        ],
+        "full_shift_seconds": 4335.238333333334,
+        "full_shift_minutes": 72.25397222222223,
+        "total_route_m": 1663.943,
+        "wall_walking_seconds": 2773.2383333333337,
+        "wall_parallel_action_seconds": 1562.0,
+        "max_completed_person_waiting_seconds": 4041.2733333333335,
+        "blocker": null
+      }
+    ]
+  },
+  {
+    "label": "连续柜列负面对照 · 600×900 · 4人",
+    "parameters": {
+      "requested_concurrency": 4,
+      "activity_width_mm": 600,
+      "activity_depth_mm": 900,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "CONTIGUOUS_REFERENCE",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "reserved_aisle_mm": 1200,
+      "batches": 30,
+      "static_pass_count": 30,
+      "verified_front_groups": 0,
+      "activity_width_required_mm": 600,
+      "activity_depth_required_mm": 900,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": 80,
+      "minimum_active_column_x_separation_mm": 600,
+      "waiting_positions_missing": 0,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11240,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [
+      {
+        "shift": 1,
+        "status": "REFERENCE_ASSIGNED_WITH_REJECTED_GROUPS",
+        "checks": 15,
+        "remaining_users": 0,
+        "rejected_group_count": 15
+      },
+      {
+        "shift": 2,
+        "status": "REFERENCE_ASSIGNED_WITH_REJECTED_GROUPS",
+        "checks": 15,
+        "remaining_users": 0,
+        "rejected_group_count": 15
+      }
+    ],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "BLOCKED",
+        "completed_users": 0,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 0,
+        "concurrency_histogram": {},
+        "expected_batches": 15,
+        "completed_batches": [],
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "total_route_m": 578.823,
+        "wall_walking_seconds": 964.7050000000005,
+        "wall_parallel_action_seconds": 26.0,
+        "max_completed_person_waiting_seconds": null,
+        "blocker": {
+          "operation": "PARALLEL_STANDING_CHANGE",
+          "conflict_codes": [
+            "SWEPT_BODY_COLLISION"
+          ],
+          "conflict_count": 3
+        }
+      },
+      {
+        "shift": 2,
+        "status": "BLOCKED",
+        "completed_users": 0,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 0,
+        "concurrency_histogram": {},
+        "expected_batches": 15,
+        "completed_batches": [],
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "total_route_m": 560.743,
+        "wall_walking_seconds": 934.5716666666672,
+        "wall_parallel_action_seconds": 26.0,
+        "max_completed_person_waiting_seconds": null,
+        "blocker": {
+          "operation": "PARALLEL_STANDING_CHANGE",
+          "conflict_codes": [
+            "SWEPT_BODY_COLLISION"
+          ],
+          "conflict_count": 3
+        }
+      }
+    ]
+  },
+  {
+    "label": "活动深度1100mm · 柜前深度不足",
+    "parameters": {
+      "requested_concurrency": 4,
+      "activity_width_mm": 600,
+      "activity_depth_mm": 1100,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 53,
+      "reserved_aisle_mm": 1200,
+      "batches": 0,
+      "static_pass_count": 0,
+      "verified_front_groups": 0,
+      "activity_width_required_mm": 600,
+      "activity_depth_required_mm": 1100,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": -120,
+      "minimum_active_column_x_separation_mm": 600,
+      "waiting_positions_missing": 0,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11240,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [
+      {
+        "shift": 1,
+        "status": "NO_REVIEWED_GROUP_IN_THIS_TEMPLATE",
+        "checks": 210,
+        "remaining_users": 53,
+        "rejected_group_count": 210
+      },
+      {
+        "shift": 2,
+        "status": "NO_REVIEWED_GROUP_IN_THIS_TEMPLATE",
+        "checks": 210,
+        "remaining_users": 53,
+        "rejected_group_count": 210
+      }
+    ],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "BLOCKED",
+        "completed_users": 0,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 0,
+        "concurrency_histogram": {},
+        "expected_batches": 0,
+        "completed_batches": [],
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "total_route_m": 0.0,
+        "wall_walking_seconds": 0.0,
+        "wall_parallel_action_seconds": 0,
+        "max_completed_person_waiting_seconds": null,
+        "blocker": {
+          "operation": "STATIC_TEMPLATE_OR_INCOMPLETE_SCHEDULE",
+          "conflict_codes": [],
+          "conflict_count": 0
+        }
+      },
+      {
+        "shift": 2,
+        "status": "BLOCKED",
+        "completed_users": 0,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 0,
+        "concurrency_histogram": {},
+        "expected_batches": 0,
+        "completed_batches": [],
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "total_route_m": 0.0,
+        "wall_walking_seconds": 0.0,
+        "wall_parallel_action_seconds": 0,
+        "max_completed_person_waiting_seconds": null,
+        "blocker": {
+          "operation": "STATIC_TEMPLATE_OR_INCOMPLETE_SCHEDULE",
+          "conflict_codes": [],
+          "conflict_count": 0
+        }
+      }
+    ]
+  },
+  {
+    "label": "身体450×650 / 等候间隔100mm",
+    "parameters": {
+      "requested_concurrency": 4,
+      "activity_width_mm": 600,
+      "activity_depth_mm": 900,
+      "person_width_mm": 450,
+      "person_depth_mm": 650,
+      "person_gap_mm": 100,
+      "columns_per_unit": 2,
+      "unit_gap_mm": 20,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 47,
+      "reserved_aisle_mm": 1200,
+      "batches": 0,
+      "static_pass_count": 0,
+      "verified_front_groups": 0,
+      "activity_width_required_mm": 600,
+      "activity_depth_required_mm": 900,
+      "closed_door_front_depth_available_mm": 1030,
+      "front_depth_margin_mm": 130,
+      "minimum_active_column_x_separation_mm": 600,
+      "waiting_positions_missing": 6,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 9020,
+      "waiting_start_x_mm": 11265,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "BLOCKED",
+        "completed_users": 0,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 0,
+        "concurrency_histogram": {},
+        "expected_batches": 0,
+        "completed_batches": [],
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "total_route_m": 0.0,
+        "wall_walking_seconds": 0.0,
+        "wall_parallel_action_seconds": 0,
+        "max_completed_person_waiting_seconds": null,
+        "blocker": {
+          "operation": "STATIC_TEMPLATE_OR_INCOMPLETE_SCHEDULE",
+          "conflict_codes": [
+            "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+            "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED"
+          ],
+          "conflict_count": 2
+        }
+      },
+      {
+        "shift": 2,
+        "status": "BLOCKED",
+        "completed_users": 0,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 0,
+        "concurrency_histogram": {},
+        "expected_batches": 0,
+        "completed_batches": [],
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "total_route_m": 0.0,
+        "wall_walking_seconds": 0.0,
+        "wall_parallel_action_seconds": 0,
+        "max_completed_person_waiting_seconds": null,
+        "blocker": {
+          "operation": "STATIC_TEMPLATE_OR_INCOMPLETE_SCHEDULE",
+          "conflict_codes": [
+            "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+            "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED"
+          ],
+          "conflict_count": 2
+        }
+      }
+    ]
+  },
+  {
+    "label": "单列实体分组 / 柜间距200mm",
+    "parameters": {
+      "requested_concurrency": 4,
+      "activity_width_mm": 600,
+      "activity_depth_mm": 900,
+      "person_width_mm": 400,
+      "person_depth_mm": 600,
+      "person_gap_mm": 20,
+      "columns_per_unit": 1,
+      "unit_gap_mm": 200,
+      "grouping": "INTERLEAVED",
+      "room_door_intrusion_mm": 0
+    },
+    "metrics": {
+      "columns": 22,
+      "compartments": 110,
+      "bench_count": 0,
+      "seat_count": 0,
+      "home_count": 46,
+      "reserved_aisle_mm": 1200,
+      "batches": 0,
+      "static_pass_count": 0,
+      "verified_front_groups": 0,
+      "activity_width_required_mm": 600,
+      "activity_depth_required_mm": 900,
+      "closed_door_front_depth_available_mm": 980,
+      "front_depth_margin_mm": 80,
+      "minimum_active_column_x_separation_mm": 600,
+      "waiting_positions_missing": 7,
+      "home_generation_limit": 53,
+      "cabinet_run_length_mm": 13000,
+      "waiting_start_x_mm": 15220,
+      "cabinet_footprint_mm2": 4400000
+    },
+    "schedule_summary": [],
+    "shifts": [
+      {
+        "shift": 1,
+        "status": "BLOCKED",
+        "completed_users": 0,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 0,
+        "concurrency_histogram": {},
+        "expected_batches": 0,
+        "completed_batches": [],
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "total_route_m": 0.0,
+        "wall_walking_seconds": 0.0,
+        "wall_parallel_action_seconds": 0,
+        "max_completed_person_waiting_seconds": null,
+        "blocker": {
+          "operation": "STATIC_TEMPLATE_OR_INCOMPLETE_SCHEDULE",
+          "conflict_codes": [
+            "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+            "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+            "FIXED_BODY_INTRUDES_NET_AISLE"
+          ],
+          "conflict_count": 4
+        }
+      },
+      {
+        "shift": 2,
+        "status": "BLOCKED",
+        "completed_users": 0,
+        "requested_concurrency": 4,
+        "actual_peak_concurrency": 0,
+        "concurrency_histogram": {},
+        "expected_batches": 0,
+        "completed_batches": [],
+        "full_shift_seconds": null,
+        "full_shift_minutes": null,
+        "total_route_m": 0.0,
+        "wall_walking_seconds": 0.0,
+        "wall_parallel_action_seconds": 0,
+        "max_completed_person_waiting_seconds": null,
+        "blocker": {
+          "operation": "STATIC_TEMPLATE_OR_INCOMPLETE_SCHEDULE",
+          "conflict_codes": [
+            "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+            "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+            "FIXED_BODY_INTRUDES_NET_AISLE"
+          ],
+          "conflict_count": 4
+        }
+      }
+    ]
+  }
+]

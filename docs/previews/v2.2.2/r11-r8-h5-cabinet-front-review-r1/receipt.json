@@ -1,0 +1,15 @@
+{
+  "task": "V2_2_2_R11_R8_CABINET_FRONT_CHANGING_R1",
+  "base_head": "214bd1acabee79031823e6fc05ad3548a1c8b73c",
+  "current_process": "PERSONAL_CABINET_FRONT_STANDING",
+  "full_service_users": [
+    53,
+    53
+  ],
+  "functional_status": "INPUT_REQUIRED",
+  "native_solves": 0,
+  "main": false,
+  "grant": false,
+  "claim": false,
+  "full_ci": "NOT_REQUESTED"
+}
