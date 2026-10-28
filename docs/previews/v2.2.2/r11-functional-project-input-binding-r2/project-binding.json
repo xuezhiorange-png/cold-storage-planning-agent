@@ -1,0 +1,84 @@
+{
+  "version": "r11-project-functional-input-binding@2.0.1",
+  "task": "V2_2_2_R11_FUNCTIONAL_PROJECT_INPUT_BINDING_R2",
+  "project_identity": "FROZEN_20T_REGRESSION_FIXTURE_NOT_XINZHAO",
+  "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+  "owner_contract_sha256": "7c6d37327e4a3819332937473a6c1a37b3b324b7405b995a9ab963397c08392c",
+  "owner_contract_identity": "OwnerFactoryFunctionalInputsV2",
+  "original_records": 9,
+  "original_physical_groups": 8,
+  "original_room_records": 27,
+  "source_review_task": "V2_2_2_R11_FUNCTIONAL_ROOM_FIT_R1",
+  "user_supplied_inbound_kg_per_day_not_used": true,
+  "input_review_is_external_prerequisite": true,
+  "project_reviewed_facts": {},
+  "owner_confirmed_policy": {
+    "shifts_per_day": 2,
+    "shift_change_policy": "NON_OVERLAPPING",
+    "locker_shared_between_shifts": false,
+    "locker_internal_separation": true,
+    "packaged_product_capacity_kg_per_person_shift": "192.0",
+    "packaged_product_mass_only": true,
+    "film_sealing_process": "PACKAGING_BOX_FILM_SEALING",
+    "design_film_ratio": "1.0",
+    "film_sealing_runtime_requires_separate_review": true
+  },
+  "workforce": {
+    "status": "INPUT_REQUIRED",
+    "shift_1_workers": null,
+    "shift_2_workers": null,
+    "separate_personal_lockers": null,
+    "simultaneous_changing_users": null,
+    "required_packing_tables": null,
+    "source_reference": null,
+    "derived_from_packaged_product_mass": false,
+    "capacity_validation": "INPUT_REQUIRED_PACKAGED_MASS",
+    "aggregate_capacity_validation": "INPUT_REQUIRED_PACKAGED_MASS",
+    "shift_workload_allocation_basis": null,
+    "shift_workload_source_reference": null,
+    "per_shift_capacity": [
+      {
+        "shift": 1,
+        "packaged_product_mass_kg": null,
+        "capacity_kg": null,
+        "status": "INPUT_REQUIRED_SHIFT_WORKLOAD"
+      },
+      {
+        "shift": 2,
+        "packaged_product_mass_kg": null,
+        "capacity_kg": null,
+        "status": "INPUT_REQUIRED_SHIFT_WORKLOAD"
+      }
+    ]
+  },
+  "office": {
+    "factory_size": null,
+    "staff_count": null,
+    "source_reference": null,
+    "status": "INPUT_REQUIRED"
+  },
+  "coating": {
+    "process_type": "PACKAGING_BOX_FILM_SEALING",
+    "design_film_ratio": "1.0",
+    "equipment_model": null,
+    "equipment_capacity": null,
+    "runtime_hours": null,
+    "status": "INPUT_REQUIRED_EQUIPMENT_AND_RUNTIME"
+  },
+  "missing_project_inputs": [
+    "PACKAGED_PRODUCT_MASS_KG_PER_DAY",
+    "FACTORY_SIZE",
+    "SHIFT_WORKFORCE_REVIEW_OR_PACKAGED_MASS_DERIVATION",
+    "SHIFT_WORKLOAD_ALLOCATION_BASIS",
+    "SHIFT_1_PACKAGED_PRODUCT_MASS_KG",
+    "SHIFT_2_PACKAGED_PRODUCT_MASS_KG"
+  ],
+  "conflict": null,
+  "binding_status": "INPUT_REQUIRED",
+  "functional_approval": false,
+  "p1_modified": false,
+  "original_engineering_acceptance_modified": false,
+  "quality_comparators_modified": false,
+  "old_grants_claims_modified": false,
+  "native_solves": 0
+}

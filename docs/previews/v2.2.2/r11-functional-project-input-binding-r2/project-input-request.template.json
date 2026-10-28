@@ -1,0 +1,25 @@
+{
+  "task": "V2_2_2_R11_FUNCTIONAL_PROJECT_INPUT_BINDING_R2",
+  "project_identity": "FROZEN_20T_REGRESSION_FIXTURE_NOT_XINZHAO",
+  "status": "UNREVIEWED_PROPOSAL_NOT_APPROVED",
+  "instructions": "填写项目事实及原始来源；此文件不是已审项目事实，不能仅修改status或source_label自我批准。",
+  "fields": {
+    "PACKAGED_PRODUCT_MASS_KG_PER_DAY": {"value": null, "unit": "kg/day", "document_reference": null},
+    "FACTORY_SIZE": {"value": null, "unit": "SMALL|MEDIUM|LARGE", "document_reference": null},
+    "SHIFT_1_WORKERS": {"value": null, "unit": "people; optional pair", "document_reference": null},
+    "SHIFT_2_WORKERS": {"value": null, "unit": "people; optional pair", "document_reference": null},
+    "SHIFT_1_PACKAGED_PRODUCT_MASS_KG": {"value": null, "unit": "kg/shift; reviewed allocation pair", "document_reference": null},
+    "SHIFT_2_PACKAGED_PRODUCT_MASS_KG": {"value": null, "unit": "kg/shift; reviewed allocation pair", "document_reference": null},
+    "CHANGING_LOCKER_SPECIFICATION": {"model": null, "dimensions_mm": null, "document_reference": null},
+    "CHANGING_FINISHED_CLEAR_AND_ACCESS": {"geometry_mm": null, "document_reference": null},
+    "OFFICE_FURNITURE_AND_PORTAL": {"design": null, "document_reference": null},
+    "COATING_EQUIPMENT_CAPACITY_AND_MAINTENANCE": {"design": null, "document_reference": null}
+  },
+  "not_derived": [
+    "20t inbound does not imply packaged product mass",
+    "53 people / 106 lockers are not bound project facts",
+    "Office SMALL/MEDIUM/LARGE selection is unknown",
+    "Explicit shift workers do not authorize an automatic 50/50 workload split",
+    "Coating equipment run hours do not inherit packaging 16 hours"
+  ]
+}

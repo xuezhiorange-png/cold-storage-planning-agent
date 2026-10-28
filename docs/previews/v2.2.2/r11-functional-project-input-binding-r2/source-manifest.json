@@ -1,0 +1,18 @@
+{
+  "base_head": "028170c5c740c47b6891bfc1e6e9cb5099aeb552",
+  "source_files": {
+    "docs/previews/v2.2.2/r11-functional-room-fit-r1/review-data.json": "0794722c2547123497d7ed7d9cb97594cc993cc9db23080c90f50693a1640b4f",
+    "docs/previews/v2.2.2/r11-functional-room-fit-r1/source-manifest.json": "24eee74d23923b18b14ca60ffaa2a4a9b7039ea1ec84ee3a9f0a7bcfe4c4cb79",
+    "docs/previews/v2.2.2/owner-functional-input-contract-r2/owner-confirmed-business-rules-v2.json": "7c6d37327e4a3819332937473a6c1a37b3b324b7405b995a9ab963397c08392c"
+  },
+  "derived_files": {
+    "readiness-report.md": "2383115e00c2f6feea087f8701138b9b56a08f1de27ed8a5470dd042be8fdd7e",
+    "index.html": "240bfc1d625ad7b2c63eea4abf737762ec35a390e29ac36cdcc2102765e11b0e",
+    "room-input-projection.json": "7f973a5511594c0adbce4ec7eb8cf92bcd454d76b3d5317396dc0c0eebc5f7c8",
+    "project-input-request.json": "638359ed23e9914594ce5f874d1785e0c44aa1552b0230a7ddb1100151dc922c",
+    "project-input-request.template.json": "87598fd5a36fff21eac4e577d6fd9a651081b6a76ad9bb5daa1f515df7c046fc",
+    "project-binding.json": "a7c1fc4bee7da05731e92b5d73f404abb5a86e828ad2f78a9d4c17f90ba59161",
+    "validation-summary.json": "f94a758be44bc0789274d7a6794b566a6209fc24ee39e6384d53a285c37aa9b8"
+  },
+  "original_pr_base_head": "834acd7f0f486f01465c9030e5f7e520fc6a4b32"
+}
