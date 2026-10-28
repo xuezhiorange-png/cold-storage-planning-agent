@@ -36,6 +36,7 @@ def report_lines(binding: dict[str, Any], rooms: list[dict[str, Any]]) -> list[s
         "- 两班错峰更衣，同时人数按实际两班较大人数计算。",
         "- 产能按已包装产品质量：15件/人时×1.6kg/件×8小时=192kg/人班。",
         "- 包装人员默认两班均分，仅当已包装产品日质量经项目审阅后启用；显式班次覆盖须同时提供两班人数。",
+        "- 显式两班人数不会自动分配50/50工作量；合计产能充足只证明总量容量，逐班满足须有各班已审包装质量并分别校核。",
         "- 办公人员按经确认的项目工厂规模选 SMALL=12/MEDIUM=20/LARGE=30。",
         "- 覆膜设计比率为100%，但设备型号、独立运行时数、有效产能均未确认。",
         "",
@@ -52,6 +53,9 @@ def report_lines(binding: dict[str, Any], rooms: list[dict[str, Any]]) -> list[s
         f"办公人数：{office['staff_count'] if office['staff_count'] is not None else 'INPUT_REQUIRED'}。",
         "- 两班包装人数：" + str(staff["separate_personal_lockers"] or "INPUT_REQUIRED") + "。",
         "- 同时更衣人数：" + str(staff["simultaneous_changing_users"] or "INPUT_REQUIRED") + "。",
+        f"- 已审核人数依据状态：{staff['status']}；逐班产能校核：{staff['capacity_validation']}。",
+        f"- 合计容量校核：{staff['aggregate_capacity_validation']}；班次工作量依据：{staff['shift_workload_allocation_basis'] or 'INPUT_REQUIRED_SHIFT_WORKLOAD_ALLOCATION'}。",
+        "- 显式人数已知但各班工作量未知时，保留人数及柜数需求，产能仍为待验证。",
         "- 更衣柜规格、内部净尺寸、门操作包络、人员空间及内部通道：INPUT_REQUIRED。",
         "- 办公家具及合法办公出入口：INPUT_REQUIRED。",
         "- 覆膜设备型号、台数、运行工时、进出料与维护包络：INPUT_REQUIRED。",
@@ -122,6 +126,17 @@ def render_html(binding: dict[str, Any], rooms: list[dict[str, Any]]) -> str:
         "<p><strong>已核对：</strong>两班独立柜、192kg/人班、错峰更衣、覆膜设计100%。"
         "</p><p><strong>仍需：</strong>已包装产品日质量、工厂规模、柜体及装修净尺寸、"
         "实际办公室入口、覆膜设备运行及维护资料。</p></section>"
+        "<section class='panel'><h2>包装班次产能边界</h2>"
+        "<p>显式两班人数不能自动套用50/50包装工作量。合计容量足够，也不等于各班产能满足；"
+        "须审阅各班包装质量、核对合计与日总量，再分别校核。已审人数保留，产能状态单列。</p>"
+        "<p>逐班校核："
+        + safe(binding["workforce"]["capacity_validation"])
+        + "；工作量依据："
+        + safe(
+            binding["workforce"]["shift_workload_allocation_basis"]
+            or "INPUT_REQUIRED_SHIFT_WORKLOAD_ALLOCATION"
+        )
+        + "。</p></section>"
         "<h2>27份历史房间记录</h2><table><thead><tr><th>候选</th><th>Handoff</th>"
         "<th>矩形组</th><th>房间</th><th>已绑定字段</th><th>功能状态</th></tr></thead>"
         "<tbody>" + rows + "</tbody></table>"
@@ -167,6 +182,8 @@ def main() -> None:
                     "PACKAGED_PRODUCT_MASS_KG_PER_DAY": "kg/day",
                     "SHIFT_1_WORKERS": "people (optional explicit pair)",
                     "SHIFT_2_WORKERS": "people (optional explicit pair)",
+                    "SHIFT_1_PACKAGED_PRODUCT_MASS_KG": "kg/shift (reviewed allocation pair)",
+                    "SHIFT_2_PACKAGED_PRODUCT_MASS_KG": "kg/shift (reviewed allocation pair)",
                     "FACTORY_SIZE": "SMALL|MEDIUM|LARGE",
                     "LOCKER_MODEL_AND_DIMENSIONS": "manufacturer mm specification",
                     "CHANGING_FINISHED_CLEAR_BOUNDS": "mm",

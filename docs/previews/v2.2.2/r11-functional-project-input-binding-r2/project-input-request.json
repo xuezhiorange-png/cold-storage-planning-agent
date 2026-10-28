@@ -18,6 +18,16 @@
       "unit": "people (optional explicit pair)",
       "original_document_reference": null
     },
+    "SHIFT_1_PACKAGED_PRODUCT_MASS_KG": {
+      "value": null,
+      "unit": "kg/shift (reviewed allocation pair)",
+      "original_document_reference": null
+    },
+    "SHIFT_2_PACKAGED_PRODUCT_MASS_KG": {
+      "value": null,
+      "unit": "kg/shift (reviewed allocation pair)",
+      "original_document_reference": null
+    },
     "FACTORY_SIZE": {
       "value": null,
       "unit": "SMALL|MEDIUM|LARGE",

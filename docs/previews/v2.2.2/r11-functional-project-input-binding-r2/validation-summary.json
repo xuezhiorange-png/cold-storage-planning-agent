@@ -1,16 +1,17 @@
 {
-  "task": "V2_2_2_R11_FUNCTIONAL_PROJECT_INPUT_BINDING_R2",
-  "base_head": "834acd7f0f486f01465c9030e5f7e520fc6a4b32",
+  "task": "V2_2_2_R11_R2_SHIFT_CAPACITY_BOUNDARY_FIX_R1",
+  "binding_task": "V2_2_2_R11_FUNCTIONAL_PROJECT_INPUT_BINDING_R2",
+  "base_head": "028170c5c740c47b6891bfc1e6e9cb5099aeb552",
+  "r11_base_head": "834acd7f0f486f01465c9030e5f7e520fc6a4b32",
+  "binding_version": "r11-project-functional-input-binding@2.0.1",
   "python": "3.12.13",
-  "package_sha256": "69720fb716ccb06ed44db30985ab95b017ea3ebc90b5163586b3f9a7a2f1ba2a",
-  "git_apply_check": "PASS",
   "tests": {
     "R2": {
-      "passed": 21,
+      "passed": 43,
       "skipped": 0,
       "failed": 0
     },
-    "R11": {
+    "R11_R1": {
       "passed": 85,
       "skipped": 0,
       "failed": 0
@@ -22,27 +23,16 @@
     }
   },
   "ci_contract_tests": 65,
-  "static_checks": {
-    "ruff": "PASS",
-    "format": "PASS_1053_FILES",
-    "mypy": "PASS_468_FILES"
-  },
-  "historical_records": 9,
-  "physical_rectangle_groups": 8,
-  "room_records": 27,
-  "room_functional_status": "INPUT_REQUIRED",
-  "project_reviewed_inputs": 0,
-  "historical_files_hash_verified_unchanged": 291,
-  "native_solves": 0,
+  "ruff": "PASS",
+  "format": "PASS_1053_FILES",
+  "mypy": "PASS_468_FILES",
+  "original_27_room_projection_byte_identical": true,
+  "owner_v2_contract_changed": false,
+  "protected_historical_files_unchanged": 291,
+  "native_calls_local_tests_and_generator": 0,
   "real_main_executed": false,
   "real_grant_created": false,
   "claim_created": false,
   "full_ci": "NOT_REQUESTED",
-  "production_default_changed": false,
-  "patch_followups": [
-    "immutable unit mapping to satisfy architecture boundary",
-    "locked Ruff import/format corrections on three new files",
-    "render reports from persisted JSON results",
-    "read-only generator and existing-output regression test"
-  ]
+  "production_default_changed": false
 }

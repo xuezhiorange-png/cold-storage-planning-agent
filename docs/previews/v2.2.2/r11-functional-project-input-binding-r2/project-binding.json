@@ -1,5 +1,5 @@
 {
-  "version": "r11-project-functional-input-binding@2.0.0",
+  "version": "r11-project-functional-input-binding@2.0.1",
   "task": "V2_2_2_R11_FUNCTIONAL_PROJECT_INPUT_BINDING_R2",
   "project_identity": "FROZEN_20T_REGRESSION_FIXTURE_NOT_XINZHAO",
   "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
@@ -32,7 +32,24 @@
     "required_packing_tables": null,
     "source_reference": null,
     "derived_from_packaged_product_mass": false,
-    "capacity_validation": "INPUT_REQUIRED_PACKAGED_MASS"
+    "capacity_validation": "INPUT_REQUIRED_PACKAGED_MASS",
+    "aggregate_capacity_validation": "INPUT_REQUIRED_PACKAGED_MASS",
+    "shift_workload_allocation_basis": null,
+    "shift_workload_source_reference": null,
+    "per_shift_capacity": [
+      {
+        "shift": 1,
+        "packaged_product_mass_kg": null,
+        "capacity_kg": null,
+        "status": "INPUT_REQUIRED_SHIFT_WORKLOAD"
+      },
+      {
+        "shift": 2,
+        "packaged_product_mass_kg": null,
+        "capacity_kg": null,
+        "status": "INPUT_REQUIRED_SHIFT_WORKLOAD"
+      }
+    ]
   },
   "office": {
     "factory_size": null,
@@ -51,7 +68,10 @@
   "missing_project_inputs": [
     "PACKAGED_PRODUCT_MASS_KG_PER_DAY",
     "FACTORY_SIZE",
-    "SHIFT_WORKFORCE_REVIEW_OR_PACKAGED_MASS_DERIVATION"
+    "SHIFT_WORKFORCE_REVIEW_OR_PACKAGED_MASS_DERIVATION",
+    "SHIFT_WORKLOAD_ALLOCATION_BASIS",
+    "SHIFT_1_PACKAGED_PRODUCT_MASS_KG",
+    "SHIFT_2_PACKAGED_PRODUCT_MASS_KG"
   ],
   "conflict": null,
   "binding_status": "INPUT_REQUIRED",

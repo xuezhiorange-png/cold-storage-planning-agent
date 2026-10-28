@@ -82,6 +82,12 @@ def test_verified_packaged_mass_derives_two_shifts_without_inbound_substitution(
     assert result["workforce"]["simultaneous_changing_users"] == 50
     assert result["workforce"]["required_packing_tables"] == 17
     assert result["workforce"]["derived_from_packaged_product_mass"]
+    assert result["workforce"]["capacity_validation"] == "SATISFIED"
+    assert result["workforce"]["shift_workload_allocation_basis"] == "OWNER_V2_DEFAULT_EQUAL_SPLIT"
+    assert [r["packaged_product_mass_kg"] for r in result["workforce"]["per_shift_capacity"]] == [
+        "9600.0",
+        "9600.0",
+    ]
     changing = next(
         r
         for r in project_candidate_room_inputs(review, result)
@@ -134,7 +140,7 @@ def test_single_shift_override_never_falls_back_to_default_even_with_mass():
     assert result["workforce"]["separate_personal_lockers"] is None
 
 
-def test_shift_capacity_shortfall_is_not_a_valid_staffing_basis():
+def test_total_capacity_shortfall_conflicts_but_preserves_reviewed_people():
     review, owner = inputs()
     request = {
         "PACKAGED_PRODUCT_MASS_KG_PER_DAY": fact(
@@ -145,7 +151,11 @@ def test_shift_capacity_shortfall_is_not_a_valid_staffing_basis():
     }
     result = bind_project_functional_inputs(review, owner, reviewed_project=request)
     assert result["binding_status"] == "INPUT_CONFLICT"
-    assert result["workforce"]["shift_1_workers"] is None
+    assert result["workforce"]["status"] == "REVIEWED_PROJECT_BASIS"
+    assert result["workforce"]["separate_personal_lockers"] == [10, 10]
+    assert result["workforce"]["aggregate_capacity_validation"] == "INSUFFICIENT_TOTAL"
+    assert result["workforce"]["capacity_validation"] == "CONFLICT"
+    assert result["conflict"] == "REVIEWED_SHIFT_CAPACITY_BELOW_PACKAGED_MASS"
 
 
 @pytest.mark.parametrize("value", [0, "0", "-1", "NaN", "Infinity", 1.5, True])
@@ -219,6 +229,8 @@ def test_report_generator_reads_sealed_inputs_and_writes_only_new_output(tmp_pat
     assert binding["project_reviewed_facts"] == {}
     assert binding["workforce"]["separate_personal_lockers"] is None
     assert request["status"] == "UNREVIEWED_PROPOSAL_NOT_APPROVED"
+    assert "SHIFT_1_PACKAGED_PRODUCT_MASS_KG" in request["values"]
+    assert "SHIFT_2_PACKAGED_PRODUCT_MASS_KG" in request["values"]
     assert all(value["value"] is None for value in request["values"].values())
     assert (out / "index.html").read_text().count("<tr>") == 28
     assert "INPUT_REQUIRED" in (out / "readiness-report.md").read_text()
@@ -230,3 +242,163 @@ def test_report_generator_reads_sealed_inputs_and_writes_only_new_output(tmp_pat
             str(ROOT / "backend/scripts/build_r11_project_input_binding.py"), run_name="__main__"
         )
     assert {p.name: p.read_bytes() for p in out.iterdir()} == before
+
+
+def explicit_staffing(review, workers=(1, 199), total="20000", workloads=None):
+    request = {
+        "PACKAGED_PRODUCT_MASS_KG_PER_DAY": fact(
+            review, "PACKAGED_PRODUCT_MASS_KG_PER_DAY", total, "kg/day"
+        ),
+        "SHIFT_1_WORKERS": fact(review, "SHIFT_1_WORKERS", workers[0], "people"),
+        "SHIFT_2_WORKERS": fact(review, "SHIFT_2_WORKERS", workers[1], "people"),
+    }
+    if workloads is not None:
+        request.update(
+            (name, fact(review, name, value, "kg/shift"))
+            for name, value in zip(
+                ("SHIFT_1_PACKAGED_PRODUCT_MASS_KG", "SHIFT_2_PACKAGED_PRODUCT_MASS_KG"),
+                workloads,
+                strict=True,
+            )
+        )
+    return request
+
+
+@pytest.mark.parametrize("workers", [(1, 199), (199, 1), (100, 100)])
+def test_sufficient_total_without_reviewed_allocation_never_validates_each_shift(workers):
+    review, owner = inputs()
+    request = explicit_staffing(review, workers=workers)
+    result = bind_project_functional_inputs(review, owner, reviewed_project=request)
+    staff = result["workforce"]
+    assert staff["status"] == "REVIEWED_PROJECT_BASIS"
+    assert staff["separate_personal_lockers"] == list(workers)
+    assert staff["aggregate_capacity_validation"] == "SUFFICIENT_TOTAL_ONLY"
+    assert staff["capacity_validation"] == "INPUT_REQUIRED_SHIFT_WORKLOAD_ALLOCATION"
+    assert staff["shift_workload_allocation_basis"] is None
+    assert not staff["derived_from_packaged_product_mass"]
+    assert all(r["packaged_product_mass_kg"] is None for r in staff["per_shift_capacity"])
+    assert {r["status"] for r in staff["per_shift_capacity"]} == {"INPUT_REQUIRED_SHIFT_WORKLOAD"}
+    assert "SHIFT_WORKLOAD_ALLOCATION_BASIS" in result["missing_project_inputs"]
+    assert result["binding_status"] == "INPUT_REQUIRED"
+    rows = project_candidate_room_inputs(review, result)
+    assert len(rows) == 27
+    assert all(r["functional_status"] == "INPUT_REQUIRED" for r in rows)
+    assert all(
+        "shift_locker_counts" in r["project_fields_bound"]
+        for r in rows
+        if r["room_code"] == "changing_room"
+    )
+
+
+def test_full_reviewed_unbalanced_allocation_verifies_each_shift_at_boundary():
+    review, owner = inputs()
+    request = explicit_staffing(review, workloads=("192", "19808"))
+    request["FACTORY_SIZE"] = fact(review, "FACTORY_SIZE", "SMALL", "factory_size")
+    result = bind_project_functional_inputs(review, owner, reviewed_project=request)
+    staff = result["workforce"]
+    assert result["conflict"] is None
+    assert result["binding_status"] == "PROJECT_STAFFING_BASIS_READY_ROOM_FIT_PENDING"
+    assert staff["capacity_validation"] == "SATISFIED"
+    assert staff["shift_workload_allocation_basis"] == "REVIEWED_SHIFT_WORKLOADS"
+    assert [r["packaged_product_mass_kg"] for r in staff["per_shift_capacity"]] == ["192", "19808"]
+    assert [r["capacity_kg"] for r in staff["per_shift_capacity"]] == ["192.0", "38208.0"]
+    assert all(r["status"] == "SATISFIED" for r in staff["per_shift_capacity"])
+    assert "SHIFT_1_PACKAGED_PRODUCT_MASS_KG" in staff["shift_workload_source_reference"]
+    assert "SHIFT_WORKLOAD_ALLOCATION_BASIS" not in result["missing_project_inputs"]
+    assert all(
+        r["functional_status"] == "INPUT_REQUIRED"
+        for r in project_candidate_room_inputs(review, result)
+    )
+
+
+@pytest.mark.parametrize("loads", [("10000", "10000"), ("192.001", "19807.999")])
+@pytest.mark.parametrize("workers", [(1, 199), (199, 1)])
+def test_actual_shift_over_capacity_rejects_even_with_sufficient_total(loads, workers):
+    review, owner = inputs()
+    result = bind_project_functional_inputs(
+        review, owner, reviewed_project=explicit_staffing(review, workers=workers, workloads=loads)
+    )
+    staff = result["workforce"]
+    assert staff["aggregate_capacity_validation"] == "SUFFICIENT_TOTAL_ONLY"
+    assert staff["capacity_validation"] == "CONFLICT"
+    assert result["binding_status"] == "INPUT_CONFLICT"
+    assert result["conflict"] == "REVIEWED_SHIFT_WORKLOAD_EXCEEDS_CAPACITY"
+    assert staff["per_shift_capacity"][workers.index(1)]["status"] == "EXCEEDED"
+    assert staff["separate_personal_lockers"] == list(workers)
+
+
+def test_reviewed_workload_sum_must_match_reviewed_daily_mass():
+    review, owner = inputs()
+    result = bind_project_functional_inputs(
+        review,
+        owner,
+        reviewed_project=explicit_staffing(review, workers=(100, 100), workloads=("9600", "9600")),
+    )
+    assert result["conflict"] == "REVIEWED_SHIFT_WORKLOADS_DO_NOT_SUM_TO_DAILY_MASS"
+    assert result["workforce"]["capacity_validation"] == "CONFLICT"
+    assert all(r["status"] != "SATISFIED" for r in result["workforce"]["per_shift_capacity"])
+
+
+@pytest.mark.parametrize("explicit", [True, False])
+def test_partial_reviewed_workload_does_not_trigger_equal_split(explicit):
+    review, owner = inputs()
+    request = explicit_staffing(review)
+    if not explicit:
+        del request["SHIFT_1_WORKERS"]
+        del request["SHIFT_2_WORKERS"]
+    key = "SHIFT_1_PACKAGED_PRODUCT_MASS_KG"
+    request[key] = fact(review, key, "100", "kg/shift")
+    result = bind_project_functional_inputs(review, owner, reviewed_project=request)
+    staff = result["workforce"]
+    assert staff["capacity_validation"] != "SATISFIED"
+    assert staff["shift_workload_allocation_basis"] is None
+    assert staff["per_shift_capacity"][1]["packaged_product_mass_kg"] is None
+    assert "SHIFT_2_PACKAGED_PRODUCT_MASS_KG" in result["missing_project_inputs"]
+    assert "SHIFT_1_PACKAGED_PRODUCT_MASS_KG" not in result["missing_project_inputs"]
+
+
+def test_reviewed_workloads_without_explicit_staffing_derive_the_actual_split():
+    review, owner = inputs()
+    request = explicit_staffing(review, workloads=("192", "19808"))
+    del request["SHIFT_1_WORKERS"]
+    del request["SHIFT_2_WORKERS"]
+    result = bind_project_functional_inputs(review, owner, reviewed_project=request)
+    assert result["workforce"]["separate_personal_lockers"] == [1, 104]
+    assert result["workforce"]["shift_workload_allocation_basis"] == "REVIEWED_SHIFT_WORKLOADS"
+    assert result["workforce"]["capacity_validation"] == "SATISFIED"
+
+
+def test_reviewed_zero_workload_is_not_replaced_by_equal_split():
+    review, owner = inputs()
+    result = bind_project_functional_inputs(
+        review, owner, reviewed_project=explicit_staffing(review, workloads=("0", "20000"))
+    )
+    assert result["workforce"]["per_shift_capacity"][0]["packaged_product_mass_kg"] == "0"
+    assert result["workforce"]["capacity_validation"] == "SATISFIED"
+
+
+@pytest.mark.parametrize("value", ["-1", "NaN", "Infinity", 1.5, True])
+def test_invalid_reviewed_shift_workload_rejected(value):
+    review, owner = inputs()
+    with pytest.raises(ValueError):
+        bind_project_functional_inputs(
+            review, owner, reviewed_project=explicit_staffing(review, workloads=(value, "20000"))
+        )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"project_scope_id": "OTHER"},
+        {"unit": "kg/day"},
+        {"reference": ""},
+        {"field_name": "SHIFT_2_PACKAGED_PRODUCT_MASS_KG"},
+    ],
+)
+def test_shift_workload_requires_exact_reviewed_field_scope_units_and_source(change):
+    review, owner = inputs()
+    request = explicit_staffing(review, workloads=("192", "19808"))
+    key = "SHIFT_1_PACKAGED_PRODUCT_MASS_KG"
+    request[key] = replace(request[key], **change)
+    with pytest.raises(ValueError, match="REVIEWED_PROJECT_SOURCE_OR_SCOPE_MISMATCH"):
+        bind_project_functional_inputs(review, owner, reviewed_project=request)

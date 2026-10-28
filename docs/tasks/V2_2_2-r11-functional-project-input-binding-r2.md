@@ -16,7 +16,20 @@ R11 R1正确地将原Stage B工程有效、P1面积与功能适用性分开，�
 
 可审阅的项目事实（当前均缺失）：`PACKAGED_PRODUCT_MASS_KG_PER_DAY`、`FACTORY_SIZE`，以及可选择性明确提供的`SHIFT_1_WORKERS`与`SHIFT_2_WORKERS`（覆盖时两项必须同时提供）。它们均不是进厂日质量的别名。
 
+各班实际包装工作量使用同一项目审阅机制提供 `SHIFT_1_PACKAGED_PRODUCT_MASS_KG` 与
+`SHIFT_2_PACKAGED_PRODUCT_MASS_KG`（kg/shift，可为零）；须有各自原始来源、单位与项目 Scope，
+并且合计与已审核日总质量一致，不能用普通 JSON 标签自行批准。
+
 包装人员计算：仅在项目已包装质量获得审阅、且没有显式两班覆盖时，按各班日质量的50%及每人每班192kg计算，逐班向上取整；每班各自配置个人柜，合计柜数=N1+N2，同时更衣人数=max(N1,N2)，包装台数=ceil(max(N1,N2)/3)。如果显式人数和质量同时提供且已证实产能不足，返回`INPUT_CONFLICT`，绝不声称容量满足。
+
+产能边界修正 `V2_2_2_R11_R2_SHIFT_CAPACITY_BOUNDARY_FIX_R1`（冻结基线
+`028170c5c740c47b6891bfc1e6e9cb5099aeb552`）：显式人数为独立已审事实，即使产能冲突也保留。
+`aggregate_capacity_validation=SUFFICIENT_TOTAL_ONLY` 只说明合计容量足够；没有两班已审工作量时，
+`capacity_validation=INPUT_REQUIRED_SHIFT_WORKLOAD_ALLOCATION`，并列出
+`SHIFT_WORKLOAD_ALLOCATION_BASIS` 缺口。显式班次覆盖绝不套用默认50/50。
+两班工作量来源完整、合计与日总量一致且分别不超过对应产能后，逐班校核才为 `SATISFIED`；
+合计不足、某班超载或工作量合计冲突均为 `INPUT_CONFLICT`。无显式人数时，已审工作量优先用于
+人数推导；只有既无显式人数也无班次工作量输入时，才沿用原 Owner V2 默认均分规则。
 
 办公室人数只有在项目规模明确选择SMALL、MEDIUM、LARGE后，才可对应12、20、30。覆膜工艺为`PACKAGING_BOX_FILM_SEALING`，设计比率为1.0；设备选型、能力、安装/进出料/维修净距、运行小时必须另行确认，不从包装班制直接继承。
 
@@ -60,7 +73,8 @@ CLI只读取仓库已封存R11 `review-data.json`及Owner V2业务文件，依�
 补丁之后只补齐仓库要求：字段单位表改为不可变映射、三个新增 Python 文件的锁定 Ruff 格式、
 报告从已落盘 JSON 回读，以及只读生成器和拒绝覆盖输出的回归测试。
 
-Python 3.12.13、`uv sync --locked`：R2 21 PASS、原 R11 85 PASS、架构 771 PASS / 16 原有 skip，
+初次交付（`028170c5c740c47b6891bfc1e6e9cb5099aeb552`）：Python 3.12.13、`uv sync --locked`，
+R2 21 PASS、原 R11 85 PASS、架构 771 PASS / 16 原有 skip，
 CI 契约 65 PASS；Ruff、Format（1053 文件）、Mypy（468 文件，含本轮生成器）通过。
 测试及报告生成均禁止两种 Native Solve API，实际调用为零。
 
@@ -68,3 +82,8 @@ CI 契约 65 PASS；Ruff、Format（1053 文件）、Mypy（468 文件，含本�
 27 条房间记录仍全部为 `INPUT_REQUIRED`；9 份记录 / 8 组物理矩形、原工程状态和 P1 面积状态不变。
 项目已审事实为空，未绑定 20t 已包装产量、53 人 / 106 柜、工厂规模、柜型或覆膜设备。
 `validation-summary.json` 与 `source-manifest.json` 提供本地检查和来源摘要；快速 CI 状态在 PR 中另行核验。
+
+本次产能边界修正：R2 43 PASS、原 R11 85 PASS、架构 771 PASS / 16 原有 skip；
+Ruff、Format、Mypy（含报告生成器）通过。覆盖 1/199 与 199/1 极不均衡人数、合计不足、
+合计充足但班次工作量未知、默认均分、逐班超载、完整已审工作量及其总量一致性、
+部分输入、零工作量、字段/单位/项目 Scope 错误。原 Owner V2 合同和27条历史房间结论不变。

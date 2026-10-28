@@ -18,12 +18,14 @@ from typing import Any, Literal
 OWNER_ID = "OwnerFactoryFunctionalInputsV2"
 PROJECT_INPUT_ID = "FROZEN_20T_REGRESSION_FIXTURE_NOT_XINZHAO"
 R10_HEAD = "288a56b768baa859cbcfb41908fbbd5d6155094d"
-VERSION = "r11-project-functional-input-binding@2.0.0"
+VERSION = "r11-project-functional-input-binding@2.0.1"
 UNITS = MappingProxyType(
     {
         "PACKAGED_PRODUCT_MASS_KG_PER_DAY": "kg/day",
         "SHIFT_1_WORKERS": "people",
         "SHIFT_2_WORKERS": "people",
+        "SHIFT_1_PACKAGED_PRODUCT_MASS_KG": "kg/shift",
+        "SHIFT_2_PACKAGED_PRODUCT_MASS_KG": "kg/shift",
         "FACTORY_SIZE": "factory_size",
     }
 )
@@ -68,14 +70,14 @@ class ReviewedProjectDatum:
     reference: str
 
 
-def _positive_decimal(value: Any) -> Decimal:
+def _positive_decimal(value: Any, *, allow_zero: bool = False) -> Decimal:
     if type(value) is not int and type(value) is not str:
         raise ValueError("EXPLICIT_NON_FLOAT_PACKAGED_MASS_REQUIRED")
     try:
         result = Decimal(str(value))
     except InvalidOperation as exc:
         raise ValueError("INVALID_PACKAGED_PRODUCT_MASS") from exc
-    if not result.is_finite() or result <= 0:
+    if not result.is_finite() or result < 0 or (not allow_zero and result == 0):
         raise ValueError("INVALID_PACKAGED_PRODUCT_MASS")
     return result
 
@@ -190,11 +192,11 @@ def _reviewed_inputs(
         if field == "FACTORY_SIZE":
             if datum.value not in {"SMALL", "MEDIUM", "LARGE"}:
                 raise ValueError("EXPLICIT_FACTORY_SIZE_REQUIRED")
-        elif field.startswith("SHIFT_"):
+        elif field in {"SHIFT_1_WORKERS", "SHIFT_2_WORKERS"}:
             if type(datum.value) is not int or datum.value < 1:
                 raise ValueError("EXPLICIT_SHIFT_WORKERS_REQUIRED")
         else:
-            _positive_decimal(datum.value)
+            _positive_decimal(datum.value, allow_zero=field.endswith("_MASS_KG"))
         checked[field] = datum
     return checked
 
@@ -213,6 +215,22 @@ def bind_project_functional_inputs(
     mass_datum = facts.get("PACKAGED_PRODUCT_MASS_KG_PER_DAY")
     mass = _positive_decimal(mass_datum.value) if mass_datum else None
     left, right = (facts.get("SHIFT_1_WORKERS"), facts.get("SHIFT_2_WORKERS"))
+    workload_facts = (
+        facts.get("SHIFT_1_PACKAGED_PRODUCT_MASS_KG"),
+        facts.get("SHIFT_2_PACKAGED_PRODUCT_MASS_KG"),
+    )
+    workloads = tuple(
+        _positive_decimal(datum.value, allow_zero=True) if datum else None
+        for datum in workload_facts
+    )
+    explicit_staffing = left is not None or right is not None
+    allocation_basis = "REVIEWED_SHIFT_WORKLOADS" if all(workload_facts) else None
+    allocation_reference = "; ".join(datum.reference for datum in workload_facts if datum)
+    if not explicit_staffing and mass is not None and not any(workload_facts):
+        assert mass_datum is not None
+        workloads = (mass * shares[0], mass * shares[1])
+        allocation_basis = "OWNER_V2_DEFAULT_EQUAL_SPLIT"
+        allocation_reference = "OwnerV2:DEFAULT_EQUAL_SPLIT; " + str(mass_datum.reference)
     conflict = None
     staff_reference = None
     workers = None
@@ -221,12 +239,60 @@ def bind_project_functional_inputs(
     elif left is not None and right is not None:
         workers = (int(left.value), int(right.value))
         staff_reference = left.reference + "; " + right.reference
-        if mass is not None and sum(workers) * capacity < mass:
-            conflict = "REVIEWED_SHIFT_CAPACITY_BELOW_PACKAGED_MASS"
-            workers = None
-    elif mass is not None:
-        workers = (_ceil(mass * shares[0] / capacity), _ceil(mass * shares[1] / capacity))
-        staff_reference = mass_datum.reference if mass_datum else None
+    elif mass is not None and allocation_basis is not None:
+        assert workloads[0] is not None and workloads[1] is not None
+        workers = (_ceil(workloads[0] / capacity), _ceil(workloads[1] / capacity))
+        staff_reference = allocation_reference
+
+    aggregate_validation = "INPUT_REQUIRED_PACKAGED_MASS"
+    if mass is not None:
+        aggregate_validation = "INPUT_REQUIRED_WORKFORCE"
+        if workers is not None:
+            if sum(workers) * capacity < mass:
+                aggregate_validation = "INSUFFICIENT_TOTAL"
+                conflict = conflict or "REVIEWED_SHIFT_CAPACITY_BELOW_PACKAGED_MASS"
+            else:
+                aggregate_validation = "SUFFICIENT_TOTAL_ONLY"
+    allocation_conflict = (
+        mass is not None
+        and workloads[0] is not None
+        and workloads[1] is not None
+        and workloads[0] + workloads[1] != mass
+    )
+    if allocation_conflict:
+        conflict = conflict or "REVIEWED_SHIFT_WORKLOADS_DO_NOT_SUM_TO_DAILY_MASS"
+    shift_checks = []
+    for index, workload in enumerate(workloads):
+        shift_capacity = workers[index] * capacity if workers is not None else None
+        status = "INPUT_REQUIRED_SHIFT_WORKLOAD"
+        if allocation_conflict:
+            status = "NOT_EVALUATED_ALLOCATION_CONFLICT"
+        elif workload is not None:
+            if shift_capacity is None:
+                status = "INPUT_REQUIRED_WORKFORCE"
+            elif workload > shift_capacity:
+                status = "EXCEEDED"
+                conflict = conflict or "REVIEWED_SHIFT_WORKLOAD_EXCEEDS_CAPACITY"
+            else:
+                status = "SATISFIED"
+        shift_checks.append(
+            dict(
+                shift=index + 1,
+                packaged_product_mass_kg=str(workload) if workload is not None else None,
+                capacity_kg=str(shift_capacity) if shift_capacity is not None else None,
+                status=status,
+            )
+        )
+    if conflict:
+        capacity_validation = "CONFLICT"
+    elif mass is None:
+        capacity_validation = "INPUT_REQUIRED_PACKAGED_MASS"
+    elif workers is None:
+        capacity_validation = "INPUT_REQUIRED_WORKFORCE"
+    elif allocation_basis is None:
+        capacity_validation = "INPUT_REQUIRED_SHIFT_WORKLOAD_ALLOCATION"
+    else:
+        capacity_validation = "SATISFIED"
     size = facts.get("FACTORY_SIZE")
     office_staff = int(rules["OFFICE_DESIGN_STAFF." + str(size.value)]) if size else None
     if workers is None:
@@ -244,6 +310,17 @@ def bind_project_functional_inputs(
     ]
     if workers is None:
         missing.append("SHIFT_WORKFORCE_REVIEW_OR_PACKAGED_MASS_DERIVATION")
+    if allocation_basis is None:
+        missing.append("SHIFT_WORKLOAD_ALLOCATION_BASIS")
+        missing.extend(
+            name
+            for name, datum in zip(
+                ("SHIFT_1_PACKAGED_PRODUCT_MASS_KG", "SHIFT_2_PACKAGED_PRODUCT_MASS_KG"),
+                workload_facts,
+                strict=True,
+            )
+            if datum is None
+        )
     return dict(
         version=VERSION,
         task="V2_2_2_R11_FUNCTIONAL_PROJECT_INPUT_BINDING_R2",
@@ -280,10 +357,10 @@ def bind_project_functional_inputs(
         ),
         workforce=dict(
             status=(
-                "INPUT_CONFLICT"
-                if conflict
-                else "REVIEWED_PROJECT_BASIS"
+                "REVIEWED_PROJECT_BASIS"
                 if workers
+                else "INPUT_CONFLICT"
+                if conflict
                 else "INPUT_REQUIRED"
             ),
             shift_1_workers=workers[0] if workers else None,
@@ -292,12 +369,12 @@ def bind_project_functional_inputs(
             simultaneous_changing_users=simultaneous,
             required_packing_tables=tables,
             source_reference=staff_reference,
-            derived_from_packaged_product_mass=mass is not None and left is None and right is None,
-            capacity_validation="INPUT_REQUIRED_PACKAGED_MASS"
-            if mass is None
-            else "CONFLICT"
-            if conflict
-            else "SATISFIED",
+            derived_from_packaged_product_mass=workers is not None and not explicit_staffing,
+            capacity_validation=capacity_validation,
+            aggregate_capacity_validation=aggregate_validation,
+            shift_workload_allocation_basis=allocation_basis,
+            shift_workload_source_reference=allocation_reference or None,
+            per_shift_capacity=shift_checks,
         ),
         office=dict(
             factory_size=size.value if size else None,
