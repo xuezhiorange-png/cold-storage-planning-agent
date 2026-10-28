@@ -1,0 +1,81 @@
+{
+  "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+  "status": "CONFIRMED_PROJECT_BASIS",
+  "reviewed_project_facts": {
+    "BENCH_COUNT": {
+      "field_name": "BENCH_COUNT",
+      "value": 0,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R7_H5_NO_BENCH_STANDING_CHANGING_R1; docs/tasks/V2_2_2-r11-r7-reviewed-standing-project-facts.txt; sha256:9dcf5d3b8a4a397af2179bdf4e86bc5dfa1a12d5325ed332796d48602fcf1e3e"
+    },
+    "CHANGING_POSTURE": {
+      "field_name": "CHANGING_POSTURE",
+      "value": "STANDING",
+      "unit": "posture",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R7_H5_NO_BENCH_STANDING_CHANGING_R1; docs/tasks/V2_2_2-r11-r7-reviewed-standing-project-facts.txt; sha256:9dcf5d3b8a4a397af2179bdf4e86bc5dfa1a12d5325ed332796d48602fcf1e3e"
+    },
+    "CHANGING_LOCATION": {
+      "field_name": "CHANGING_LOCATION",
+      "value": "PERSONAL_CABINET_FRONT",
+      "unit": "location",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R8_CABINET_FRONT_CHANGING_R1; docs/tasks/V2_2_2-r11-r8-reviewed-cabinet-front-facts.txt; sha256:ba190fe5724b7b702a8361ccf481594b74d24cc31e9f4e23ce807cd754867247"
+    },
+    "SEPARATE_CHANGING_AREA_COUNT": {
+      "field_name": "SEPARATE_CHANGING_AREA_COUNT",
+      "value": 0,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R8_CABINET_FRONT_CHANGING_R1; docs/tasks/V2_2_2-r11-r8-reviewed-cabinet-front-facts.txt; sha256:ba190fe5724b7b702a8361ccf481594b74d24cc31e9f4e23ce807cd754867247"
+    }
+  },
+  "historical_project_facts": {
+    "packaged_mass_kg_per_day": 20000,
+    "cabinet_structure": "FIVE_TIER_FIVE_DOOR",
+    "tiers_per_column": 5,
+    "storage_assignment": "ONE_INDEPENDENT_COMPARTMENT_PER_PERSON_BASE_SCENARIO",
+    "source_label": "OWNER_CONFIRMED",
+    "source_sha256": "275ff176226358835912b5e827104028c73388b7840ef78d1e4c1eaad2a807da",
+    "reference": "docs/tasks/V2_2_2-r11-r4-reviewed-locker-form.txt"
+  },
+  "design_basis": {
+    "shift_design_users": [
+      53,
+      53
+    ],
+    "total_design_users": 106,
+    "simultaneous_room_users": 53,
+    "source_label": "ENGINEERING_DERIVED",
+    "personnel_identity": "DESIGN_SLOTS_NOT_EMPLOYEE_ROSTER"
+  },
+  "source_sha256": "9dcf5d3b8a4a397af2179bdf4e86bc5dfa1a12d5325ed332796d48602fcf1e3e",
+  "missing_inputs": [
+    "selected_cabinet_model_and_column_grouping",
+    "cabinet_column_and_compartment_clear_dimensions",
+    "shelves_plinth_structure_and_finished_clear_height",
+    "compartment_door_sweep_and_simultaneous_operation_rules",
+    "cabinet_front_concurrent_users_and_staggered_service_plan",
+    "53_person_changing_spaces_and_transition_paths",
+    "approved_reach_and_operating_clearance_for_all_five_tiers",
+    "internal_divider_or_two_compartment_hygiene_approval",
+    "finished_room_dimensions_and_internal_aisle_width",
+    "actual_room_door_leaf_motion_and_landing_clearance",
+    "clean_unclean_separation_and_cleaning_maintenance_plan",
+    "both_shift_complete_reviewed_four_state_witnesses",
+    "human_transport_and_dressing_activity_envelopes",
+    "reviewed_action_times_and_allowed_shift_window",
+    "approved_cabinet_front_concurrency_and_waiting_protocol",
+    "approved_two_opening_handling_and_closed_door_changing_sequence"
+  ],
+  "project_functional_status": "INPUT_REQUIRED",
+  "engineering_approval": false,
+  "current_process": "PERSONAL_CABINET_FRONT_STANDING",
+  "r8_source_sha256": "ba190fe5724b7b702a8361ccf481594b74d24cc31e9f4e23ce807cd754867247",
+  "r7_distributed_process": "HISTORICAL_COMPARISON_ONLY"
+}

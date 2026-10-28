@@ -1,0 +1,239 @@
+{
+  "A 混合本位 / 西北补位": {
+    "units": "mm",
+    "source_type": "demo",
+    "validity_status": "unverified",
+    "requires_review": true,
+    "transverse_cabinet_zone": [
+      {
+        "label": "完成面",
+        "value": 20
+      },
+      {
+        "label": "安装退让",
+        "value": 20
+      },
+      {
+        "label": "柜深",
+        "value": 500
+      },
+      {
+        "label": "柜前人距",
+        "value": 380
+      },
+      {
+        "label": "运输人体纵深",
+        "value": 650
+      },
+      {
+        "label": "净通道",
+        "value": 1200
+      },
+      {
+        "label": "转向等候人体纵深",
+        "value": 450
+      },
+      {
+        "label": "剩余余量",
+        "value": 10
+      },
+      {
+        "label": "完成面",
+        "value": 20
+      }
+    ],
+    "activity_width_mm": 600,
+    "activity_depth_mm": 900,
+    "waiting_body_mm": [
+      450,
+      650
+    ],
+    "rotated_waiting_body_mm": [
+      650,
+      450
+    ],
+    "waiting_gap_mm": 100,
+    "cabinet_end_activity_overhang_mm": 125,
+    "cabinet_end_turning_clearance_mm": 125,
+    "minimum_unrotated_north_row_building_depth_mm": 3440,
+    "counterfactual_status": "HYPOTHETICAL_NOT_APPROVED; NECESSARY_CROSS_SECTION_ONLY"
+  },
+  "B 北墙等候 / 南侧分区": {
+    "units": "mm",
+    "source_type": "demo",
+    "validity_status": "unverified",
+    "requires_review": true,
+    "transverse_cabinet_zone": [
+      {
+        "label": "完成面",
+        "value": 20
+      },
+      {
+        "label": "安装退让",
+        "value": 20
+      },
+      {
+        "label": "柜深",
+        "value": 500
+      },
+      {
+        "label": "柜前人距",
+        "value": 380
+      },
+      {
+        "label": "运输人体纵深",
+        "value": 650
+      },
+      {
+        "label": "净通道",
+        "value": 1200
+      },
+      {
+        "label": "转向等候人体纵深",
+        "value": 450
+      },
+      {
+        "label": "剩余余量",
+        "value": 10
+      },
+      {
+        "label": "完成面",
+        "value": 20
+      }
+    ],
+    "activity_width_mm": 600,
+    "activity_depth_mm": 900,
+    "waiting_body_mm": [
+      450,
+      650
+    ],
+    "rotated_waiting_body_mm": [
+      650,
+      450
+    ],
+    "waiting_gap_mm": 100,
+    "cabinet_end_activity_overhang_mm": 125,
+    "cabinet_end_turning_clearance_mm": 125,
+    "minimum_unrotated_north_row_building_depth_mm": 3440,
+    "counterfactual_status": "HYPOTHETICAL_NOT_APPROVED; NECESSARY_CROSS_SECTION_ONLY"
+  },
+  "C 分段柜组 / 北墙等候": {
+    "units": "mm",
+    "source_type": "demo",
+    "validity_status": "unverified",
+    "requires_review": true,
+    "transverse_cabinet_zone": [
+      {
+        "label": "完成面",
+        "value": 20
+      },
+      {
+        "label": "安装退让",
+        "value": 20
+      },
+      {
+        "label": "柜深",
+        "value": 500
+      },
+      {
+        "label": "柜前人距",
+        "value": 380
+      },
+      {
+        "label": "运输人体纵深",
+        "value": 650
+      },
+      {
+        "label": "净通道",
+        "value": 1200
+      },
+      {
+        "label": "转向等候人体纵深",
+        "value": 450
+      },
+      {
+        "label": "剩余余量",
+        "value": 10
+      },
+      {
+        "label": "完成面",
+        "value": 20
+      }
+    ],
+    "activity_width_mm": 600,
+    "activity_depth_mm": 900,
+    "waiting_body_mm": [
+      450,
+      650
+    ],
+    "rotated_waiting_body_mm": [
+      650,
+      450
+    ],
+    "waiting_gap_mm": 100,
+    "cabinet_end_activity_overhang_mm": 125,
+    "cabinet_end_turning_clearance_mm": 125,
+    "minimum_unrotated_north_row_building_depth_mm": 3440,
+    "counterfactual_status": "HYPOTHETICAL_NOT_APPROVED; NECESSARY_CROSS_SECTION_ONLY"
+  },
+  "原R8双排模板 / 47本位": null,
+  "A完成面30mm / 保留失败": {
+    "units": "mm",
+    "source_type": "demo",
+    "validity_status": "unverified",
+    "requires_review": true,
+    "transverse_cabinet_zone": [
+      {
+        "label": "完成面",
+        "value": 30
+      },
+      {
+        "label": "安装退让",
+        "value": 20
+      },
+      {
+        "label": "柜深",
+        "value": 500
+      },
+      {
+        "label": "柜前人距",
+        "value": 380
+      },
+      {
+        "label": "运输人体纵深",
+        "value": 650
+      },
+      {
+        "label": "净通道",
+        "value": 1200
+      },
+      {
+        "label": "转向等候人体纵深",
+        "value": 450
+      },
+      {
+        "label": "剩余余量",
+        "value": -10
+      },
+      {
+        "label": "完成面",
+        "value": 30
+      }
+    ],
+    "activity_width_mm": 600,
+    "activity_depth_mm": 900,
+    "waiting_body_mm": [
+      450,
+      650
+    ],
+    "rotated_waiting_body_mm": [
+      650,
+      450
+    ],
+    "waiting_gap_mm": 100,
+    "cabinet_end_activity_overhang_mm": 125,
+    "cabinet_end_turning_clearance_mm": 125,
+    "minimum_unrotated_north_row_building_depth_mm": 3460,
+    "counterfactual_status": "HYPOTHETICAL_NOT_APPROVED; NECESSARY_CROSS_SECTION_ONLY"
+  }
+}
