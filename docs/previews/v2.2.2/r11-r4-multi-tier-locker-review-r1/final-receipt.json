@@ -1,0 +1,20 @@
+{
+  "task": "V2_2_2_R11_R4_MULTI_TIER_LOCKER_MODEL_R1",
+  "project_functional_status": "INPUT_REQUIRED",
+  "source_records": 9,
+  "physical_groups": 8,
+  "base_columns": 22,
+  "base_capacity": 110,
+  "two_compartment_columns": 44,
+  "two_compartment_capacity": 220,
+  "simultaneous_room_users": 53,
+  "cabinet_front_concurrency": "INPUT_REQUIRED",
+  "native_solves": 0,
+  "source_approval": "OWNER_CONFIRMED_FORM_ONLY",
+  "all_geometry_parameters": "HYPOTHETICAL_NOT_APPROVED",
+  "new_main": false,
+  "new_grant": false,
+  "new_claim": false,
+  "full_ci": "NOT_REQUESTED",
+  "historical_changed": false
+}

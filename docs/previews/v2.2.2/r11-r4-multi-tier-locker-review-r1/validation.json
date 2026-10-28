@@ -1,0 +1,38 @@
+{
+  "task": "V2_2_2_R11_R4_MULTI_TIER_LOCKER_MODEL_R1",
+  "base_head": "aedcbcbe5114f4624a89f61e3fa9305a49a12197",
+  "python": "3.12.13",
+  "dependencies": "uv.lock --locked",
+  "tests": {
+    "r4": 61,
+    "r3": 64,
+    "r2": 43,
+    "r1": 85,
+    "architecture": 771,
+    "original_architecture_skips": 16,
+    "ci_contracts": 65
+  },
+  "ruff": "PASS",
+  "format": "PASS",
+  "mypy": "PASS",
+  "local_native_calls": 0,
+  "browser_checks": [
+    "H5 both shifts show 53 users and 11 operators",
+    "5 operators keep 53 room users",
+    "400mm door intrusion rejected",
+    "two-compartment 44 columns/220 cells",
+    "H6 narrow template rejected",
+    "two-shift five-tier elevation"
+  ],
+  "historical_hash_files_unchanged": 291,
+  "pre_existing_files_changed": [
+    ".github/workflows/ci-fast.yml"
+  ],
+  "pr323_unchanged": true,
+  "actual_all_8_groups": "INPUT_REQUIRED",
+  "hypotheses_approved": false,
+  "full_ci": "NOT_REQUESTED",
+  "main": false,
+  "grant": false,
+  "claim": false
+}

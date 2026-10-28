@@ -1,0 +1,3847 @@
+{
+  "task": "V2_2_2_R11_R4_MULTI_TIER_LOCKER_MODEL_R1",
+  "base_head": "aedcbcbe5114f4624a89f61e3fa9305a49a12197",
+  "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+  "project_facts": {
+    "packaged_mass_kg_per_day": 20000,
+    "cabinet_structure": "FIVE_TIER_FIVE_DOOR",
+    "tiers_per_column": 5,
+    "storage_assignment": "ONE_INDEPENDENT_COMPARTMENT_PER_PERSON_BASE_SCENARIO",
+    "source_label": "OWNER_CONFIRMED",
+    "source_sha256": "275ff176226358835912b5e827104028c73388b7840ef78d1e4c1eaad2a807da",
+    "reference": "docs/tasks/V2_2_2-r11-r4-reviewed-locker-form.txt"
+  },
+  "design_basis": {
+    "shift_design_users": [
+      53,
+      53
+    ],
+    "total_design_users": 106,
+    "simultaneous_room_users": 53,
+    "source_label": "ENGINEERING_DERIVED",
+    "personnel_identity": "DESIGN_SLOTS_NOT_EMPLOYEE_ROSTER"
+  },
+  "reference_dimensions": {
+    "compartment_height_mm": 300,
+    "approximate": true,
+    "status": "REFERENCE_ONLY_NOT_APPROVED_DIMENSION"
+  },
+  "demands": {
+    "INTERNAL_PARTITION": {
+      "version": "multi-tier-locker-model-r11-r4@1.0.0",
+      "scenario": "INTERNAL_PARTITION",
+      "shift_users": [
+        53,
+        53
+      ],
+      "simultaneous_room_users": 53,
+      "compartments_per_person": 1,
+      "tiers_per_column": 5,
+      "required_compartments_per_shift": [
+        53,
+        53
+      ],
+      "columns_per_shift": [
+        11,
+        11
+      ],
+      "total_columns": 22,
+      "capacity_per_shift": [
+        55,
+        55
+      ],
+      "total_capacity": 110,
+      "spare_per_shift": [
+        2,
+        2
+      ],
+      "physical_cabinet_unit_count": "INPUT_REQUIRED",
+      "cabinet_front_concurrent_users": "INPUT_REQUIRED",
+      "separation_satisfied": "INPUT_REQUIRED",
+      "source_label": "ENGINEERING_DERIVED",
+      "review_status": "CAPACITY_ARITHMETIC_ONLY",
+      "formulas": [
+        "required_compartments_i = design_users_i * compartments_per_person",
+        "columns_i = ceil(required_compartments_i / 5); no cross-shift spare borrowing",
+        "capacity_i = 5 * columns_i",
+        "cabinet floor units depend on the selected manufacturer's column grouping"
+      ],
+      "units": "people; columns; independently assigned compartments",
+      "assumptions": [
+        "Dedicated column allocation for each shift in this working model"
+      ],
+      "warnings": [
+        "300mm compartment height is a reference, not approved cabinet dimensions"
+      ]
+    },
+    "TWO_COMPARTMENTS": {
+      "version": "multi-tier-locker-model-r11-r4@1.0.0",
+      "scenario": "TWO_COMPARTMENTS",
+      "shift_users": [
+        53,
+        53
+      ],
+      "simultaneous_room_users": 53,
+      "compartments_per_person": 2,
+      "tiers_per_column": 5,
+      "required_compartments_per_shift": [
+        106,
+        106
+      ],
+      "columns_per_shift": [
+        22,
+        22
+      ],
+      "total_columns": 44,
+      "capacity_per_shift": [
+        110,
+        110
+      ],
+      "total_capacity": 220,
+      "spare_per_shift": [
+        4,
+        4
+      ],
+      "physical_cabinet_unit_count": "INPUT_REQUIRED",
+      "cabinet_front_concurrent_users": "INPUT_REQUIRED",
+      "separation_satisfied": "INPUT_REQUIRED",
+      "source_label": "ENGINEERING_DERIVED",
+      "review_status": "CAPACITY_ARITHMETIC_ONLY",
+      "formulas": [
+        "required_compartments_i = design_users_i * compartments_per_person",
+        "columns_i = ceil(required_compartments_i / 5); no cross-shift spare borrowing",
+        "capacity_i = 5 * columns_i",
+        "cabinet floor units depend on the selected manufacturer's column grouping"
+      ],
+      "units": "people; columns; independently assigned compartments",
+      "assumptions": [
+        "Dedicated column allocation for each shift in this working model"
+      ],
+      "warnings": [
+        "300mm compartment height is a reference, not approved cabinet dimensions"
+      ]
+    }
+  },
+  "groups": [
+    {
+      "group": "G01",
+      "records": [
+        "P01",
+        "P02"
+      ],
+      "handoff": 5,
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece:changing_room",
+        "record": "P01",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          26331,
+          3250
+        ],
+        "world_bounds_mm": [
+          14700,
+          23650,
+          41031,
+          26900
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                26331,
+                875
+              ],
+              [
+                26331,
+                2375
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                12415,
+                0
+              ],
+              [
+                13915,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "aliases": [
+        {
+          "record": "P01",
+          "candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+          "candidate_sha256": "faa7a645bef1be1b61e84102b041a1cfe4c0bf002a5f8485d47c039158406d9f",
+          "geometry_reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/zones/0"
+        },
+        {
+          "record": "P02",
+          "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+          "candidate_sha256": "c9e38907e5a6924ab261550c0478237924ac61f24f68e9185ba5782e8733c99b",
+          "geometry_reference": "sealed-r10:previews/proposal-02/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "record_access_readbacks": [
+        {
+          "record": "P01",
+          "candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+          "source_sha256": "faa7a645bef1be1b61e84102b041a1cfe4c0bf002a5f8485d47c039158406d9f",
+          "two_access_passes": true,
+          "portal_geometry_matches": true,
+          "access_results": [
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:89f3ba142bcd93773622a7dab655beced4b2a4252efaf9d4a54351e98e1c272d",
+              "centerline": [
+                {
+                  "x": "27.865",
+                  "y": "23.65"
+                },
+                {
+                  "x": "27.865",
+                  "y": "23.65"
+                }
+              ],
+              "clear_width_m": "1.5",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "changing_room",
+              "portal_from": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "28.615",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "27.115",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "sorting_packaging_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "28.615",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "27.115",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "0",
+              "route_shape": "STRAIGHT",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "sorting_packaging_room",
+              "topology": "DIRECT_SHARED_EDGE",
+              "turn_count": 0
+            },
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:6b014cc125714a61e17af2d05764865262e016312009bb1bf84d2d33139167b2",
+              "centerline": [
+                {
+                  "x": "75.46",
+                  "y": "25.525"
+                },
+                {
+                  "x": "74.46",
+                  "y": "25.525"
+                },
+                {
+                  "x": "74.46",
+                  "y": "25.275"
+                },
+                {
+                  "x": "41.031",
+                  "y": "25.275"
+                }
+              ],
+              "clear_width_m": "2",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [
+                {
+                  "points": [
+                    {
+                      "x": "74.46",
+                      "y": "24.525"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.525"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.525"
+                    },
+                    {
+                      "x": "74.46",
+                      "y": "26.525"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "73.46",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "25.525"
+                    },
+                    {
+                      "x": "73.46",
+                      "y": "25.525"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "41.031",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "74.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "74.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "41.031",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "73.46",
+                      "y": "24.525"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.525"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.525"
+                    },
+                    {
+                      "x": "73.46",
+                      "y": "26.525"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "73.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "73.46",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                }
+              ],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "main_entrance",
+              "portal_from": {
+                "access_ref": "main_entrance",
+                "clear_width_m": "1.5",
+                "edge_class": "BOUNDARY_ACCESS",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "75.46",
+                    "y": "26.275"
+                  },
+                  "start": {
+                    "x": "75.46",
+                    "y": "24.775"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "SHORT_EDGE",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "41.031",
+                    "y": "26.025"
+                  },
+                  "start": {
+                    "x": "41.031",
+                    "y": "24.525"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "34.679",
+              "route_shape": "ORTHOGONAL",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "changing_room",
+              "topology": "CORRIDOR_MEDIATED",
+              "turn_count": 2
+            }
+          ]
+        },
+        {
+          "record": "P02",
+          "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+          "source_sha256": "c9e38907e5a6924ab261550c0478237924ac61f24f68e9185ba5782e8733c99b",
+          "two_access_passes": true,
+          "portal_geometry_matches": true,
+          "access_results": [
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:89f3ba142bcd93773622a7dab655beced4b2a4252efaf9d4a54351e98e1c272d",
+              "centerline": [
+                {
+                  "x": "27.865",
+                  "y": "23.65"
+                },
+                {
+                  "x": "27.865",
+                  "y": "23.65"
+                }
+              ],
+              "clear_width_m": "1.5",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "changing_room",
+              "portal_from": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "28.615",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "27.115",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "sorting_packaging_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "28.615",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "27.115",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "0",
+              "route_shape": "STRAIGHT",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "sorting_packaging_room",
+              "topology": "DIRECT_SHARED_EDGE",
+              "turn_count": 0
+            },
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:6b014cc125714a61e17af2d05764865262e016312009bb1bf84d2d33139167b2",
+              "centerline": [
+                {
+                  "x": "75.46",
+                  "y": "25.525"
+                },
+                {
+                  "x": "74.46",
+                  "y": "25.525"
+                },
+                {
+                  "x": "74.46",
+                  "y": "25.275"
+                },
+                {
+                  "x": "41.031",
+                  "y": "25.275"
+                }
+              ],
+              "clear_width_m": "2",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [
+                {
+                  "points": [
+                    {
+                      "x": "74.46",
+                      "y": "24.525"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.525"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.525"
+                    },
+                    {
+                      "x": "74.46",
+                      "y": "26.525"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "73.46",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "25.525"
+                    },
+                    {
+                      "x": "73.46",
+                      "y": "25.525"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "41.031",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "74.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "74.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "41.031",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "73.46",
+                      "y": "24.525"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.525"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.525"
+                    },
+                    {
+                      "x": "73.46",
+                      "y": "26.525"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "73.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "73.46",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                }
+              ],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "main_entrance",
+              "portal_from": {
+                "access_ref": "main_entrance",
+                "clear_width_m": "1.5",
+                "edge_class": "BOUNDARY_ACCESS",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "75.46",
+                    "y": "26.275"
+                  },
+                  "start": {
+                    "x": "75.46",
+                    "y": "24.775"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "SHORT_EDGE",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "41.031",
+                    "y": "26.025"
+                  },
+                  "start": {
+                    "x": "41.031",
+                    "y": "24.525"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "34.679",
+              "route_shape": "ORTHOGONAL",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "changing_room",
+              "topology": "CORRIDOR_MEDIATED",
+              "turn_count": 2
+            }
+          ]
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-01/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              13165,
+              0
+            ],
+            [
+              13165,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-01/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "34.679",
+          "turn_count": 2,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              60760,
+              1875
+            ],
+            [
+              59760,
+              1875
+            ],
+            [
+              59760,
+              1625
+            ],
+            [
+              26331,
+              1625
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G02",
+      "records": [
+        "P03"
+      ],
+      "handoff": 6,
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13:changing_room",
+        "record": "P03",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39683,
+          1008
+        ],
+        "world_bounds_mm": [
+          18214,
+          23650,
+          57897,
+          24658
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38183,
+                1008
+              ],
+              [
+                39683,
+                1008
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19091,
+                0
+              ],
+              [
+                20591,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "aliases": [
+        {
+          "record": "P03",
+          "candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+          "candidate_sha256": "fe5aaff0bde6449082a0c46735d1e9b33ac4acbba553e759253ef36267093c80",
+          "geometry_reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "record_access_readbacks": [
+        {
+          "record": "P03",
+          "candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+          "source_sha256": "fe5aaff0bde6449082a0c46735d1e9b33ac4acbba553e759253ef36267093c80",
+          "two_access_passes": true,
+          "portal_geometry_matches": true,
+          "access_results": [
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:2100734aa7a34bbe0c3c9e2e1dfe70bcd60524fecfc32ade3619f5230eb22ce6",
+              "centerline": [
+                {
+                  "x": "38.055",
+                  "y": "23.65"
+                },
+                {
+                  "x": "38.055",
+                  "y": "23.65"
+                }
+              ],
+              "clear_width_m": "1.5",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "changing_room",
+              "portal_from": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.805",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.305",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "sorting_packaging_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.805",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.305",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "0",
+              "route_shape": "STRAIGHT",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "sorting_packaging_room",
+              "topology": "DIRECT_SHARED_EDGE",
+              "turn_count": 0
+            },
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:c326f78f5d50c6efb0757a7abe7ba7469915824426bce32b487a22e0162462ae",
+              "centerline": [
+                {
+                  "x": "75.46",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.658"
+                },
+                {
+                  "x": "57.147",
+                  "y": "25.658"
+                },
+                {
+                  "x": "57.147",
+                  "y": "24.658"
+                }
+              ],
+              "clear_width_m": "2",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [
+                {
+                  "points": [
+                    {
+                      "x": "58.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.658"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "25.658"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.147",
+                      "y": "24.658"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "24.658"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.658"
+                    },
+                    {
+                      "x": "57.147",
+                      "y": "26.658"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.147",
+                      "y": "24.658"
+                    },
+                    {
+                      "x": "58.147",
+                      "y": "24.658"
+                    },
+                    {
+                      "x": "58.147",
+                      "y": "25.658"
+                    },
+                    {
+                      "x": "56.147",
+                      "y": "25.658"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.658"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.658"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.658"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.658"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.147",
+                      "y": "24.658"
+                    },
+                    {
+                      "x": "58.147",
+                      "y": "24.658"
+                    },
+                    {
+                      "x": "58.147",
+                      "y": "26.658"
+                    },
+                    {
+                      "x": "56.147",
+                      "y": "26.658"
+                    }
+                  ],
+                  "type": "polygon"
+                }
+              ],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "main_entrance",
+              "portal_from": {
+                "access_ref": "main_entrance",
+                "clear_width_m": "1.5",
+                "edge_class": "BOUNDARY_ACCESS",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "75.46",
+                    "y": "26.025"
+                  },
+                  "start": {
+                    "x": "75.46",
+                    "y": "24.525"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "57.897",
+                    "y": "24.658"
+                  },
+                  "start": {
+                    "x": "56.397",
+                    "y": "24.658"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "19.696",
+              "route_shape": "ORTHOGONAL",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "changing_room",
+              "topology": "CORRIDOR_MEDIATED",
+              "turn_count": 3
+            }
+          ]
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-03/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19841,
+              0
+            ],
+            [
+              19841,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-03/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.696",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57246,
+              1625
+            ],
+            [
+              40683,
+              1625
+            ],
+            [
+              40683,
+              2008
+            ],
+            [
+              38933,
+              2008
+            ],
+            [
+              38933,
+              1008
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G03",
+      "records": [
+        "P04"
+      ],
+      "handoff": 6,
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb:changing_room",
+        "record": "P04",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39635,
+          1010
+        ],
+        "world_bounds_mm": [
+          18262,
+          23650,
+          57897,
+          24660
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38135,
+                1010
+              ],
+              [
+                39635,
+                1010
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19067,
+                0
+              ],
+              [
+                20567,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "aliases": [
+        {
+          "record": "P04",
+          "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+          "candidate_sha256": "b3a944f0d46a302e329aa32df330297dc69c69936d7fd4469f4c21d2b80266bc",
+          "geometry_reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "record_access_readbacks": [
+        {
+          "record": "P04",
+          "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+          "source_sha256": "b3a944f0d46a302e329aa32df330297dc69c69936d7fd4469f4c21d2b80266bc",
+          "two_access_passes": true,
+          "portal_geometry_matches": true,
+          "access_results": [
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:2ac4723393ac24aa1afaf43d16096c3644ff9bf13dd1b6934eb3b15308e16eda",
+              "centerline": [
+                {
+                  "x": "38.079",
+                  "y": "23.65"
+                },
+                {
+                  "x": "38.079",
+                  "y": "23.65"
+                }
+              ],
+              "clear_width_m": "1.5",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "changing_room",
+              "portal_from": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.829",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.329",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "sorting_packaging_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.829",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.329",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "0",
+              "route_shape": "STRAIGHT",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "sorting_packaging_room",
+              "topology": "DIRECT_SHARED_EDGE",
+              "turn_count": 0
+            },
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:c28561878d10f0622ee7a4adcb7636dc37ca4bbde0bb0d85cb70ba553f08f1bf",
+              "centerline": [
+                {
+                  "x": "75.46",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.66"
+                },
+                {
+                  "x": "57.147",
+                  "y": "25.66"
+                },
+                {
+                  "x": "57.147",
+                  "y": "24.66"
+                }
+              ],
+              "clear_width_m": "2",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [
+                {
+                  "points": [
+                    {
+                      "x": "58.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.66"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "25.66"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.147",
+                      "y": "24.66"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "24.66"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.66"
+                    },
+                    {
+                      "x": "57.147",
+                      "y": "26.66"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.147",
+                      "y": "24.66"
+                    },
+                    {
+                      "x": "58.147",
+                      "y": "24.66"
+                    },
+                    {
+                      "x": "58.147",
+                      "y": "25.66"
+                    },
+                    {
+                      "x": "56.147",
+                      "y": "25.66"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.66"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.66"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.66"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.66"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.147",
+                      "y": "24.66"
+                    },
+                    {
+                      "x": "58.147",
+                      "y": "24.66"
+                    },
+                    {
+                      "x": "58.147",
+                      "y": "26.66"
+                    },
+                    {
+                      "x": "56.147",
+                      "y": "26.66"
+                    }
+                  ],
+                  "type": "polygon"
+                }
+              ],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "main_entrance",
+              "portal_from": {
+                "access_ref": "main_entrance",
+                "clear_width_m": "1.5",
+                "edge_class": "BOUNDARY_ACCESS",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "75.46",
+                    "y": "26.025"
+                  },
+                  "start": {
+                    "x": "75.46",
+                    "y": "24.525"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "57.897",
+                    "y": "24.66"
+                  },
+                  "start": {
+                    "x": "56.397",
+                    "y": "24.66"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "19.698",
+              "route_shape": "ORTHOGONAL",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "changing_room",
+              "topology": "CORRIDOR_MEDIATED",
+              "turn_count": 3
+            }
+          ]
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-04/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19817,
+              0
+            ],
+            [
+              19817,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-04/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.698",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57198,
+              1625
+            ],
+            [
+              40635,
+              1625
+            ],
+            [
+              40635,
+              2010
+            ],
+            [
+              38885,
+              2010
+            ],
+            [
+              38885,
+              1010
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G04",
+      "records": [
+        "P05"
+      ],
+      "handoff": 6,
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31:changing_room",
+        "record": "P05",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39633,
+          1011
+        ],
+        "world_bounds_mm": [
+          18261,
+          23650,
+          57894,
+          24661
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38133,
+                1011
+              ],
+              [
+                39633,
+                1011
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19066,
+                0
+              ],
+              [
+                20566,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "aliases": [
+        {
+          "record": "P05",
+          "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+          "candidate_sha256": "1aef019ae7924c691fa08ac96855450095513af40df6cc13843e255433ae0e5c",
+          "geometry_reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "record_access_readbacks": [
+        {
+          "record": "P05",
+          "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+          "source_sha256": "1aef019ae7924c691fa08ac96855450095513af40df6cc13843e255433ae0e5c",
+          "two_access_passes": true,
+          "portal_geometry_matches": true,
+          "access_results": [
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:c384d00c26540a27591e50f430bed15381007782a0b85b16008678b996dbbaf1",
+              "centerline": [
+                {
+                  "x": "38.077",
+                  "y": "23.65"
+                },
+                {
+                  "x": "38.077",
+                  "y": "23.65"
+                }
+              ],
+              "clear_width_m": "1.5",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "changing_room",
+              "portal_from": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.827",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.327",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "sorting_packaging_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.827",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.327",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "0",
+              "route_shape": "STRAIGHT",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "sorting_packaging_room",
+              "topology": "DIRECT_SHARED_EDGE",
+              "turn_count": 0
+            },
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:b22b0a079742eead6c33af9902d61e883b510cdeb68aa70b6b8d5e9a56aa775a",
+              "centerline": [
+                {
+                  "x": "75.46",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.661"
+                },
+                {
+                  "x": "57.144",
+                  "y": "25.661"
+                },
+                {
+                  "x": "57.144",
+                  "y": "24.661"
+                }
+              ],
+              "clear_width_m": "2",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [
+                {
+                  "points": [
+                    {
+                      "x": "58.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.661"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "25.661"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.144",
+                      "y": "24.661"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "24.661"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.661"
+                    },
+                    {
+                      "x": "57.144",
+                      "y": "26.661"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.144",
+                      "y": "24.661"
+                    },
+                    {
+                      "x": "58.144",
+                      "y": "24.661"
+                    },
+                    {
+                      "x": "58.144",
+                      "y": "25.661"
+                    },
+                    {
+                      "x": "56.144",
+                      "y": "25.661"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.661"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.661"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.661"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.661"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.144",
+                      "y": "24.661"
+                    },
+                    {
+                      "x": "58.144",
+                      "y": "24.661"
+                    },
+                    {
+                      "x": "58.144",
+                      "y": "26.661"
+                    },
+                    {
+                      "x": "56.144",
+                      "y": "26.661"
+                    }
+                  ],
+                  "type": "polygon"
+                }
+              ],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "main_entrance",
+              "portal_from": {
+                "access_ref": "main_entrance",
+                "clear_width_m": "1.5",
+                "edge_class": "BOUNDARY_ACCESS",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "75.46",
+                    "y": "26.025"
+                  },
+                  "start": {
+                    "x": "75.46",
+                    "y": "24.525"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "57.894",
+                    "y": "24.661"
+                  },
+                  "start": {
+                    "x": "56.394",
+                    "y": "24.661"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "19.702",
+              "route_shape": "ORTHOGONAL",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "changing_room",
+              "topology": "CORRIDOR_MEDIATED",
+              "turn_count": 3
+            }
+          ]
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-05/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19816,
+              0
+            ],
+            [
+              19816,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-05/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.702",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57199,
+              1625
+            ],
+            [
+              40636,
+              1625
+            ],
+            [
+              40636,
+              2011
+            ],
+            [
+              38883,
+              2011
+            ],
+            [
+              38883,
+              1011
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G05",
+      "records": [
+        "P06"
+      ],
+      "handoff": 6,
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8:changing_room",
+        "record": "P06",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39630,
+          1012
+        ],
+        "world_bounds_mm": [
+          18260,
+          23650,
+          57890,
+          24662
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38130,
+                1012
+              ],
+              [
+                39630,
+                1012
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19065,
+                0
+              ],
+              [
+                20565,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "aliases": [
+        {
+          "record": "P06",
+          "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+          "candidate_sha256": "6273c6266804058b6251f1e3286cdcc0f5a19dcc676b773ba7e5684c9d5095e6",
+          "geometry_reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "record_access_readbacks": [
+        {
+          "record": "P06",
+          "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+          "source_sha256": "6273c6266804058b6251f1e3286cdcc0f5a19dcc676b773ba7e5684c9d5095e6",
+          "two_access_passes": true,
+          "portal_geometry_matches": true,
+          "access_results": [
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:e00765c46c2b82b515a8815ea3585be8ad4243d0a2def435da679e962b35e8dd",
+              "centerline": [
+                {
+                  "x": "38.075",
+                  "y": "23.65"
+                },
+                {
+                  "x": "38.075",
+                  "y": "23.65"
+                }
+              ],
+              "clear_width_m": "1.5",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "changing_room",
+              "portal_from": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.825",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.325",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "sorting_packaging_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.825",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.325",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "0",
+              "route_shape": "STRAIGHT",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "sorting_packaging_room",
+              "topology": "DIRECT_SHARED_EDGE",
+              "turn_count": 0
+            },
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:4aeddcdc3dc22ea3829292fdf5ecdaa318fcc80ede5136c1abc064e6692a8743",
+              "centerline": [
+                {
+                  "x": "75.46",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.662"
+                },
+                {
+                  "x": "57.14",
+                  "y": "25.662"
+                },
+                {
+                  "x": "57.14",
+                  "y": "24.662"
+                }
+              ],
+              "clear_width_m": "2",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [
+                {
+                  "points": [
+                    {
+                      "x": "58.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.662"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "25.662"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.14",
+                      "y": "24.662"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "24.662"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.662"
+                    },
+                    {
+                      "x": "57.14",
+                      "y": "26.662"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.14",
+                      "y": "24.662"
+                    },
+                    {
+                      "x": "58.14",
+                      "y": "24.662"
+                    },
+                    {
+                      "x": "58.14",
+                      "y": "25.662"
+                    },
+                    {
+                      "x": "56.14",
+                      "y": "25.662"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.662"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.662"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.662"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.662"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.14",
+                      "y": "24.662"
+                    },
+                    {
+                      "x": "58.14",
+                      "y": "24.662"
+                    },
+                    {
+                      "x": "58.14",
+                      "y": "26.662"
+                    },
+                    {
+                      "x": "56.14",
+                      "y": "26.662"
+                    }
+                  ],
+                  "type": "polygon"
+                }
+              ],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "main_entrance",
+              "portal_from": {
+                "access_ref": "main_entrance",
+                "clear_width_m": "1.5",
+                "edge_class": "BOUNDARY_ACCESS",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "75.46",
+                    "y": "26.025"
+                  },
+                  "start": {
+                    "x": "75.46",
+                    "y": "24.525"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "57.89",
+                    "y": "24.662"
+                  },
+                  "start": {
+                    "x": "56.39",
+                    "y": "24.662"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "19.707",
+              "route_shape": "ORTHOGONAL",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "changing_room",
+              "topology": "CORRIDOR_MEDIATED",
+              "turn_count": 3
+            }
+          ]
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-06/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19815,
+              0
+            ],
+            [
+              19815,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-06/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.707",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57200,
+              1625
+            ],
+            [
+              40637,
+              1625
+            ],
+            [
+              40637,
+              2012
+            ],
+            [
+              38880,
+              2012
+            ],
+            [
+              38880,
+              1012
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G06",
+      "records": [
+        "P07"
+      ],
+      "handoff": 6,
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5:changing_room",
+        "record": "P07",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39627,
+          1013
+        ],
+        "world_bounds_mm": [
+          18259,
+          23650,
+          57886,
+          24663
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38127,
+                1013
+              ],
+              [
+                39627,
+                1013
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19063,
+                0
+              ],
+              [
+                20563,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "aliases": [
+        {
+          "record": "P07",
+          "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+          "candidate_sha256": "73afb4edc7eebbec7643df5bd8d9b471b96b7dff65c5a128e07e20121487979c",
+          "geometry_reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "record_access_readbacks": [
+        {
+          "record": "P07",
+          "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+          "source_sha256": "73afb4edc7eebbec7643df5bd8d9b471b96b7dff65c5a128e07e20121487979c",
+          "two_access_passes": true,
+          "portal_geometry_matches": true,
+          "access_results": [
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:f29d3a174f8e41e5be135bafbcfd8c64b4e3785b59869d795356ccc214897f9f",
+              "centerline": [
+                {
+                  "x": "38.072",
+                  "y": "23.65"
+                },
+                {
+                  "x": "38.072",
+                  "y": "23.65"
+                }
+              ],
+              "clear_width_m": "1.5",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "changing_room",
+              "portal_from": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.822",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.322",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "sorting_packaging_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.822",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.322",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "0",
+              "route_shape": "STRAIGHT",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "sorting_packaging_room",
+              "topology": "DIRECT_SHARED_EDGE",
+              "turn_count": 0
+            },
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:f085b65b0963238f128d762588ebd63300c2c3e9b6e5b0671fb7b520a13cf6bf",
+              "centerline": [
+                {
+                  "x": "75.46",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.663"
+                },
+                {
+                  "x": "57.136",
+                  "y": "25.663"
+                },
+                {
+                  "x": "57.136",
+                  "y": "24.663"
+                }
+              ],
+              "clear_width_m": "2",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [
+                {
+                  "points": [
+                    {
+                      "x": "58.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.663"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "25.663"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.136",
+                      "y": "24.663"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "24.663"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.663"
+                    },
+                    {
+                      "x": "57.136",
+                      "y": "26.663"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.136",
+                      "y": "24.663"
+                    },
+                    {
+                      "x": "58.136",
+                      "y": "24.663"
+                    },
+                    {
+                      "x": "58.136",
+                      "y": "25.663"
+                    },
+                    {
+                      "x": "56.136",
+                      "y": "25.663"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.663"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.663"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.663"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.663"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.136",
+                      "y": "24.663"
+                    },
+                    {
+                      "x": "58.136",
+                      "y": "24.663"
+                    },
+                    {
+                      "x": "58.136",
+                      "y": "26.663"
+                    },
+                    {
+                      "x": "56.136",
+                      "y": "26.663"
+                    }
+                  ],
+                  "type": "polygon"
+                }
+              ],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "main_entrance",
+              "portal_from": {
+                "access_ref": "main_entrance",
+                "clear_width_m": "1.5",
+                "edge_class": "BOUNDARY_ACCESS",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "75.46",
+                    "y": "26.025"
+                  },
+                  "start": {
+                    "x": "75.46",
+                    "y": "24.525"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "57.886",
+                    "y": "24.663"
+                  },
+                  "start": {
+                    "x": "56.386",
+                    "y": "24.663"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "19.712",
+              "route_shape": "ORTHOGONAL",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "changing_room",
+              "topology": "CORRIDOR_MEDIATED",
+              "turn_count": 3
+            }
+          ]
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-07/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19813,
+              0
+            ],
+            [
+              19813,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-07/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.712",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57201,
+              1625
+            ],
+            [
+              40638,
+              1625
+            ],
+            [
+              40638,
+              2013
+            ],
+            [
+              38877,
+              2013
+            ],
+            [
+              38877,
+              1013
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G07",
+      "records": [
+        "P08"
+      ],
+      "handoff": 6,
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68:changing_room",
+        "record": "P08",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39624,
+          1014
+        ],
+        "world_bounds_mm": [
+          18258,
+          23650,
+          57882,
+          24664
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38124,
+                1014
+              ],
+              [
+                39624,
+                1014
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19062,
+                0
+              ],
+              [
+                20562,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "aliases": [
+        {
+          "record": "P08",
+          "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+          "candidate_sha256": "8e0181e431beebc33da70b34bbd8275e3a4c530b16a6bc09bd9a3dc9eaf93ba3",
+          "geometry_reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "record_access_readbacks": [
+        {
+          "record": "P08",
+          "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+          "source_sha256": "8e0181e431beebc33da70b34bbd8275e3a4c530b16a6bc09bd9a3dc9eaf93ba3",
+          "two_access_passes": true,
+          "portal_geometry_matches": true,
+          "access_results": [
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:cc31c43be68035c693da00c3ed22c2a2e67fd170b2da3908012c5b9766b31d4f",
+              "centerline": [
+                {
+                  "x": "38.07",
+                  "y": "23.65"
+                },
+                {
+                  "x": "38.07",
+                  "y": "23.65"
+                }
+              ],
+              "clear_width_m": "1.5",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "changing_room",
+              "portal_from": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.82",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.32",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "sorting_packaging_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.82",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.32",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "0",
+              "route_shape": "STRAIGHT",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "sorting_packaging_room",
+              "topology": "DIRECT_SHARED_EDGE",
+              "turn_count": 0
+            },
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:87416d5d21eba9928e9bbe2abc4b6d567fa4a8ecddcb0cc41530f01dbbf51ae4",
+              "centerline": [
+                {
+                  "x": "75.46",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.664"
+                },
+                {
+                  "x": "57.132",
+                  "y": "25.664"
+                },
+                {
+                  "x": "57.132",
+                  "y": "24.664"
+                }
+              ],
+              "clear_width_m": "2",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [
+                {
+                  "points": [
+                    {
+                      "x": "58.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.664"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "25.664"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.132",
+                      "y": "24.664"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "24.664"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.664"
+                    },
+                    {
+                      "x": "57.132",
+                      "y": "26.664"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.132",
+                      "y": "24.664"
+                    },
+                    {
+                      "x": "58.132",
+                      "y": "24.664"
+                    },
+                    {
+                      "x": "58.132",
+                      "y": "25.664"
+                    },
+                    {
+                      "x": "56.132",
+                      "y": "25.664"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.664"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.664"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.664"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.664"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.132",
+                      "y": "24.664"
+                    },
+                    {
+                      "x": "58.132",
+                      "y": "24.664"
+                    },
+                    {
+                      "x": "58.132",
+                      "y": "26.664"
+                    },
+                    {
+                      "x": "56.132",
+                      "y": "26.664"
+                    }
+                  ],
+                  "type": "polygon"
+                }
+              ],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "main_entrance",
+              "portal_from": {
+                "access_ref": "main_entrance",
+                "clear_width_m": "1.5",
+                "edge_class": "BOUNDARY_ACCESS",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "75.46",
+                    "y": "26.025"
+                  },
+                  "start": {
+                    "x": "75.46",
+                    "y": "24.525"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "57.882",
+                    "y": "24.664"
+                  },
+                  "start": {
+                    "x": "56.382",
+                    "y": "24.664"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "19.717",
+              "route_shape": "ORTHOGONAL",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "changing_room",
+              "topology": "CORRIDOR_MEDIATED",
+              "turn_count": 3
+            }
+          ]
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-08/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19812,
+              0
+            ],
+            [
+              19812,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-08/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.717",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57202,
+              1625
+            ],
+            [
+              40639,
+              1625
+            ],
+            [
+              40639,
+              2014
+            ],
+            [
+              38874,
+              2014
+            ],
+            [
+              38874,
+              1014
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "group": "G08",
+      "records": [
+        "P09"
+      ],
+      "handoff": 6,
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5:changing_room",
+        "record": "P09",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39621,
+          1015
+        ],
+        "world_bounds_mm": [
+          18257,
+          23650,
+          57878,
+          24665
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38121,
+                1015
+              ],
+              [
+                39621,
+                1015
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19060,
+                0
+              ],
+              [
+                20560,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "aliases": [
+        {
+          "record": "P09",
+          "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+          "candidate_sha256": "f15eeab6015f77201f8db7a92d274cd29b95a700dddb52f673f3732e0fb68234",
+          "geometry_reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/zones/0"
+        }
+      ],
+      "record_access_readbacks": [
+        {
+          "record": "P09",
+          "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+          "source_sha256": "f15eeab6015f77201f8db7a92d274cd29b95a700dddb52f673f3732e0fb68234",
+          "two_access_passes": true,
+          "portal_geometry_matches": true,
+          "access_results": [
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:72fb299261acfbc33ce3a31276d426008ff501cc8dd52bbc4968add617d17564",
+              "centerline": [
+                {
+                  "x": "38.067",
+                  "y": "23.65"
+                },
+                {
+                  "x": "38.067",
+                  "y": "23.65"
+                }
+              ],
+              "clear_width_m": "1.5",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "changing_room",
+              "portal_from": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.817",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.317",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "sorting_packaging_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "38.817",
+                    "y": "23.65"
+                  },
+                  "start": {
+                    "x": "37.317",
+                    "y": "23.65"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "0",
+              "route_shape": "STRAIGHT",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "sorting_packaging_room",
+              "topology": "DIRECT_SHARED_EDGE",
+              "turn_count": 0
+            },
+            {
+              "access_class": "PERSONNEL",
+              "canonical_hash": "sha256:78898a9abefa005bf1735fabded848ca7914b6c7708d925109e012567befeaca",
+              "centerline": [
+                {
+                  "x": "75.46",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.275"
+                },
+                {
+                  "x": "58.897",
+                  "y": "25.665"
+                },
+                {
+                  "x": "57.128",
+                  "y": "25.665"
+                },
+                {
+                  "x": "57.128",
+                  "y": "24.665"
+                }
+              ],
+              "clear_width_m": "2",
+              "codes": [],
+              "corridor_allowed": true,
+              "corridor_envelope": [
+                {
+                  "points": [
+                    {
+                      "x": "58.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "75.46",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "25.665"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "25.665"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.128",
+                      "y": "24.665"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "24.665"
+                    },
+                    {
+                      "x": "58.897",
+                      "y": "26.665"
+                    },
+                    {
+                      "x": "57.128",
+                      "y": "26.665"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.128",
+                      "y": "24.665"
+                    },
+                    {
+                      "x": "58.128",
+                      "y": "24.665"
+                    },
+                    {
+                      "x": "58.128",
+                      "y": "25.665"
+                    },
+                    {
+                      "x": "56.128",
+                      "y": "25.665"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.275"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.275"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.275"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "57.897",
+                      "y": "24.665"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "24.665"
+                    },
+                    {
+                      "x": "59.897",
+                      "y": "26.665"
+                    },
+                    {
+                      "x": "57.897",
+                      "y": "26.665"
+                    }
+                  ],
+                  "type": "polygon"
+                },
+                {
+                  "points": [
+                    {
+                      "x": "56.128",
+                      "y": "24.665"
+                    },
+                    {
+                      "x": "58.128",
+                      "y": "24.665"
+                    },
+                    {
+                      "x": "58.128",
+                      "y": "26.665"
+                    },
+                    {
+                      "x": "56.128",
+                      "y": "26.665"
+                    }
+                  ],
+                  "type": "polygon"
+                }
+              ],
+              "direct_allowed": true,
+              "edge_alignment_verified": true,
+              "edge_orientation_requirement": null,
+              "flow_kind": "PEOPLE",
+              "from_ref": "main_entrance",
+              "portal_from": {
+                "access_ref": "main_entrance",
+                "clear_width_m": "1.5",
+                "edge_class": "BOUNDARY_ACCESS",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "75.46",
+                    "y": "26.025"
+                  },
+                  "start": {
+                    "x": "75.46",
+                    "y": "24.525"
+                  }
+                },
+                "status": "VALID"
+              },
+              "portal_required": true,
+              "portal_to": {
+                "access_ref": "changing_room",
+                "clear_width_m": "1.5",
+                "edge_class": "LONG_EDGE",
+                "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment": {
+                  "end": {
+                    "x": "57.878",
+                    "y": "24.665"
+                  },
+                  "start": {
+                    "x": "56.378",
+                    "y": "24.665"
+                  }
+                },
+                "status": "VALID"
+              },
+              "profile_identity": "personnel-clear-envelope@1.0.0",
+              "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+              "requires_review": true,
+              "route_length_m": "19.722",
+              "route_shape": "ORTHOGONAL",
+              "route_shape_constraint": "NOT_FROZEN",
+              "status": "PASS",
+              "to_ref": "changing_room",
+              "topology": "CORRIDOR_MEDIATED",
+              "turn_count": 3
+            }
+          ]
+        }
+      ],
+      "external_routes": [
+        {
+          "requirement": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-09/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "0",
+          "turn_count": 0,
+          "clear_width_m": "1.5",
+          "local_centerline_mm": [
+            [
+              19810,
+              0
+            ],
+            [
+              19810,
+              0
+            ]
+          ]
+        },
+        {
+          "requirement": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS",
+          "source_reference": "/Users/charles/codex-stage-b-r10-r2-main-preparation-r1/artifacts/stage-b-r10-r2-real-main-r1/previews/proposal-09/candidate-01/candidate.json#/engineering_validation/access_results",
+          "route_length_m": "19.722",
+          "turn_count": 3,
+          "clear_width_m": "2",
+          "local_centerline_mm": [
+            [
+              57203,
+              1625
+            ],
+            [
+              40640,
+              1625
+            ],
+            [
+              40640,
+              2015
+            ],
+            [
+              38871,
+              2015
+            ],
+            [
+              38871,
+              1015
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "original_record_count": 9,
+  "physical_group_count": 8,
+  "cabinet_front_concurrent_users": "INPUT_REQUIRED",
+  "physical_cabinet_unit_count": "INPUT_REQUIRED",
+  "project_functional_status": "INPUT_REQUIRED",
+  "missing_inputs": [
+    "selected_cabinet_model_and_column_grouping",
+    "cabinet_column_and_compartment_clear_dimensions",
+    "shelves_plinth_structure_and_finished_clear_height",
+    "compartment_door_sweep_and_simultaneous_operation_rules",
+    "cabinet_front_concurrent_users_and_staggered_service_plan",
+    "53_person_changing_spaces_and_transition_paths",
+    "approved_reach_and_operating_clearance_for_all_five_tiers",
+    "internal_divider_or_two_compartment_hygiene_approval",
+    "finished_room_dimensions_and_internal_aisle_width",
+    "actual_room_door_leaf_motion_and_landing_clearance",
+    "benches_dimensions_quantity_and_operation_spaces",
+    "clean_unclean_separation_and_cleaning_maintenance_plan",
+    "both_shift_complete_reviewed_four_state_witnesses"
+  ],
+  "old_r3_floor_locker_results_applicable": false,
+  "engineering_approval": false,
+  "historical_status_changed": false,
+  "native_solves": 0
+}

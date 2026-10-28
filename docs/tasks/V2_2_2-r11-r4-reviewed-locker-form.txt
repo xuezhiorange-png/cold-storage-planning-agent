@@ -1,0 +1,13 @@
+Reviewed source: direct Owner instruction V2_2_2_R11_R4_MULTI_TIER_LOCKER_MODEL_R1.
+Applicable project is the same 20,000 kg/day packaged-product Plan/P1 scope as R11 R3.
+Owner confirms a five-tier, five-door locker structure; each person uses an independent storage compartment.
+Working model: five independently assigned compartments per vertical column.
+106 is the single-compartment-per-person demand for two design shifts of 53, not 106 floor-standing cabinets.
+Each shift needs ceil(53/5)=11 dedicated columns; both shifts need 22 columns and 110 compartments.
+The approximately 300mm compartment height is a reference only, not an approved dimension.
+Actual cabinet model, column grouping per physical unit, width/depth/height and internal dividers remain unselected.
+The 53-person simultaneous room-occupancy design basis remains unchanged.
+Simultaneous cabinet-front operators are a separate, unconfirmed operating input; they are not automatically 53.
+Preserve work/private clothing separation. Compare an internal divider and two independent compartments per person as unapproved options.
+Neither option is approved as satisfying functional or hygiene requirements by this instruction alone.
+This source does not change P1, Stage B acceptance, R3 code, historical evidence or MAIN authorization.
