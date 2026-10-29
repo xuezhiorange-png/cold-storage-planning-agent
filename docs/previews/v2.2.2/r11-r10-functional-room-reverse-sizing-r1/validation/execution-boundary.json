@@ -1,0 +1,49 @@
+{
+  "TASK_ID": "V2_2_2_R11_R10_FUNCTIONAL_ROOM_REVERSE_SIZING_R1",
+  "BASE_HEAD": "6b47d04d5835ef6a6068a15ab33b371ff94baa2c",
+  "python_version": "Python 3.12.13",
+  "local_whitelist": {
+    "passed": 1307,
+    "existing_skipped": 16,
+    "seconds": 77.78,
+    "new_r10_tests_passed": 41,
+    "selection": "explicit files in whitelist.json; no historical Native/Stage B unit directory"
+  },
+  "native_boundary": {
+    "r10_new_calculations_native_calls": 0,
+    "local_whitelist_native_executions": 0,
+    "both_parent_apis_denied_by_startup_guard": true,
+    "both_child_apis_denied_by_startup_guard": true,
+    "blocked_api_attempts_are_intentional_tests": true,
+    "task_total_native_calls": "NOT_REPORTED_AS_ZERO; unchanged automatic fast CI includes inherited synthetic Native tests"
+  },
+  "visual_qa": {
+    "svg_xml": "PASS",
+    "common_scale_render": "PASS",
+    "browser": "PASS_LOCAL_LOOPBACK_DEFAULT_C_B_SELECTION_DETAIL_FAILED_STATIC_STATE",
+    "http_post_full_flow_and_evidence_export": "PASS_REAL_FUNCTIONAL_TEST",
+    "linked_report_http_read": "PASS",
+    "browser_file_protocol": "NOT_USED_FOR_R10",
+    "approval_state": "INPUT_REQUIRED"
+  },
+  "unchanged": [
+    "R1-R9 source/results",
+    "R9 Native boundary exception",
+    "P1",
+    "Stage B",
+    "nine/twelve metrics",
+    "production defaults",
+    "CI workflows"
+  ],
+  "new_main": false,
+  "new_20t_native": false,
+  "grant_created": false,
+  "claim_created": false,
+  "full_ci": "NOT_REQUESTED",
+  "static_checks": {
+    "ruff": "PASS",
+    "format": "PASS",
+    "mypy": "PASS",
+    "javascript": "PASS"
+  }
+}

@@ -1,0 +1,5687 @@
+{
+  "r9_references": [
+    {
+      "label": "A 混合本位 / 西北补位",
+      "north_margin_mm": 10,
+      "home_count": 53,
+      "completed_users": [
+        53,
+        53
+      ],
+      "original_statuses": [
+        "VERIFIED_UNDER_HYPOTHESES",
+        "VERIFIED_UNDER_HYPOTHESES"
+      ],
+      "source": "ARCHIVED_R9_READ_ONLY"
+    },
+    {
+      "label": "B 北墙等候 / 南侧分区",
+      "north_margin_mm": 10,
+      "home_count": 53,
+      "completed_users": [
+        53,
+        53
+      ],
+      "original_statuses": [
+        "VERIFIED_UNDER_HYPOTHESES",
+        "VERIFIED_UNDER_HYPOTHESES"
+      ],
+      "source": "ARCHIVED_R9_READ_ONLY"
+    },
+    {
+      "label": "C 分段柜组 / 北墙等候",
+      "north_margin_mm": 10,
+      "home_count": 53,
+      "completed_users": [
+        53,
+        53
+      ],
+      "original_statuses": [
+        "VERIFIED_UNDER_HYPOTHESES",
+        "VERIFIED_UNDER_HYPOTHESES"
+      ],
+      "source": "ARCHIVED_R9_READ_ONLY"
+    },
+    {
+      "label": "原R8双排模板 / 47本位",
+      "north_margin_mm": null,
+      "home_count": 47,
+      "completed_users": [
+        0,
+        0
+      ],
+      "original_statuses": [
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "source": "ARCHIVED_R9_READ_ONLY"
+    },
+    {
+      "label": "A完成面30mm / 保留失败",
+      "north_margin_mm": -10,
+      "home_count": 47,
+      "completed_users": [
+        0,
+        0
+      ],
+      "original_statuses": [
+        "BLOCKED",
+        "BLOCKED"
+      ],
+      "source": "ARCHIVED_R9_READ_ONLY"
+    }
+  ],
+  "robustness_review_target_mm": 50,
+  "robustness_trials": [
+    {
+      "summary": {
+        "id": "R10-L26331-W3550-M50-MIXED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3550,
+          "margin_mm": 50,
+          "profile": "MIXED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 93475050,
+        "area_m2": "93.475050",
+        "added_area_m2": "7.899300",
+        "length_delta_mm": 0,
+        "width_delta_mm": 300,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 11,
+        "minimum_margin_mm": 20,
+        "limiting_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 20,
+          "required_mm": 0,
+          "extra_mm": 20,
+          "location": "HOME-43",
+          "bounds_mm": [
+            830,
+            3050,
+            1480,
+            3500
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 20,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 300,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "2ad392daee86646dfbdb6a2cbe00472b98ff5807a9befa282e414986689cc06f"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 90,
+            "required_mm": 40,
+            "extra_mm": 50,
+            "location": "S1-U01",
+            "bounds_mm": [
+              830,
+              120,
+              1630,
+              620
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 70,
+            "required_mm": 20,
+            "extra_mm": 50,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1700,
+              120,
+              2500,
+              620
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 20,
+            "required_mm": 0,
+            "extra_mm": 20,
+            "location": "HOME-43",
+            "bounds_mm": [
+              830,
+              3050,
+              1480,
+              3500
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 40,
+            "required_mm": 0,
+            "extra_mm": 40,
+            "location": "HOME-23 / AISLE-4",
+            "bounds_mm": [
+              12050,
+              300,
+              12500,
+              950
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 150,
+            "required_mm": 100,
+            "extra_mm": 50,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              12050,
+              2300,
+              12500,
+              2950
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1250,
+            "required_mm": 1200,
+            "extra_mm": 50,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1250,
+            "extra_mm": 250,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 50,
+            "required_mm": 0,
+            "extra_mm": 50,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              755,
+              800,
+              1355,
+              1700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 180,
+            "required_mm": 0,
+            "extra_mm": 180,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              755,
+              800,
+              1355,
+              1700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 55,
+            "required_mm": 0,
+            "extra_mm": 55,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              850,
+              620,
+              1225,
+              995
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              13250,
+              1300,
+              13700,
+              2950
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 229,
+            "required_mm": 0,
+            "extra_mm": 229,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              8759,
+              1979,
+              9551,
+              2771
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 61346,
+          "yaw_swept_square_to_aisle_edge": 44
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 20,
+          "required_mm": 0,
+          "extra_mm": 20,
+          "location": "HOME-43",
+          "bounds_mm": [
+            830,
+            3050,
+            1480,
+            3500
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 50,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 20,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 90
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 430
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 50
+          },
+          {
+            "label": "aisle",
+            "mm": 1250
+          },
+          {
+            "label": "north free strip",
+            "mm": 520
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 170,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 125.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "summary": {
+        "id": "R10-L26331-W3600-M50-MIXED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3600,
+          "margin_mm": 50,
+          "profile": "MIXED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 94791600,
+        "area_m2": "94.791600",
+        "added_area_m2": "9.215850",
+        "length_delta_mm": 0,
+        "width_delta_mm": 350,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 11,
+        "minimum_margin_mm": 40,
+        "limiting_margin": {
+          "family": "waiting_to_reserved_aisle",
+          "actual_mm": 40,
+          "required_mm": 0,
+          "extra_mm": 40,
+          "location": "HOME-23 / AISLE-4",
+          "bounds_mm": [
+            12050,
+            300,
+            12500,
+            950
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 70,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 350,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "d12ccc03507b53ce603383ff1a66c57002bf702146677c979c9e08e4d60d3abf"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 90,
+            "required_mm": 40,
+            "extra_mm": 50,
+            "location": "S1-U01",
+            "bounds_mm": [
+              830,
+              120,
+              1630,
+              620
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 70,
+            "required_mm": 20,
+            "extra_mm": 50,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1700,
+              120,
+              2500,
+              620
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 70,
+            "required_mm": 0,
+            "extra_mm": 70,
+            "location": "HOME-43",
+            "bounds_mm": [
+              830,
+              3050,
+              1480,
+              3500
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 40,
+            "required_mm": 0,
+            "extra_mm": 40,
+            "location": "HOME-23 / AISLE-4",
+            "bounds_mm": [
+              12050,
+              300,
+              12500,
+              950
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 150,
+            "required_mm": 100,
+            "extra_mm": 50,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              12050,
+              2300,
+              12500,
+              2950
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1250,
+            "required_mm": 1200,
+            "extra_mm": 50,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1250,
+            "extra_mm": 250,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 50,
+            "required_mm": 0,
+            "extra_mm": 50,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              755,
+              800,
+              1355,
+              1700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 180,
+            "required_mm": 0,
+            "extra_mm": 180,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              755,
+              800,
+              1355,
+              1700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 55,
+            "required_mm": 0,
+            "extra_mm": 55,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              850,
+              620,
+              1225,
+              995
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              13250,
+              1300,
+              13700,
+              2950
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 229,
+            "required_mm": 0,
+            "extra_mm": 229,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              8759,
+              1979,
+              9551,
+              2771
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 61346,
+          "yaw_swept_square_to_aisle_edge": 44
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_to_reserved_aisle",
+          "actual_mm": 40,
+          "required_mm": 0,
+          "extra_mm": 40,
+          "location": "HOME-23 / AISLE-4",
+          "bounds_mm": [
+            12050,
+            300,
+            12500,
+            950
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 50,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 70,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 90
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 430
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 50
+          },
+          {
+            "label": "aisle",
+            "mm": 1250
+          },
+          {
+            "label": "north free strip",
+            "mm": 570
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 170,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 125.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "summary": {
+        "id": "R10-L26331-W3750-M50-MIXED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3750,
+          "margin_mm": 50,
+          "profile": "MIXED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 98741250,
+        "area_m2": "98.741250",
+        "added_area_m2": "13.165500",
+        "length_delta_mm": 0,
+        "width_delta_mm": 500,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 11,
+        "minimum_margin_mm": 40,
+        "limiting_margin": {
+          "family": "waiting_to_reserved_aisle",
+          "actual_mm": 40,
+          "required_mm": 0,
+          "extra_mm": 40,
+          "location": "HOME-23 / AISLE-4",
+          "bounds_mm": [
+            12050,
+            300,
+            12500,
+            950
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 220,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 500,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "83ace5f3eb4ab2b8444732d0199bcc4f63f857c26cb2a09aa8271a0b8cb4df49"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 90,
+            "required_mm": 40,
+            "extra_mm": 50,
+            "location": "S1-U01",
+            "bounds_mm": [
+              830,
+              120,
+              1630,
+              620
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 70,
+            "required_mm": 20,
+            "extra_mm": 50,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1700,
+              120,
+              2500,
+              620
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 220,
+            "required_mm": 0,
+            "extra_mm": 220,
+            "location": "HOME-43",
+            "bounds_mm": [
+              830,
+              3050,
+              1480,
+              3500
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 40,
+            "required_mm": 0,
+            "extra_mm": 40,
+            "location": "HOME-23 / AISLE-4",
+            "bounds_mm": [
+              12050,
+              300,
+              12500,
+              950
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 150,
+            "required_mm": 100,
+            "extra_mm": 50,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              12050,
+              2300,
+              12500,
+              2950
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1250,
+            "required_mm": 1200,
+            "extra_mm": 50,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1250,
+            "extra_mm": 250,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 50,
+            "required_mm": 0,
+            "extra_mm": 50,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              755,
+              800,
+              1355,
+              1700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 180,
+            "required_mm": 0,
+            "extra_mm": 180,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              755,
+              800,
+              1355,
+              1700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 55,
+            "required_mm": 0,
+            "extra_mm": 55,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              850,
+              620,
+              1225,
+              995
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              13250,
+              1300,
+              13700,
+              2950
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 229,
+            "required_mm": 0,
+            "extra_mm": 229,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              8759,
+              1979,
+              9551,
+              2771
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 61346,
+          "yaw_swept_square_to_aisle_edge": 44
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_to_reserved_aisle",
+          "actual_mm": 40,
+          "required_mm": 0,
+          "extra_mm": 40,
+          "location": "HOME-23 / AISLE-4",
+          "bounds_mm": [
+            12050,
+            300,
+            12500,
+            950
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 50,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 220,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 90
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 430
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 50
+          },
+          {
+            "label": "aisle",
+            "mm": 1250
+          },
+          {
+            "label": "north free strip",
+            "mm": 720
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 170,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 125.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "summary": {
+        "id": "R10-L26331-W3750-M50-NORTH_NORMAL_SOUTH_ROTATED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3750,
+          "margin_mm": 50,
+          "profile": "NORTH_NORMAL_SOUTH_ROTATED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 98741250,
+        "area_m2": "98.741250",
+        "added_area_m2": "13.165500",
+        "length_delta_mm": 0,
+        "width_delta_mm": 500,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 11,
+        "minimum_margin_mm": 20,
+        "limiting_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 20,
+          "required_mm": 0,
+          "extra_mm": 20,
+          "location": "HOME-01",
+          "bounds_mm": [
+            830,
+            3050,
+            1280,
+            3700
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 20,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 500,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "4ed20c334d4248ba38c96186337cb7649fe3109dc9566f44cf406271a6ed55d3"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 90,
+            "required_mm": 40,
+            "extra_mm": 50,
+            "location": "S1-U01",
+            "bounds_mm": [
+              830,
+              120,
+              1630,
+              620
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 70,
+            "required_mm": 20,
+            "extra_mm": 50,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1700,
+              120,
+              2500,
+              620
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 20,
+            "required_mm": 0,
+            "extra_mm": 20,
+            "location": "HOME-01",
+            "bounds_mm": [
+              830,
+              3050,
+              1280,
+              3700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 50,
+            "required_mm": 0,
+            "extra_mm": 50,
+            "location": "HOME-01 / AISLE-0",
+            "bounds_mm": [
+              830,
+              3050,
+              1280,
+              3700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 150,
+            "required_mm": 100,
+            "extra_mm": 50,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              830,
+              3050,
+              1280,
+              3700
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1250,
+            "required_mm": 1200,
+            "extra_mm": 50,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1250,
+            "extra_mm": 250,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 50,
+            "required_mm": 0,
+            "extra_mm": 50,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              755,
+              800,
+              1355,
+              1700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 180,
+            "required_mm": 0,
+            "extra_mm": 180,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              755,
+              800,
+              1355,
+              1700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 55,
+            "required_mm": 0,
+            "extra_mm": 55,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              850,
+              620,
+              1225,
+              995
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              2030,
+              2050,
+              2480,
+              3700
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 229,
+            "required_mm": 0,
+            "extra_mm": 229,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              22379,
+              1229,
+              23171,
+              2021
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 63720,
+          "yaw_swept_square_to_aisle_edge": 44
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 20,
+          "required_mm": 0,
+          "extra_mm": 20,
+          "location": "HOME-01",
+          "bounds_mm": [
+            830,
+            3050,
+            1280,
+            3700
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 50,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 20,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 90
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 430
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 50
+          },
+          {
+            "label": "aisle",
+            "mm": 1250
+          },
+          {
+            "label": "north free strip",
+            "mm": 720
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 170,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 125.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "summary": {
+        "id": "R10-L26331-W3850-M100-MIXED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3850,
+          "margin_mm": 100,
+          "profile": "MIXED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 101374350,
+        "area_m2": "101.374350",
+        "added_area_m2": "15.798600",
+        "length_delta_mm": 0,
+        "width_delta_mm": 600,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 13,
+        "minimum_margin_mm": 70,
+        "limiting_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 70,
+          "required_mm": 0,
+          "extra_mm": 70,
+          "location": "HOME-41",
+          "bounds_mm": [
+            905,
+            3300,
+            1555,
+            3750
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 70,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 600,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "d44e42c196dfc42bc8375842a09eb67b0ce170a451ee1de1484535ff629ece03"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 140,
+            "required_mm": 40,
+            "extra_mm": 100,
+            "location": "S1-U01",
+            "bounds_mm": [
+              905,
+              170,
+              1705,
+              670
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 120,
+            "required_mm": 20,
+            "extra_mm": 100,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1825,
+              170,
+              2625,
+              670
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 70,
+            "required_mm": 0,
+            "extra_mm": 70,
+            "location": "HOME-41",
+            "bounds_mm": [
+              905,
+              3300,
+              1555,
+              3750
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 100,
+            "required_mm": 0,
+            "extra_mm": 100,
+            "location": "HOME-01 / AISLE-10",
+            "bounds_mm": [
+              12775,
+              2375,
+              13225,
+              3025
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 200,
+            "required_mm": 100,
+            "extra_mm": 100,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              12775,
+              2375,
+              13225,
+              3025
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1300,
+            "required_mm": 1200,
+            "extra_mm": 100,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1300,
+            "extra_mm": 200,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 100,
+            "required_mm": 0,
+            "extra_mm": 100,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              830,
+              900,
+              1430,
+              1800
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 230,
+            "required_mm": 0,
+            "extra_mm": 230,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              830,
+              900,
+              1430,
+              1800
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 105,
+            "required_mm": 0,
+            "extra_mm": 105,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              925,
+              670,
+              1300,
+              1045
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 200,
+            "required_mm": 0,
+            "extra_mm": 200,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              14075,
+              1300,
+              14525,
+              3025
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 254,
+            "required_mm": 0,
+            "extra_mm": 254,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              11034,
+              2154,
+              11826,
+              2946
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 61280,
+          "yaw_swept_square_to_aisle_edge": 52
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 70,
+          "required_mm": 0,
+          "extra_mm": 70,
+          "location": "HOME-41",
+          "bounds_mm": [
+            905,
+            3300,
+            1555,
+            3750
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 100,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 70,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 140
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 480
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 100
+          },
+          {
+            "label": "aisle",
+            "mm": 1300
+          },
+          {
+            "label": "north free strip",
+            "mm": 620
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 120,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 100.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    }
+  ],
+  "sensitivities": [
+    {
+      "label": "finish30",
+      "conditions": {
+        "column_width_mm": 400,
+        "column_depth_mm": 500,
+        "cabinet_height_mm": 1800,
+        "cell_height_mm": 300,
+        "plinth_mm": 100,
+        "shelf_mm": 20,
+        "columns_per_unit": 2,
+        "transport_width_mm": 450,
+        "transport_depth_mm": 650,
+        "body_height_mm": 1800,
+        "activity_width_mm": 600,
+        "activity_depth_mm": 900,
+        "waiting_gap_mm": 100,
+        "aisle_required_mm": 1200,
+        "finish_mm": 30,
+        "installation_gap_mm": 20,
+        "unit_gap_mm": 20,
+        "operator_standoff_mm": 380,
+        "room_door_intrusion_mm": 0,
+        "door_kind": "OUTWARD_HINGED_90"
+      },
+      "summary": {
+        "id": "R10-L26331-W3250-M0-MIXED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3250,
+          "margin_mm": 0,
+          "profile": "MIXED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 85575750,
+        "area_m2": "85.575750",
+        "added_area_m2": "0.000000",
+        "length_delta_mm": 0,
+        "width_delta_mm": 0,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_REJECTED",
+        "full_flow_status": "NOT_EVALUATED_UPSTREAM_REJECTED",
+        "completed_users": [],
+        "full_flow_verified": false,
+        "home_count": 47,
+        "rotated_home_count": 0,
+        "minimum_margin_mm": 0,
+        "limiting_margin": {
+          "family": "cabinet_unit_installation",
+          "actual_mm": 20,
+          "required_mm": 20,
+          "extra_mm": 0,
+          "location": "S1-U01 / S1-U02",
+          "bounds_mm": [
+            1575,
+            50,
+            2375,
+            550
+          ],
+          "definition": "between separate floor units; shared manufactured column joints excluded",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": null,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [
+          {
+            "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+            "components": []
+          },
+          {
+            "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+            "components": []
+          }
+        ],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 0,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "ARCHIVED_REFERENCE_ONLY"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "ARCHIVED_REFERENCE_ONLY"
+            }
+          ],
+          "site_footprint_and_external_access": "ARCHIVED_REFERENCE_ONLY"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "7cabd702774c4363f444b1998b188d9e622e58f5466c6c4ef46d02bce871e7b3"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 20,
+            "required_mm": 20,
+            "extra_mm": 0,
+            "location": "S1-U01",
+            "bounds_mm": [
+              755,
+              50,
+              1555,
+              550
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 20,
+            "required_mm": 20,
+            "extra_mm": 0,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1575,
+              50,
+              2375,
+              550
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 345,
+            "required_mm": 0,
+            "extra_mm": 345,
+            "location": "HOME-01",
+            "bounds_mm": [
+              11325,
+              2225,
+              11775,
+              2875
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 0,
+            "required_mm": 0,
+            "extra_mm": 0,
+            "location": "HOME-01 / AISLE-6",
+            "bounds_mm": [
+              11325,
+              2225,
+              11775,
+              2875
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 100,
+            "required_mm": 100,
+            "extra_mm": 0,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              11325,
+              2225,
+              11775,
+              2875
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1200,
+            "required_mm": 1200,
+            "extra_mm": 0,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1200,
+            "extra_mm": 300,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 47,
+          "waiting_to_reserved_aisle": 517,
+          "waiting_position_gap": 1081,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "cabinet_unit_installation",
+          "actual_mm": 20,
+          "required_mm": 20,
+          "extra_mm": 0,
+          "location": "S1-U01 / S1-U02",
+          "bounds_mm": [
+            1575,
+            50,
+            2375,
+            550
+          ],
+          "definition": "between separate floor units; shared manufactured column joints excluded",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 0,
+        "margin_target_met": true,
+        "north_waiting_finished_wall_margin_mm": null,
+        "continuous_yaw_square_mm": null,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 20
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 380
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 0
+          },
+          {
+            "label": "aisle",
+            "mm": 1200
+          },
+          {
+            "label": "north free strip",
+            "mm": 440
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 220,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 150.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "label": "install40",
+      "conditions": {
+        "column_width_mm": 400,
+        "column_depth_mm": 500,
+        "cabinet_height_mm": 1800,
+        "cell_height_mm": 300,
+        "plinth_mm": 100,
+        "shelf_mm": 20,
+        "columns_per_unit": 2,
+        "transport_width_mm": 450,
+        "transport_depth_mm": 650,
+        "body_height_mm": 1800,
+        "activity_width_mm": 600,
+        "activity_depth_mm": 900,
+        "waiting_gap_mm": 100,
+        "aisle_required_mm": 1200,
+        "finish_mm": 20,
+        "installation_gap_mm": 40,
+        "unit_gap_mm": 20,
+        "operator_standoff_mm": 380,
+        "room_door_intrusion_mm": 0,
+        "door_kind": "OUTWARD_HINGED_90"
+      },
+      "summary": {
+        "id": "R10-L26331-W3250-M0-MIXED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3250,
+          "margin_mm": 0,
+          "profile": "MIXED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 85575750,
+        "area_m2": "85.575750",
+        "added_area_m2": "0.000000",
+        "length_delta_mm": 0,
+        "width_delta_mm": 0,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_REJECTED",
+        "full_flow_status": "NOT_EVALUATED_UPSTREAM_REJECTED",
+        "completed_users": [],
+        "full_flow_verified": false,
+        "home_count": 47,
+        "rotated_home_count": 0,
+        "minimum_margin_mm": 0,
+        "limiting_margin": {
+          "family": "cabinet_unit_installation",
+          "actual_mm": 20,
+          "required_mm": 20,
+          "extra_mm": 0,
+          "location": "S1-U01 / S1-U02",
+          "bounds_mm": [
+            1565,
+            60,
+            2365,
+            560
+          ],
+          "definition": "between separate floor units; shared manufactured column joints excluded",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": null,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [
+          {
+            "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+            "components": []
+          },
+          {
+            "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+            "components": []
+          }
+        ],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 0,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "ARCHIVED_REFERENCE_ONLY"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "ARCHIVED_REFERENCE_ONLY"
+            }
+          ],
+          "site_footprint_and_external_access": "ARCHIVED_REFERENCE_ONLY"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "a610c14cf901bf01cb76757f41359eff3e07713891809ceb3dd6553da0709e4d"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 40,
+            "required_mm": 40,
+            "extra_mm": 0,
+            "location": "S1-U01",
+            "bounds_mm": [
+              745,
+              60,
+              1545,
+              560
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 20,
+            "required_mm": 20,
+            "extra_mm": 0,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1565,
+              60,
+              2365,
+              560
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 355,
+            "required_mm": 0,
+            "extra_mm": 355,
+            "location": "HOME-01",
+            "bounds_mm": [
+              11315,
+              2225,
+              11765,
+              2875
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 0,
+            "required_mm": 0,
+            "extra_mm": 0,
+            "location": "HOME-01 / AISLE-6",
+            "bounds_mm": [
+              11315,
+              2225,
+              11765,
+              2875
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 100,
+            "required_mm": 100,
+            "extra_mm": 0,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              11315,
+              2225,
+              11765,
+              2875
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1200,
+            "required_mm": 1200,
+            "extra_mm": 0,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1200,
+            "extra_mm": 300,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 47,
+          "waiting_to_reserved_aisle": 517,
+          "waiting_position_gap": 1081,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "cabinet_unit_installation",
+          "actual_mm": 20,
+          "required_mm": 20,
+          "extra_mm": 0,
+          "location": "S1-U01 / S1-U02",
+          "bounds_mm": [
+            1565,
+            60,
+            2365,
+            560
+          ],
+          "definition": "between separate floor units; shared manufactured column joints excluded",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 0,
+        "margin_target_met": true,
+        "north_waiting_finished_wall_margin_mm": null,
+        "continuous_yaw_square_mm": null,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 20
+          },
+          {
+            "label": "installation",
+            "mm": 40
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 380
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 0
+          },
+          {
+            "label": "aisle",
+            "mm": 1200
+          },
+          {
+            "label": "north free strip",
+            "mm": 440
+          },
+          {
+            "label": "finished north",
+            "mm": 20
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 220,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 150.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "label": "finish30_install40",
+      "conditions": {
+        "column_width_mm": 400,
+        "column_depth_mm": 500,
+        "cabinet_height_mm": 1800,
+        "cell_height_mm": 300,
+        "plinth_mm": 100,
+        "shelf_mm": 20,
+        "columns_per_unit": 2,
+        "transport_width_mm": 450,
+        "transport_depth_mm": 650,
+        "body_height_mm": 1800,
+        "activity_width_mm": 600,
+        "activity_depth_mm": 900,
+        "waiting_gap_mm": 100,
+        "aisle_required_mm": 1200,
+        "finish_mm": 30,
+        "installation_gap_mm": 40,
+        "unit_gap_mm": 20,
+        "operator_standoff_mm": 380,
+        "room_door_intrusion_mm": 0,
+        "door_kind": "OUTWARD_HINGED_90"
+      },
+      "summary": {
+        "id": "R10-L26331-W3250-M0-MIXED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3250,
+          "margin_mm": 0,
+          "profile": "MIXED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 85575750,
+        "area_m2": "85.575750",
+        "added_area_m2": "0.000000",
+        "length_delta_mm": 0,
+        "width_delta_mm": 0,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_REJECTED",
+        "full_flow_status": "NOT_EVALUATED_UPSTREAM_REJECTED",
+        "completed_users": [],
+        "full_flow_verified": false,
+        "home_count": 47,
+        "rotated_home_count": 0,
+        "minimum_margin_mm": 0,
+        "limiting_margin": {
+          "family": "cabinet_unit_installation",
+          "actual_mm": 20,
+          "required_mm": 20,
+          "extra_mm": 0,
+          "location": "S1-U01 / S1-U02",
+          "bounds_mm": [
+            1575,
+            70,
+            2375,
+            570
+          ],
+          "definition": "between separate floor units; shared manufactured column joints excluded",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": null,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [
+          {
+            "code": "ALL_53_DISTINCT_SHIFT_USERS_REQUIRED",
+            "components": []
+          },
+          {
+            "code": "53_DISTINCT_HOME_POSITIONS_NOT_AVAILABLE",
+            "components": []
+          }
+        ],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 0,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "ARCHIVED_REFERENCE_ONLY"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "ARCHIVED_REFERENCE_ONLY"
+            }
+          ],
+          "site_footprint_and_external_access": "ARCHIVED_REFERENCE_ONLY"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "a60417536b0a891a54dd4f76b14669bc4fa9da7c458ed2b4360d32ca20f4aa3f"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 40,
+            "required_mm": 40,
+            "extra_mm": 0,
+            "location": "S1-U01",
+            "bounds_mm": [
+              755,
+              70,
+              1555,
+              570
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 20,
+            "required_mm": 20,
+            "extra_mm": 0,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1575,
+              70,
+              2375,
+              570
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 345,
+            "required_mm": 0,
+            "extra_mm": 345,
+            "location": "HOME-01",
+            "bounds_mm": [
+              11325,
+              2225,
+              11775,
+              2875
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 0,
+            "required_mm": 0,
+            "extra_mm": 0,
+            "location": "HOME-01 / AISLE-6",
+            "bounds_mm": [
+              11325,
+              2225,
+              11775,
+              2875
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 100,
+            "required_mm": 100,
+            "extra_mm": 0,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              11325,
+              2225,
+              11775,
+              2875
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1200,
+            "required_mm": 1200,
+            "extra_mm": 0,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1200,
+            "extra_mm": 300,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 47,
+          "waiting_to_reserved_aisle": 517,
+          "waiting_position_gap": 1081,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "cabinet_unit_installation",
+          "actual_mm": 20,
+          "required_mm": 20,
+          "extra_mm": 0,
+          "location": "S1-U01 / S1-U02",
+          "bounds_mm": [
+            1575,
+            70,
+            2375,
+            570
+          ],
+          "definition": "between separate floor units; shared manufactured column joints excluded",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 0,
+        "margin_target_met": true,
+        "north_waiting_finished_wall_margin_mm": null,
+        "continuous_yaw_square_mm": null,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 40
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 380
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 0
+          },
+          {
+            "label": "aisle",
+            "mm": 1200
+          },
+          {
+            "label": "north free strip",
+            "mm": 420
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 220,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 150.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "label": "finish30",
+      "conditions": {
+        "column_width_mm": 400,
+        "column_depth_mm": 500,
+        "cabinet_height_mm": 1800,
+        "cell_height_mm": 300,
+        "plinth_mm": 100,
+        "shelf_mm": 20,
+        "columns_per_unit": 2,
+        "transport_width_mm": 450,
+        "transport_depth_mm": 650,
+        "body_height_mm": 1800,
+        "activity_width_mm": 600,
+        "activity_depth_mm": 900,
+        "waiting_gap_mm": 100,
+        "aisle_required_mm": 1200,
+        "finish_mm": 30,
+        "installation_gap_mm": 20,
+        "unit_gap_mm": 20,
+        "operator_standoff_mm": 380,
+        "room_door_intrusion_mm": 0,
+        "door_kind": "OUTWARD_HINGED_90"
+      },
+      "summary": {
+        "id": "R10-L26331-W3550-M50-MIXED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3550,
+          "margin_mm": 50,
+          "profile": "MIXED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 93475050,
+        "area_m2": "93.475050",
+        "added_area_m2": "7.899300",
+        "length_delta_mm": 0,
+        "width_delta_mm": 300,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 11,
+        "minimum_margin_mm": 40,
+        "limiting_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 40,
+          "required_mm": 0,
+          "extra_mm": 40,
+          "location": "HOME-43",
+          "bounds_mm": [
+            830,
+            3030,
+            1480,
+            3480
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 40,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 300,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "4996bd2c30c0824f0c3c90099b0887b219d666c3c796111bffcdd7b8cd3c9bdb"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 70,
+            "required_mm": 20,
+            "extra_mm": 50,
+            "location": "S1-U01",
+            "bounds_mm": [
+              830,
+              100,
+              1630,
+              600
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 70,
+            "required_mm": 20,
+            "extra_mm": 50,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1700,
+              100,
+              2500,
+              600
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 40,
+            "required_mm": 0,
+            "extra_mm": 40,
+            "location": "HOME-43",
+            "bounds_mm": [
+              830,
+              3030,
+              1480,
+              3480
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 40,
+            "required_mm": 0,
+            "extra_mm": 40,
+            "location": "HOME-23 / AISLE-4",
+            "bounds_mm": [
+              12050,
+              300,
+              12500,
+              950
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 150,
+            "required_mm": 100,
+            "extra_mm": 50,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              12050,
+              2300,
+              12500,
+              2950
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1250,
+            "required_mm": 1200,
+            "extra_mm": 50,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1250,
+            "extra_mm": 250,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 50,
+            "required_mm": 0,
+            "extra_mm": 50,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              755,
+              780,
+              1355,
+              1680
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 180,
+            "required_mm": 0,
+            "extra_mm": 180,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              755,
+              780,
+              1355,
+              1680
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 55,
+            "required_mm": 0,
+            "extra_mm": 55,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              850,
+              600,
+              1225,
+              975
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              13250,
+              1300,
+              13700,
+              2950
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 229,
+            "required_mm": 0,
+            "extra_mm": 229,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              8759,
+              1959,
+              9551,
+              2751
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 61346,
+          "yaw_swept_square_to_aisle_edge": 44
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 40,
+          "required_mm": 0,
+          "extra_mm": 40,
+          "location": "HOME-43",
+          "bounds_mm": [
+            830,
+            3030,
+            1480,
+            3480
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 50,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 40,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 70
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 430
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 50
+          },
+          {
+            "label": "aisle",
+            "mm": 1250
+          },
+          {
+            "label": "north free strip",
+            "mm": 540
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 170,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 125.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "label": "install40",
+      "conditions": {
+        "column_width_mm": 400,
+        "column_depth_mm": 500,
+        "cabinet_height_mm": 1800,
+        "cell_height_mm": 300,
+        "plinth_mm": 100,
+        "shelf_mm": 20,
+        "columns_per_unit": 2,
+        "transport_width_mm": 450,
+        "transport_depth_mm": 650,
+        "body_height_mm": 1800,
+        "activity_width_mm": 600,
+        "activity_depth_mm": 900,
+        "waiting_gap_mm": 100,
+        "aisle_required_mm": 1200,
+        "finish_mm": 20,
+        "installation_gap_mm": 40,
+        "unit_gap_mm": 20,
+        "operator_standoff_mm": 380,
+        "room_door_intrusion_mm": 0,
+        "door_kind": "OUTWARD_HINGED_90"
+      },
+      "summary": {
+        "id": "R10-L26331-W3550-M50-MIXED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3550,
+          "margin_mm": 50,
+          "profile": "MIXED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 93475050,
+        "area_m2": "93.475050",
+        "added_area_m2": "7.899300",
+        "length_delta_mm": 0,
+        "width_delta_mm": 300,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 11,
+        "minimum_margin_mm": 40,
+        "limiting_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 40,
+          "required_mm": 0,
+          "extra_mm": 40,
+          "location": "HOME-43",
+          "bounds_mm": [
+            820,
+            3040,
+            1470,
+            3490
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 40,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 300,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "d13e2671a9296fcbf2a635380aca0cff15f22da60b6fd561439d399f3584d180"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 90,
+            "required_mm": 40,
+            "extra_mm": 50,
+            "location": "S1-U01",
+            "bounds_mm": [
+              820,
+              110,
+              1620,
+              610
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 70,
+            "required_mm": 20,
+            "extra_mm": 50,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1690,
+              110,
+              2490,
+              610
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 40,
+            "required_mm": 0,
+            "extra_mm": 40,
+            "location": "HOME-43",
+            "bounds_mm": [
+              820,
+              3040,
+              1470,
+              3490
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 50,
+            "required_mm": 0,
+            "extra_mm": 50,
+            "location": "HOME-01 / AISLE-10",
+            "bounds_mm": [
+              12040,
+              2300,
+              12490,
+              2950
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 150,
+            "required_mm": 100,
+            "extra_mm": 50,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              12040,
+              2300,
+              12490,
+              2950
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1250,
+            "required_mm": 1200,
+            "extra_mm": 50,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1250,
+            "extra_mm": 250,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 50,
+            "required_mm": 0,
+            "extra_mm": 50,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              745,
+              790,
+              1345,
+              1690
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 180,
+            "required_mm": 0,
+            "extra_mm": 180,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              745,
+              790,
+              1345,
+              1690
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 55,
+            "required_mm": 0,
+            "extra_mm": 55,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              840,
+              610,
+              1215,
+              985
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              13240,
+              1300,
+              13690,
+              2950
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 229,
+            "required_mm": 0,
+            "extra_mm": 229,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              8749,
+              1969,
+              9541,
+              2761
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 61346,
+          "yaw_swept_square_to_aisle_edge": 44
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 40,
+          "required_mm": 0,
+          "extra_mm": 40,
+          "location": "HOME-43",
+          "bounds_mm": [
+            820,
+            3040,
+            1470,
+            3490
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 50,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 40,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 20
+          },
+          {
+            "label": "installation",
+            "mm": 90
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 430
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 50
+          },
+          {
+            "label": "aisle",
+            "mm": 1250
+          },
+          {
+            "label": "north free strip",
+            "mm": 540
+          },
+          {
+            "label": "finished north",
+            "mm": 20
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 170,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 125.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "label": "finish30_install40",
+      "conditions": {
+        "column_width_mm": 400,
+        "column_depth_mm": 500,
+        "cabinet_height_mm": 1800,
+        "cell_height_mm": 300,
+        "plinth_mm": 100,
+        "shelf_mm": 20,
+        "columns_per_unit": 2,
+        "transport_width_mm": 450,
+        "transport_depth_mm": 650,
+        "body_height_mm": 1800,
+        "activity_width_mm": 600,
+        "activity_depth_mm": 900,
+        "waiting_gap_mm": 100,
+        "aisle_required_mm": 1200,
+        "finish_mm": 30,
+        "installation_gap_mm": 40,
+        "unit_gap_mm": 20,
+        "operator_standoff_mm": 380,
+        "room_door_intrusion_mm": 0,
+        "door_kind": "OUTWARD_HINGED_90"
+      },
+      "summary": {
+        "id": "R10-L26331-W3550-M50-MIXED",
+        "point": {
+          "length_mm": 26331,
+          "width_mm": 3550,
+          "margin_mm": 50,
+          "profile": "MIXED",
+          "mode": "A_FIXED_LENGTH"
+        },
+        "area_mm2": 93475050,
+        "area_m2": "93.475050",
+        "added_area_m2": "7.899300",
+        "length_delta_mm": 0,
+        "width_delta_mm": 300,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 11,
+        "minimum_margin_mm": 20,
+        "limiting_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 20,
+          "required_mm": 0,
+          "extra_mm": 20,
+          "location": "HOME-43",
+          "bounds_mm": [
+            830,
+            3050,
+            1480,
+            3500
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 20,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 0,
+          "north_delta_mm": 300,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "2ad392daee86646dfbdb6a2cbe00472b98ff5807a9befa282e414986689cc06f"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 90,
+            "required_mm": 40,
+            "extra_mm": 50,
+            "location": "S1-U01",
+            "bounds_mm": [
+              830,
+              120,
+              1630,
+              620
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 70,
+            "required_mm": 20,
+            "extra_mm": 50,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1700,
+              120,
+              2500,
+              620
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 20,
+            "required_mm": 0,
+            "extra_mm": 20,
+            "location": "HOME-43",
+            "bounds_mm": [
+              830,
+              3050,
+              1480,
+              3500
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 40,
+            "required_mm": 0,
+            "extra_mm": 40,
+            "location": "HOME-23 / AISLE-4",
+            "bounds_mm": [
+              12050,
+              300,
+              12500,
+              950
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 150,
+            "required_mm": 100,
+            "extra_mm": 50,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              12050,
+              2300,
+              12500,
+              2950
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1250,
+            "required_mm": 1200,
+            "extra_mm": 50,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1250,
+            "extra_mm": 250,
+            "location": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 50,
+            "required_mm": 0,
+            "extra_mm": 50,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              755,
+              800,
+              1355,
+              1700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 180,
+            "required_mm": 0,
+            "extra_mm": 180,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              755,
+              800,
+              1355,
+              1700
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 55,
+            "required_mm": 0,
+            "extra_mm": 55,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              850,
+              620,
+              1225,
+              995
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              13250,
+              1300,
+              13700,
+              2950
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 229,
+            "required_mm": 0,
+            "extra_mm": 229,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              8759,
+              1979,
+              9551,
+              2771
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 61346,
+          "yaw_swept_square_to_aisle_edge": 44
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 20,
+          "required_mm": 0,
+          "extra_mm": 20,
+          "location": "HOME-43",
+          "bounds_mm": [
+            830,
+            3050,
+            1480,
+            3500
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 50,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 20,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 90
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 430
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 50
+          },
+          {
+            "label": "aisle",
+            "mm": 1250
+          },
+          {
+            "label": "north free strip",
+            "mm": 520
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 170,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 125.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "label": "finish30",
+      "conditions": {
+        "column_width_mm": 400,
+        "column_depth_mm": 500,
+        "cabinet_height_mm": 1800,
+        "cell_height_mm": 300,
+        "plinth_mm": 100,
+        "shelf_mm": 20,
+        "columns_per_unit": 2,
+        "transport_width_mm": 450,
+        "transport_depth_mm": 650,
+        "body_height_mm": 1800,
+        "activity_width_mm": 600,
+        "activity_depth_mm": 900,
+        "waiting_gap_mm": 100,
+        "aisle_required_mm": 1200,
+        "finish_mm": 30,
+        "installation_gap_mm": 20,
+        "unit_gap_mm": 20,
+        "operator_standoff_mm": 380,
+        "room_door_intrusion_mm": 0,
+        "door_kind": "OUTWARD_HINGED_90"
+      },
+      "summary": {
+        "id": "R10-L28000-W4350-M150-NORTH_NORMAL_SOUTH_ROTATED",
+        "point": {
+          "length_mm": 28000,
+          "width_mm": 4350,
+          "margin_mm": 150,
+          "profile": "NORTH_NORMAL_SOUTH_ROTATED",
+          "mode": "B_JOINT_DIMENSIONS"
+        },
+        "area_mm2": 121800000,
+        "area_m2": "121.800000",
+        "added_area_m2": "36.224250",
+        "length_delta_mm": 1669,
+        "width_delta_mm": 1100,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 15,
+        "minimum_margin_mm": 140,
+        "limiting_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 140,
+          "required_mm": 0,
+          "extra_mm": 140,
+          "location": "HOME-01",
+          "bounds_mm": [
+            980,
+            3530,
+            1430,
+            4180
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 140,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 1669,
+          "north_delta_mm": 1100,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "hypothetical:portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    28000,
+                    875
+                  ],
+                  [
+                    28000,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": true,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "f7c873e5de0118bea9fe2ef8052a9988f9020880c02de54a5bceeb9702cfba45"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 170,
+            "required_mm": 20,
+            "extra_mm": 150,
+            "location": "S1-U01",
+            "bounds_mm": [
+              980,
+              200,
+              1780,
+              700
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 170,
+            "required_mm": 20,
+            "extra_mm": 150,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1950,
+              200,
+              2750,
+              700
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 140,
+            "required_mm": 0,
+            "extra_mm": 140,
+            "location": "HOME-01",
+            "bounds_mm": [
+              980,
+              3530,
+              1430,
+              4180
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "HOME-01 / AISLE-0",
+            "bounds_mm": [
+              980,
+              3530,
+              1430,
+              4180
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 250,
+            "required_mm": 100,
+            "extra_mm": 150,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              980,
+              3530,
+              1430,
+              4180
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1350,
+            "required_mm": 1200,
+            "extra_mm": 150,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1350,
+            "extra_mm": 150,
+            "location": "hypothetical:portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              905,
+              980,
+              1505,
+              1880
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 280,
+            "required_mm": 0,
+            "extra_mm": 280,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              905,
+              980,
+              1505,
+              1880
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 155,
+            "required_mm": 0,
+            "extra_mm": 155,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              1000,
+              700,
+              1375,
+              1075
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 250,
+            "required_mm": 0,
+            "extra_mm": 250,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              2380,
+              2380,
+              2830,
+              4180
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 279,
+            "required_mm": 0,
+            "extra_mm": 279,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              26929,
+              1229,
+              27721,
+              2021
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 64160,
+          "yaw_swept_square_to_aisle_edge": 60
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 140,
+          "required_mm": 0,
+          "extra_mm": 140,
+          "location": "HOME-01",
+          "bounds_mm": [
+            980,
+            3530,
+            1430,
+            4180
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 150,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 140,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 170
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 530
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 150
+          },
+          {
+            "label": "aisle",
+            "mm": 1350
+          },
+          {
+            "label": "north free strip",
+            "mm": 940
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 70,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 75.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "label": "install40",
+      "conditions": {
+        "column_width_mm": 400,
+        "column_depth_mm": 500,
+        "cabinet_height_mm": 1800,
+        "cell_height_mm": 300,
+        "plinth_mm": 100,
+        "shelf_mm": 20,
+        "columns_per_unit": 2,
+        "transport_width_mm": 450,
+        "transport_depth_mm": 650,
+        "body_height_mm": 1800,
+        "activity_width_mm": 600,
+        "activity_depth_mm": 900,
+        "waiting_gap_mm": 100,
+        "aisle_required_mm": 1200,
+        "finish_mm": 20,
+        "installation_gap_mm": 40,
+        "unit_gap_mm": 20,
+        "operator_standoff_mm": 380,
+        "room_door_intrusion_mm": 0,
+        "door_kind": "OUTWARD_HINGED_90"
+      },
+      "summary": {
+        "id": "R10-L28000-W4350-M150-NORTH_NORMAL_SOUTH_ROTATED",
+        "point": {
+          "length_mm": 28000,
+          "width_mm": 4350,
+          "margin_mm": 150,
+          "profile": "NORTH_NORMAL_SOUTH_ROTATED",
+          "mode": "B_JOINT_DIMENSIONS"
+        },
+        "area_mm2": 121800000,
+        "area_m2": "121.800000",
+        "added_area_m2": "36.224250",
+        "length_delta_mm": 1669,
+        "width_delta_mm": 1100,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 15,
+        "minimum_margin_mm": 140,
+        "limiting_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 140,
+          "required_mm": 0,
+          "extra_mm": 140,
+          "location": "HOME-01",
+          "bounds_mm": [
+            970,
+            3540,
+            1420,
+            4190
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 140,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 1669,
+          "north_delta_mm": 1100,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "hypothetical:portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    28000,
+                    875
+                  ],
+                  [
+                    28000,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": true,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "e8ed505f022c816c9cc581b0a4ca0b6d5a851f3ee529443d078db309f6419fb4"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 190,
+            "required_mm": 40,
+            "extra_mm": 150,
+            "location": "S1-U01",
+            "bounds_mm": [
+              970,
+              210,
+              1770,
+              710
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 170,
+            "required_mm": 20,
+            "extra_mm": 150,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1940,
+              210,
+              2740,
+              710
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 140,
+            "required_mm": 0,
+            "extra_mm": 140,
+            "location": "HOME-01",
+            "bounds_mm": [
+              970,
+              3540,
+              1420,
+              4190
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "HOME-01 / AISLE-0",
+            "bounds_mm": [
+              970,
+              3540,
+              1420,
+              4190
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 250,
+            "required_mm": 100,
+            "extra_mm": 150,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              970,
+              3540,
+              1420,
+              4190
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1350,
+            "required_mm": 1200,
+            "extra_mm": 150,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1350,
+            "extra_mm": 150,
+            "location": "hypothetical:portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              895,
+              990,
+              1495,
+              1890
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 280,
+            "required_mm": 0,
+            "extra_mm": 280,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              895,
+              990,
+              1495,
+              1890
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 155,
+            "required_mm": 0,
+            "extra_mm": 155,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              990,
+              710,
+              1365,
+              1085
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 250,
+            "required_mm": 0,
+            "extra_mm": 250,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              2370,
+              2390,
+              2820,
+              4190
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 279,
+            "required_mm": 0,
+            "extra_mm": 279,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              26919,
+              1229,
+              27711,
+              2021
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 64160,
+          "yaw_swept_square_to_aisle_edge": 60
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 140,
+          "required_mm": 0,
+          "extra_mm": 140,
+          "location": "HOME-01",
+          "bounds_mm": [
+            970,
+            3540,
+            1420,
+            4190
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 150,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 140,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 20
+          },
+          {
+            "label": "installation",
+            "mm": 190
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 530
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 150
+          },
+          {
+            "label": "aisle",
+            "mm": 1350
+          },
+          {
+            "label": "north free strip",
+            "mm": 940
+          },
+          {
+            "label": "finished north",
+            "mm": 20
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 70,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 75.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    {
+      "label": "finish30_install40",
+      "conditions": {
+        "column_width_mm": 400,
+        "column_depth_mm": 500,
+        "cabinet_height_mm": 1800,
+        "cell_height_mm": 300,
+        "plinth_mm": 100,
+        "shelf_mm": 20,
+        "columns_per_unit": 2,
+        "transport_width_mm": 450,
+        "transport_depth_mm": 650,
+        "body_height_mm": 1800,
+        "activity_width_mm": 600,
+        "activity_depth_mm": 900,
+        "waiting_gap_mm": 100,
+        "aisle_required_mm": 1200,
+        "finish_mm": 30,
+        "installation_gap_mm": 40,
+        "unit_gap_mm": 20,
+        "operator_standoff_mm": 380,
+        "room_door_intrusion_mm": 0,
+        "door_kind": "OUTWARD_HINGED_90"
+      },
+      "summary": {
+        "id": "R10-L28000-W4350-M150-NORTH_NORMAL_SOUTH_ROTATED",
+        "point": {
+          "length_mm": 28000,
+          "width_mm": 4350,
+          "margin_mm": 150,
+          "profile": "NORTH_NORMAL_SOUTH_ROTATED",
+          "mode": "B_JOINT_DIMENSIONS"
+        },
+        "area_mm2": 121800000,
+        "area_m2": "121.800000",
+        "added_area_m2": "36.224250",
+        "length_delta_mm": 1669,
+        "width_delta_mm": 1100,
+        "source_physical_room_count": 1,
+        "source_records": [
+          "P01",
+          "P02"
+        ],
+        "section_status": "NECESSARY_CONDITIONS_PASS",
+        "static_status": "STATIC_GEOMETRY_PASS",
+        "full_flow_status": "CONDITIONAL_FLOW_PASS",
+        "completed_users": [
+          53,
+          53
+        ],
+        "full_flow_verified": true,
+        "home_count": 53,
+        "rotated_home_count": 15,
+        "minimum_margin_mm": 120,
+        "limiting_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 120,
+          "required_mm": 0,
+          "extra_mm": 120,
+          "location": "HOME-01",
+          "bounds_mm": [
+            980,
+            3550,
+            1430,
+            4200
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_met": false,
+        "north_wall_margin_mm": 120,
+        "conditional_flow_conflicts": [],
+        "static_conflicts": [],
+        "boundary_mapping": {
+          "anchor": "WEST_AND_SOUTH_FIXED",
+          "east_delta_mm": 1669,
+          "north_delta_mm": 1100,
+          "source_type": "demo",
+          "validity_status": "unverified",
+          "requires_review": true,
+          "portal_mappings": [
+            {
+              "original": {
+                "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    26331,
+                    875
+                  ],
+                  [
+                    26331,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "hypothetical:portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    28000,
+                    875
+                  ],
+                  [
+                    28000,
+                    2375
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": true,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            },
+            {
+              "original": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "mapped": {
+                "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                "segment_mm": [
+                  [
+                    12415,
+                    0
+                  ],
+                  [
+                    13915,
+                    0
+                  ]
+                ],
+                "clear_width_mm": 1500,
+                "source_label": "ENGINEERING_DERIVED",
+                "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+              },
+              "position_changed": false,
+              "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+            }
+          ],
+          "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        "actual_engineering_approval": "INPUT_REQUIRED",
+        "witness_sha256": "c35fc4b668a443cf0cfd1d601d197bd243377d2a152392d45fcb0fae49ef884e"
+      },
+      "margins": {
+        "families": {
+          "cabinet_wall_installation": {
+            "family": "cabinet_wall_installation",
+            "actual_mm": 190,
+            "required_mm": 40,
+            "extra_mm": 150,
+            "location": "S1-U01",
+            "bounds_mm": [
+              980,
+              220,
+              1780,
+              720
+            ],
+            "definition": "actual cabinet-to-finished-wall distance minus installation hypothesis",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "cabinet_unit_installation": {
+            "family": "cabinet_unit_installation",
+            "actual_mm": 170,
+            "required_mm": 20,
+            "extra_mm": 150,
+            "location": "S1-U01 / S1-U02",
+            "bounds_mm": [
+              1950,
+              220,
+              2750,
+              720
+            ],
+            "definition": "between separate floor units; shared manufactured column joints excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_finished_boundary": {
+            "family": "waiting_finished_boundary",
+            "actual_mm": 120,
+            "required_mm": 0,
+            "extra_mm": 120,
+            "location": "HOME-01",
+            "bounds_mm": [
+              980,
+              3550,
+              1430,
+              4200
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_to_reserved_aisle": {
+            "family": "waiting_to_reserved_aisle",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "HOME-01 / AISLE-0",
+            "bounds_mm": [
+              980,
+              3550,
+              1430,
+              4200
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "waiting_position_gap": {
+            "family": "waiting_position_gap",
+            "actual_mm": 250,
+            "required_mm": 100,
+            "extra_mm": 150,
+            "location": "HOME-01 / HOME-02",
+            "bounds_mm": [
+              980,
+              3550,
+              1430,
+              4200
+            ],
+            "definition": "axis gap minus the explicitly hypothetical waiting gap",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "continuous_aisle_width": {
+            "family": "continuous_aisle_width",
+            "actual_mm": 1350,
+            "required_mm": 1200,
+            "extra_mm": 150,
+            "location": "all exported centerline envelopes",
+            "bounds_mm": null,
+            "definition": "net width surplus, not per-side buffer",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "portal_to_reserved_aisle": {
+            "family": "portal_to_reserved_aisle",
+            "actual_mm": 1500,
+            "required_mm": 1350,
+            "extra_mm": 150,
+            "location": "hypothetical:portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "bounds_mm": null,
+            "definition": "total Portal width minus reserved aisle width; each jamb buffer is half this value",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_aisle": {
+            "family": "front_activity_to_aisle",
+            "actual_mm": 150,
+            "required_mm": 0,
+            "extra_mm": 150,
+            "location": "S1-B01 / S1-P001 / AISLE-0",
+            "bounds_mm": [
+              905,
+              1000,
+              1505,
+              1900
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "front_activity_to_cabinet": {
+            "family": "front_activity_to_cabinet",
+            "actual_mm": 280,
+            "required_mm": 0,
+            "extra_mm": 280,
+            "location": "S1-B01 / S1-P001 / S1-U01",
+            "bounds_mm": [
+              905,
+              1000,
+              1505,
+              1900
+            ],
+            "definition": "distance",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "door_sweep_to_people_lower_bound": {
+            "family": "door_sweep_to_people_lower_bound",
+            "actual_mm": 155,
+            "required_mm": 0,
+            "extra_mm": 155,
+            "location": "S1-B01 / S1-C01-T1-door / S1-P001",
+            "bounds_mm": [
+              1000,
+              720,
+              1375,
+              1095
+            ],
+            "definition": "enclosing-box lower bound; original quarter-disk 3D validator independently retained",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "moving_body_to_other_objects": {
+            "family": "moving_body_to_other_objects",
+            "actual_mm": 250,
+            "required_mm": 0,
+            "extra_mm": 250,
+            "location": "S1 E101 / S1-P003 / S1-P004",
+            "bounds_mm": [
+              2380,
+              2400,
+              2830,
+              4200
+            ],
+            "definition": "moving body versus remaining people/cabinets; intentional Portal wall crossing excluded",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          },
+          "yaw_swept_square_to_aisle_edge": {
+            "family": "yaw_swept_square_to_aisle_edge",
+            "actual_mm": 279,
+            "required_mm": 0,
+            "extra_mm": 279,
+            "location": "S1 E1 / S1-P053",
+            "bounds_mm": [
+              26929,
+              1229,
+              27721,
+              2021
+            ],
+            "definition": "uniform expansion of the actual continuous yaw square inside the aisle union",
+            "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+          }
+        },
+        "observations_checked": {
+          "cabinet_wall_installation": 12,
+          "cabinet_unit_installation": 11,
+          "waiting_finished_boundary": 53,
+          "waiting_to_reserved_aisle": 583,
+          "waiting_position_gap": 1378,
+          "continuous_aisle_width": 1,
+          "portal_to_reserved_aisle": 2,
+          "front_activity_to_aisle": 1166,
+          "front_activity_to_cabinet": 1272,
+          "door_sweep_to_people_lower_bound": 5618,
+          "moving_body_to_other_objects": 64160,
+          "yaw_swept_square_to_aisle_edge": 60
+        },
+        "minimum_declared_spatial_margin": {
+          "family": "waiting_finished_boundary",
+          "actual_mm": 120,
+          "required_mm": 0,
+          "extra_mm": 120,
+          "location": "HOME-01",
+          "bounds_mm": [
+            980,
+            3550,
+            1430,
+            4200
+          ],
+          "definition": "distance",
+          "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+        },
+        "margin_target_mm": 150,
+        "margin_target_met": false,
+        "north_waiting_finished_wall_margin_mm": 120,
+        "continuous_yaw_square_mm": 792,
+        "section_chain_mm": [
+          {
+            "label": "finished south",
+            "mm": 30
+          },
+          {
+            "label": "installation",
+            "mm": 190
+          },
+          {
+            "label": "cabinet",
+            "mm": 500
+          },
+          {
+            "label": "operator standoff",
+            "mm": 530
+          },
+          {
+            "label": "body depth",
+            "mm": 650
+          },
+          {
+            "label": "front-to-aisle gap",
+            "mm": 150
+          },
+          {
+            "label": "aisle",
+            "mm": 1350
+          },
+          {
+            "label": "north free strip",
+            "mm": 920
+          },
+          {
+            "label": "finished north",
+            "mm": 30
+          }
+        ],
+        "other_unapproved_limits": {
+          "horizontal_reach_reserve_mm": 70,
+          "vertical_reach_reference": "Original layer checks retained; not ergonomic approval",
+          "portal_jamb_buffer_mm": 75.0
+        },
+        "scope": "DECLARED_PLAN_MARGIN_FAMILIES; NOT_A_UNIFORM_BODY_BUFFER_OR_APPROVED_CODE_MINIMUM",
+        "units": "integer mm except centered Portal jamb buffer",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    }
+  ],
+  "robust_width_only": {
+    "id": "R10-L26331-W3850-M100-MIXED",
+    "point": {
+      "length_mm": 26331,
+      "width_mm": 3850,
+      "margin_mm": 100,
+      "profile": "MIXED",
+      "mode": "A_FIXED_LENGTH"
+    },
+    "area_mm2": 101374350,
+    "area_m2": "101.374350",
+    "added_area_m2": "15.798600",
+    "length_delta_mm": 0,
+    "width_delta_mm": 600,
+    "source_physical_room_count": 1,
+    "source_records": [
+      "P01",
+      "P02"
+    ],
+    "section_status": "NECESSARY_CONDITIONS_PASS",
+    "static_status": "STATIC_GEOMETRY_PASS",
+    "full_flow_status": "CONDITIONAL_FLOW_PASS",
+    "completed_users": [
+      53,
+      53
+    ],
+    "full_flow_verified": true,
+    "home_count": 53,
+    "rotated_home_count": 13,
+    "minimum_margin_mm": 70,
+    "limiting_margin": {
+      "family": "waiting_finished_boundary",
+      "actual_mm": 70,
+      "required_mm": 0,
+      "extra_mm": 70,
+      "location": "HOME-41",
+      "bounds_mm": [
+        905,
+        3300,
+        1555,
+        3750
+      ],
+      "definition": "distance",
+      "source_label": "ENGINEERING_DERIVED_FROM_HYPOTHETICAL_GEOMETRY"
+    },
+    "margin_target_met": false,
+    "north_wall_margin_mm": 70,
+    "conditional_flow_conflicts": [],
+    "static_conflicts": [],
+    "boundary_mapping": {
+      "anchor": "WEST_AND_SOUTH_FIXED",
+      "east_delta_mm": 0,
+      "north_delta_mm": 600,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true,
+      "portal_mappings": [
+        {
+          "original": {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                26331,
+                875
+              ],
+              [
+                26331,
+                2375
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          "mapped": {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                26331,
+                875
+              ],
+              [
+                26331,
+                2375
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          "position_changed": false,
+          "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        },
+        {
+          "original": {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                12415,
+                0
+              ],
+              [
+                13915,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          "mapped": {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                12415,
+                0
+              ],
+              [
+                13915,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          "position_changed": false,
+          "external_access_status": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+        }
+      ],
+      "site_footprint_and_external_access": "NOT_EVALUATED_REVALIDATION_REQUIRED"
+    },
+    "actual_engineering_approval": "INPUT_REQUIRED",
+    "witness_sha256": "d44e42c196dfc42bc8375842a09eb67b0ce170a451ee1de1484535ff629ece03"
+  }
+}

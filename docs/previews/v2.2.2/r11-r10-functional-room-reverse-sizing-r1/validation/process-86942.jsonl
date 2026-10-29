@@ -1,0 +1,3 @@
+{"kind": "GUARD_READY", "api": "", "pid": 86942}
+{"kind": "NATIVE_REQUEST_BLOCKED", "api": "CpSolver.solve/Solve", "pid": 86942}
+{"kind": "NATIVE_REQUEST_BLOCKED", "api": "CpSolver.solve/Solve", "pid": 86942}
