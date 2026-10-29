@@ -40,6 +40,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fonts-wqy-zenhei
       - name: Stage B, geometry and deterministic resource regression (no factory solve)
+        id: backend_regression
         run: >-
           cd backend && PYTHONPATH=src:scripts DATABASE_BACKEND=sqlite uv run pytest
           tests/unit/test_v222_stage_b_balanced_quality.py
@@ -74,7 +75,16 @@ jobs:
           tests/unit/test_v222_r11_r7_standing_changing.py
           tests/unit/test_v222_r11_r8_cabinet_front.py
           tests/unit/test_v222_r11_r9_space_relayout.py
+          tests/unit/test_v222_r11_r10_reverse_sizing.py
           -m "not physical_rss_linux" -q
+          --junitxml=../artifacts/ci-fast/backend-regression.xml
+      - name: Preserve actual backend test execution report
+        if: ${{ !cancelled() && (steps.backend_regression.outcome == 'success' || steps.backend_regression.outcome == 'failure') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-fast-backend-regression-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/ci-fast/backend-regression.xml
+          if-no-files-found: error
       - name: Partition execution and shared fixture contracts (no layout search)
         run: >-
           cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest
