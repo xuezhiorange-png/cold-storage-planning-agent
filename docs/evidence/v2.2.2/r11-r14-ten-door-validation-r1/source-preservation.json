@@ -1,0 +1,11 @@
+{
+  "base_head": "9501238d7a815957e8bd46831b3f9f24767ce754",
+  "base_files": 2544,
+  "unchanged_files": 2543,
+  "modified_existing_files": [
+    ".github/workflows/ci-fast.yml"
+  ],
+  "method": "Exact working bytes hashed with canonical Git blob header and compared against pinned base blob id; SHA256 additionally recorded",
+  "historical_files_changed": false,
+  "p1_stage_b_comparators_mcp_defaults_changed": false
+}

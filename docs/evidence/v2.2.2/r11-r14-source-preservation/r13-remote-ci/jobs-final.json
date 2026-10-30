@@ -1,0 +1,253 @@
+{
+  "total_count": 2,
+  "jobs": [
+    {
+      "id": 124112364600,
+      "run_id": 41070314738,
+      "workflow_name": "ci-fast",
+      "head_branch": "codex/v222-r11-r13-physical-input-calibration",
+      "run_url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/actions/runs/41070314738",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOS_9hWs8AAAAc5axkOA",
+      "head_sha": "9501238d7a815957e8bd46831b3f9f24767ce754",
+      "url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/actions/jobs/124112364600",
+      "html_url": "https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/41070314738/job/124112364600",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-30T14:15:51Z",
+      "started_at": "2026-10-30T14:16:03Z",
+      "completed_at": "2026-10-30T14:44:43Z",
+      "name": "fast-checks",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-30T14:16:04Z",
+          "completed_at": "2026-10-30T14:16:05Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-30T14:16:05Z",
+          "completed_at": "2026-10-30T14:16:09Z"
+        },
+        {
+          "name": "Run astral-sh/setup-uv@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-30T14:16:09Z",
+          "completed_at": "2026-10-30T14:16:10Z"
+        },
+        {
+          "name": "CI classifier and gate regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-30T14:16:10Z",
+          "completed_at": "2026-10-30T14:16:28Z"
+        },
+        {
+          "name": "Identify non-authoritative development scope",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-30T14:16:28Z",
+          "completed_at": "2026-10-30T14:16:28Z"
+        },
+        {
+          "name": "Locked backend dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-30T14:16:28Z",
+          "completed_at": "2026-10-30T14:16:28Z"
+        },
+        {
+          "name": "Shared pytest CJK font prerequisite",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-30T14:16:28Z",
+          "completed_at": "2026-10-30T14:16:36Z"
+        },
+        {
+          "name": "Stage B, geometry and deterministic resource regression (no factory solve)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-30T14:16:36Z",
+          "completed_at": "2026-10-30T14:44:12Z"
+        },
+        {
+          "name": "Preserve actual backend test execution report",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-30T14:44:12Z",
+          "completed_at": "2026-10-30T14:44:13Z"
+        },
+        {
+          "name": "Partition execution and shared fixture contracts (no layout search)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-30T14:44:13Z",
+          "completed_at": "2026-10-30T14:44:16Z"
+        },
+        {
+          "name": "Architecture and security boundaries",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-30T14:44:16Z",
+          "completed_at": "2026-10-30T14:44:26Z"
+        },
+        {
+          "name": "Ruff",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-30T14:44:26Z",
+          "completed_at": "2026-10-30T14:44:26Z"
+        },
+        {
+          "name": "Format",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-30T14:44:26Z",
+          "completed_at": "2026-10-30T14:44:26Z"
+        },
+        {
+          "name": "Mypy",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-30T14:44:26Z",
+          "completed_at": "2026-10-30T14:44:40Z"
+        },
+        {
+          "name": "Diff whitespace",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-10-30T14:44:40Z",
+          "completed_at": "2026-10-30T14:44:40Z"
+        },
+        {
+          "name": "Explicit acceptance boundary",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-10-30T14:44:40Z",
+          "completed_at": "2026-10-30T14:44:40Z"
+        },
+        {
+          "name": "Post Run astral-sh/setup-uv@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 31,
+          "started_at": "2026-10-30T14:44:40Z",
+          "completed_at": "2026-10-30T14:44:40Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 32,
+          "started_at": "2026-10-30T14:44:40Z",
+          "completed_at": "2026-10-30T14:44:40Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 33,
+          "started_at": "2026-10-30T14:44:40Z",
+          "completed_at": "2026-10-30T14:44:40Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/check-runs/124112364600",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000080836,
+      "runner_name": "GitHub Actions 1000080836",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 124126381627,
+      "run_id": 41070314738,
+      "workflow_name": "ci-fast",
+      "head_branch": "codex/v222-r11-r13-physical-input-calibration",
+      "run_url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/actions/runs/41070314738",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOS_9hWs8AAAAc5oJGOw",
+      "head_sha": "9501238d7a815957e8bd46831b3f9f24767ce754",
+      "url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/actions/jobs/124126381627",
+      "html_url": "https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/41070314738/job/124126381627",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-30T14:44:43Z",
+      "started_at": "2026-10-30T14:44:45Z",
+      "completed_at": "2026-10-30T14:44:54Z",
+      "name": "fast-ci-gate",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-30T14:44:46Z",
+          "completed_at": "2026-10-30T14:44:47Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-30T14:44:47Z",
+          "completed_at": "2026-10-30T14:44:52Z"
+        },
+        {
+          "name": "Require real fast-checks success",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-30T14:44:52Z",
+          "completed_at": "2026-10-30T14:44:52Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-30T14:44:52Z",
+          "completed_at": "2026-10-30T14:44:52Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-30T14:44:52Z",
+          "completed_at": "2026-10-30T14:44:52Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/check-runs/124126381627",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000080877,
+      "runner_name": "GitHub Actions 1000080877",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+  "physical_room_id": "sha256:489389cd160dd270501589fdea52cdace940c44e70be23b699c35a47c4d1af21",
+  "source_path": "docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt",
+  "source_sha256": "2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b",
+  "reviewed_selection": {
+    "SELECTED_CABINET_NOMINAL_WIDTH_MM": {
+      "field_name": "SELECTED_CABINET_NOMINAL_WIDTH_MM",
+      "value": 850,
+      "unit": "mm",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    },
+    "SELECTED_CABINET_NOMINAL_DEPTH_MM": {
+      "field_name": "SELECTED_CABINET_NOMINAL_DEPTH_MM",
+      "value": 390,
+      "unit": "mm",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    },
+    "SELECTED_CABINET_NOMINAL_HEIGHT_MM": {
+      "field_name": "SELECTED_CABINET_NOMINAL_HEIGHT_MM",
+      "value": 1800,
+      "unit": "mm",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    },
+    "SELECTED_CABINET_COLUMNS": {
+      "field_name": "SELECTED_CABINET_COLUMNS",
+      "value": 2,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    },
+    "SELECTED_CABINET_TIERS": {
+      "field_name": "SELECTED_CABINET_TIERS",
+      "value": 5,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    },
+    "SELECTED_COMPLETE_CABINET_COUNT": {
+      "field_name": "SELECTED_COMPLETE_CABINET_COUNT",
+      "value": 11,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    },
+    "IMAGE_LABEL_DOOR_NOMINAL_WIDTH_MM": {
+      "field_name": "IMAGE_LABEL_DOOR_NOMINAL_WIDTH_MM",
+      "value": 400,
+      "unit": "mm",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    },
+    "IMAGE_LABEL_DOOR_NOMINAL_DEPTH_MM": {
+      "field_name": "IMAGE_LABEL_DOOR_NOMINAL_DEPTH_MM",
+      "value": 360,
+      "unit": "mm",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    },
+    "IMAGE_LABEL_DOOR_NOMINAL_HEIGHT_MM": {
+      "field_name": "IMAGE_LABEL_DOOR_NOMINAL_HEIGHT_MM",
+      "value": 320,
+      "unit": "mm",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    },
+    "IMAGE_REPORTED_CLOTHES_RAIL_COUNT": {
+      "field_name": "IMAGE_REPORTED_CLOTHES_RAIL_COUNT",
+      "value": 0,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    },
+    "IMAGE_REPORTED_ADDITIONAL_SHELVES": {
+      "field_name": "IMAGE_REPORTED_ADDITIONAL_SHELVES",
+      "value": 0,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1; docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt; sha256:2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b; NOMINAL_SELECTION_ONLY"
+    }
+  },
+  "status": "OWNER_SELECTED_NOMINAL_DESIGN_BASIS",
+  "single_door_image_label_mm": [
+    400,
+    360,
+    320
+  ],
+  "single_door_label_is_internal_clear_size": false,
+  "photo_file": null,
+  "photo_sha256": null,
+  "photo_evidence_status": "INPUT_REQUIRED",
+  "supplier_technical_review": "NOT_EVALUATED",
+  "procurement_acceptance": "NOT_EVALUATED",
+  "engineering_approval": "NOT_EVALUATED"
+}
