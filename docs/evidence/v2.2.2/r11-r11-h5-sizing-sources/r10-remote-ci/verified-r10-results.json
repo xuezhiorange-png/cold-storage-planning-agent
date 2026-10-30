@@ -1,0 +1,243 @@
+{
+  "TASK_ID": "V2_2_2_R11_R10_CI_COVERAGE_R2",
+  "HEAD": "9629019ddd704426b5f7fe72b9a98d2273fca1c4",
+  "CI_RUN_ID": 40803856287,
+  "CI_ATTEMPT": 1,
+  "CI_STATUS": "SUCCESS",
+  "ARTIFACT": {
+    "id": 12867869344,
+    "name": "ci-fast-backend-regression-40803856287-1",
+    "size_in_bytes": 26672,
+    "url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/actions/artifacts/12867869344",
+    "archive_download_url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/actions/artifacts/12867869344/zip",
+    "expired": false,
+    "created_at": "2026-10-29T02:33:52Z",
+    "expires_at": "2027-01-27T02:01:14Z",
+    "updated_at": "2026-10-29T02:33:52Z",
+    "digest": "sha256:d4eeb938502574c8de26391fb51cc954b1ebe217d8da520f07f9eacfe7cfde5b",
+    "workflow_run": {
+      "id": 40803856287,
+      "repository_id": 1275027802,
+      "head_repository_id": 1275027802,
+      "head_branch": "codex/v222-r11-r10-room-reverse-sizing",
+      "head_sha": "9629019ddd704426b5f7fe72b9a98d2273fca1c4"
+    }
+  },
+  "ZIP_DIGEST_VERIFIED": true,
+  "JUNIT_SHA256": "b12887130082da54a96ff0a4a053b0ee4f62eea66b58692eed825dde08425e18",
+  "R10_TESTS": 41,
+  "R10_PASSED": 41,
+  "R10_FAILURES": 0,
+  "R10_ERRORS": 0,
+  "R10_SKIPPED": 0,
+  "R10_DUPLICATES": 0,
+  "R10_REPORTED_SECONDS": 17.324999999999996,
+  "TOTAL_REGRESSION_TEST_CASES": 1825,
+  "test_nodes": [
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_owner_facts_retained_and_dimensions_never_promoted",
+      "seconds": "1.223",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_json_status_labels_and_fact_overrides_rejected[raw0]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_json_status_labels_and_fact_overrides_rejected[raw1]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_json_status_labels_and_fact_overrides_rejected[raw2]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_unreviewed_owner_source_rejected",
+      "seconds": "0.001",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_full_default_grid_is_finite_and_covers_owner_points",
+      "seconds": "0.001",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_not_shrinking_bodies_or_passage_to_fit[c0]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_not_shrinking_bodies_or_passage_to_fit[c1]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_not_shrinking_bodies_or_passage_to_fit[c2]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_not_shrinking_bodies_or_passage_to_fit[c3]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_invalid_ranges_and_options_fail_before_geometry[search0]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_invalid_ranges_and_options_fail_before_geometry[search1]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_invalid_ranges_and_options_fail_before_geometry[search2]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_invalid_ranges_and_options_fail_before_geometry[search3]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_invalid_ranges_and_options_fail_before_geometry[search4]",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_preview_size_limit_is_not_an_engineering_infeasibility",
+      "seconds": "0.002",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_original_room_and_source_portals_are_immutable",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_width_only_keeps_portal_coordinates_but_not_external_approval",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_r9_baseline_geometry_and_10mm_reproduced",
+      "seconds": "6.435",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_r9_30mm_finish_failure_is_not_reinterpreted",
+      "seconds": "0.015",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_full_53_users_and_110_compartments_both_shifts[0]",
+      "seconds": "0.001",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_full_53_users_and_110_compartments_both_shifts[1]",
+      "seconds": "0.001",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_full_53_users_and_110_compartments_both_shifts[2]",
+      "seconds": "0.001",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_full_53_users_and_110_compartments_both_shifts[3]",
+      "seconds": "0.001",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_complete_position_replay_no_teleportation[0]",
+      "seconds": "0.012",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_complete_position_replay_no_teleportation[1]",
+      "seconds": "0.008",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_complete_position_replay_no_teleportation[2]",
+      "seconds": "0.008",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_complete_position_replay_no_teleportation[3]",
+      "seconds": "0.008",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_3440_is_full_witness_only_for_checked_template_not_a_general_rule",
+      "seconds": "0.007",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_margin_is_measured_not_copied_from_request",
+      "seconds": "1.230",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_generous_design_and_actual_dimension_chain",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_robust_width_only_alternative_is_actually_checked",
+      "seconds": "3.360",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_sizing_goals_do_not_choose_unvalidated_or_tight_as_recommendation",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_same_input_has_identical_complete_witness",
+      "seconds": "1.315",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_original_inventory_demand_cannot_be_reduced",
+      "seconds": "0.001",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_height_is_not_truncated_in_activity_proof",
+      "seconds": "1.577",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_svg_dimensions_are_from_candidate_and_comparison_common_scale",
+      "seconds": "0.003",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_parent_native_requests_are_blocked_without_execution",
+      "seconds": "0.000",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_child_native_startup_guard_covers_both_apis",
+      "seconds": "0.300",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_whitelist_has_no_stage_b_or_historical_native_test_modules",
+      "seconds": "0.001",
+      "status": "passed"
+    },
+    {
+      "nodeid": "tests.unit.test_v222_r11_r10_reverse_sizing::test_preview_http_api_returns_real_flow_and_rejects_approval_override",
+      "seconds": "1.814",
+      "status": "passed"
+    }
+  ]
+}

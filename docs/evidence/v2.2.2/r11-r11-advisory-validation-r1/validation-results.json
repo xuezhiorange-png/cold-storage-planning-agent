@@ -1,0 +1,135 @@
+{
+  "task_id": "V2_2_2_R11_R11_FUNCTIONAL_SIZING_ADVISORY_HANDOFF_R1",
+  "base_head": "9629019ddd704426b5f7fe72b9a98d2273fca1c4",
+  "python": "3.12.13",
+  "functional_architecture": {
+    "testcases": 1375,
+    "passed": 1359,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 16
+  },
+  "focused": {
+    "testcases": 52,
+    "passed": 52,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "ci_contracts": {
+    "tests": 65,
+    "result": "PASS"
+  },
+  "native_boundary": {
+    "full-whitelist": {
+      "records": [
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 2896
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 2896
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 2896
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 2896
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 2896
+        },
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 3015
+        },
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 3016
+        },
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 3367
+        }
+      ],
+      "guarded_processes": 4,
+      "blocked_test_probes": 4,
+      "native_solves_executed": 0
+    },
+    "focused": {
+      "records": [
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 94783
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 94783
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 94783
+        },
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 96705
+        },
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 96736
+        }
+      ],
+      "guarded_processes": 3,
+      "blocked_test_probes": 2,
+      "native_solves_executed": 0
+    },
+    "report-generation": {
+      "records": [
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 95606
+        }
+      ],
+      "guarded_processes": 1,
+      "blocked_test_probes": 0,
+      "native_solves_executed": 0
+    }
+  },
+  "automatic_fast_ci": "TO_BE_OBSERVED_AT_NEW_COMMIT",
+  "inherited_fast_ci_synthetic_native": "PRESERVED_NOT_LOCAL_FUNCTIONAL_EXECUTION",
+  "new_20t_native": false,
+  "main": false,
+  "real_grant_or_claim_created": false,
+  "full_ci_requested": false,
+  "browser_review": {
+    "url": "http://127.0.0.1:8766/",
+    "three_candidate_selection": "PASS",
+    "all_three_svg_images_loaded": true,
+    "console_error_or_warning_count": 0,
+    "visual_proportion_check": "PASS",
+    "js_syntax": "PASS",
+    "copied_and_common_svg_geometry_identity": "PASS"
+  },
+  "initial_architecture_failure_preserved": {
+    "cause": "NEW_PUBLIC_MUTABLE_CONSTANTS",
+    "resolution": "IMMUTABLE_MAPPING_AND_FROZENSET_WITH_ORIGINAL_TEST_UNCHANGED"
+  }
+}

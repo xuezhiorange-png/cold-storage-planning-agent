@@ -1,0 +1,15 @@
+{
+  "advisory-focused-junit.xml.gz": "b3a62702714fbc9665edcac0f746dc66c1210ee27ae9907e5ed0ea4f5b2168ac",
+  "advisory-focused-output.txt.gz": "6404301e91aeec5e8a5f1e0661bad0b7d1a5ed24e22c0b0e3c32c56266d9a2c8",
+  "base-byte-comparison.json.gz": "a180b20a8099789160133f555f73871031b99a9f7ed69c0e81db7d07466c60c0",
+  "ci-contract-tests.txt.gz": "df5443d2cb869e49b58e8ceea296e1d011dd7159a518a51350c9cc6008cdbc55",
+  "functional-architecture-junit.xml.gz": "67d9820dd322cfe85f2a53d0d276cf931f93889b8b96e43dc41fe22338dda934",
+  "functional-architecture-output.txt.gz": "5692cab0b058c3b24802cf03697a943baaf422c20a40f3032b4aec94ed3562e3",
+  "functional-architecture-whitelist.json": "79cfefc9ba12488edff763746770414407e7e0fcf8c4b8839f3d97774ab5197e",
+  "initial-architecture-rejection-junit.xml.gz": "499061ce9bb41e9ecbc1ea6b05d12f7f37588deee3bb692e8c6f66d9d23f493d",
+  "initial-architecture-rejection-output.txt.gz": "fb0e05b5705268bc8c0ed12d9b3d2ad8e109125f1370cc970f83c20cecf55e86",
+  "source-preservation.json": "cb4c8b7b1017f3587a4b6f1762858fea49778483acd0a925f8cb3e9d085ad522",
+  "static-checks.json": "9c6fa58dba74baab2005406c829650e7f5f59ba3cfcf4264e885e7d07ce52f66",
+  "validation-report.md": "7159157df96ac7cce2dcdaba2923257ae821d9bf5e29ee54a417f64a1b07ef14",
+  "validation-results.json": "4efc4fa7389a098be238c17892a37ab4b31d9f5af788a37770ca0ddbef8a195b"
+}
