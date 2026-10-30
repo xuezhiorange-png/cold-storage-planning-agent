@@ -1,0 +1,246 @@
+{
+  "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+  "state": "UNREVIEWED_TEMPLATE_NOT_AUTHORITY",
+  "reviewed_inputs": {
+    "BENCH_COUNT": {
+      "field_name": "BENCH_COUNT",
+      "value": 0,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R7_H5_NO_BENCH_STANDING_CHANGING_R1; docs/tasks/V2_2_2-r11-r7-reviewed-standing-project-facts.txt; sha256:9dcf5d3b8a4a397af2179bdf4e86bc5dfa1a12d5325ed332796d48602fcf1e3e"
+    },
+    "CHANGING_POSTURE": {
+      "field_name": "CHANGING_POSTURE",
+      "value": "STANDING",
+      "unit": "posture",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R7_H5_NO_BENCH_STANDING_CHANGING_R1; docs/tasks/V2_2_2-r11-r7-reviewed-standing-project-facts.txt; sha256:9dcf5d3b8a4a397af2179bdf4e86bc5dfa1a12d5325ed332796d48602fcf1e3e"
+    },
+    "CHANGING_LOCATION": {
+      "field_name": "CHANGING_LOCATION",
+      "value": "PERSONAL_CABINET_FRONT",
+      "unit": "location",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R8_CABINET_FRONT_CHANGING_R1; docs/tasks/V2_2_2-r11-r8-reviewed-cabinet-front-facts.txt; sha256:ba190fe5724b7b702a8361ccf481594b74d24cc31e9f4e23ce807cd754867247"
+    },
+    "SEPARATE_CHANGING_AREA_COUNT": {
+      "field_name": "SEPARATE_CHANGING_AREA_COUNT",
+      "value": 0,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "V2_2_2_R11_R8_CABINET_FRONT_CHANGING_R1; docs/tasks/V2_2_2-r11-r8-reviewed-cabinet-front-facts.txt; sha256:ba190fe5724b7b702a8361ccf481594b74d24cc31e9f4e23ce807cd754867247"
+    },
+    "USERS_PER_SHIFT": {
+      "field_name": "USERS_PER_SHIFT",
+      "value": 53,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "docs/tasks/V2_2_2-r11-r8-reviewed-cabinet-front-facts.txt; sha256:ba190fe5724b7b702a8361ccf481594b74d24cc31e9f4e23ce807cd754867247; R10 reaffirmed design requirement"
+    },
+    "SHIFT_COUNT": {
+      "field_name": "SHIFT_COUNT",
+      "value": 2,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "docs/tasks/V2_2_2-r11-r8-reviewed-cabinet-front-facts.txt; sha256:ba190fe5724b7b702a8361ccf481594b74d24cc31e9f4e23ce807cd754867247; R10 reaffirmed design requirement"
+    },
+    "SIMULTANEOUS_USERS": {
+      "field_name": "SIMULTANEOUS_USERS",
+      "value": 53,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "docs/tasks/V2_2_2-r11-r8-reviewed-cabinet-front-facts.txt; sha256:ba190fe5724b7b702a8361ccf481594b74d24cc31e9f4e23ce807cd754867247; R10 reaffirmed design requirement"
+    },
+    "CABINET_COLUMNS": {
+      "field_name": "CABINET_COLUMNS",
+      "value": 22,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "docs/tasks/V2_2_2-r11-r8-reviewed-cabinet-front-facts.txt; sha256:ba190fe5724b7b702a8361ccf481594b74d24cc31e9f4e23ce807cd754867247; R10 reaffirmed design requirement"
+    },
+    "COMPARTMENT_CAPACITY": {
+      "field_name": "COMPARTMENT_CAPACITY",
+      "value": 110,
+      "unit": "count",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "docs/tasks/V2_2_2-r11-r8-reviewed-cabinet-front-facts.txt; sha256:ba190fe5724b7b702a8361ccf481594b74d24cc31e9f4e23ce807cd754867247; R10 reaffirmed design requirement"
+    },
+    "PACKAGED_PRODUCT_MASS_KG_PER_DAY": {
+      "field_name": "PACKAGED_PRODUCT_MASS_KG_PER_DAY",
+      "value": 20000,
+      "unit": "kg/day",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "git:9629019ddd704426b5f7fe72b9a98d2273fca1c4:docs/tasks/V2_2_2-r11-r3-reviewed-project-fact.txt",
+      "source_sha256": "53ffa4e0e3584cabe7166d75214d0569fcaebfc34cc1e71bc35c70abedab7326"
+    },
+    "CABINET_STRUCTURE": {
+      "field_name": "CABINET_STRUCTURE",
+      "value": "FIVE_TIER_FIVE_DOOR",
+      "unit": "structure",
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_label": "OWNER_CONFIRMED",
+      "reference": "git:9629019ddd704426b5f7fe72b9a98d2273fca1c4:docs/tasks/V2_2_2-r11-r4-reviewed-locker-form.txt",
+      "source_sha256": "275ff176226358835912b5e827104028c73388b7840ef78d1e4c1eaad2a807da"
+    }
+  },
+  "dimensions_and_operation": {
+    "activity_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "activity_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "aisle_required_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "body_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "cabinet_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "cell_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "column_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "column_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "columns_per_unit": {
+      "value": null,
+      "unit": "count",
+      "status": "INPUT_REQUIRED"
+    },
+    "door_kind": {
+      "value": null,
+      "unit": "enum",
+      "status": "INPUT_REQUIRED"
+    },
+    "finish_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "installation_gap_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "operator_standoff_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "plinth_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "room_door_intrusion_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "shelf_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "transport_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "transport_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "unit_gap_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    },
+    "waiting_gap_mm": {
+      "value": null,
+      "unit": "mm",
+      "status": "INPUT_REQUIRED"
+    }
+  },
+  "checklist": [
+    {
+      "id": "CABINET_MODEL",
+      "value": null,
+      "status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "CLOTHING_SEPARATION",
+      "value": null,
+      "status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "CABINET_DOORS",
+      "value": null,
+      "status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "FINISHED_DIMENSIONS",
+      "value": null,
+      "status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "HUMAN_ENVELOPES",
+      "value": null,
+      "status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "OPERATING_PROTOCOL",
+      "value": null,
+      "status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "HYGIENE_AND_ROOM_DOORS",
+      "value": null,
+      "status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "OPERATION_TIMES",
+      "value": null,
+      "status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "EXTERNAL_EXPANSION",
+      "value": null,
+      "status": "INPUT_REQUIRED"
+    }
+  ],
+  "review_mechanism": "EXISTING_PROJECT_REVIEW_REQUIRED_NO_APPROVAL_FROM_JSON_LABELS"
+}

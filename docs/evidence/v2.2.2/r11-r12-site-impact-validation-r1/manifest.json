@@ -1,0 +1,13 @@
+{
+  "base-byte-comparison.json.gz": "85cb2b4fe35d2b73c8ffb56582237afd1c49c71d019de79f7eb5d594d843bab3",
+  "figure-renderer.json": "5eb08cd9b5fc0ac21dd4f51f2febc8d5cfefe569f7d4e644df552cf81a344929",
+  "final-focused-junit.xml.gz": "c8c43f186f1f39e382824240bfcd0256c54accf3ac27a8f9d65d8c66310b3884",
+  "final-focused-output.txt.gz": "a4df1839c2800461b0ff3ac4aec1c0ec35d1d84a27832fa85477bbddfdf91c88",
+  "functional-architecture-junit.xml.gz": "4a4a69640ebe217e72852e742aa5bfd1a958c20be0674aefb2c8d717fbc94500",
+  "functional-architecture-output.txt.gz": "d33add8f8296ae246ce86f4b0e41091b4d31ca20489bdcbca62dfbc2c1dac090",
+  "functional-architecture-whitelist.json": "e8fb741462c70162a82636a9f09cec4b92ca5f3263f68bbe417c11abce42ce8b",
+  "source-preservation.json": "3508af1936d58aeafdbab630405fa50f07582f7ba64f62c17151e45be2ddc20f",
+  "static-checks.json": "011c7976ff688406250b37a779b71a50978089515fa797487bf3fdf8961c796f",
+  "validation-report.md": "a5d49f14824f54d745a2c3af0468a4aaba2ba53abfad0b84e25854508aa0824e",
+  "validation-results.json": "99003c69cbc5a9a18c886fda50c6d19abef8fd20e4118e5fa3297bd9714fd83a"
+}

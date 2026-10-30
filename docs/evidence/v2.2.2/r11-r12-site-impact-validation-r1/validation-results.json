@@ -1,0 +1,148 @@
+{
+  "task_id": "V2_2_2_R11_R12_FUNCTIONAL_ROOM_SITE_IMPACT_REVIEW_R1",
+  "base_head": "5a652a05afa438bd43631b7ffdaf4b541899c8ca",
+  "python": "3.12.13",
+  "full_whitelist": {
+    "total": 1421,
+    "passed": 1405,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 16
+  },
+  "final_focused": {
+    "total": 46,
+    "passed": 46,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "native_boundary": {
+    "full-functional": {
+      "records": [
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 21942
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 21942
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 21942
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 21942
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 21942
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 21942
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 21942
+        },
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 22076
+        },
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 22077
+        },
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 22324
+        }
+      ],
+      "protected_python_processes": 4,
+      "blocked_test_probes": 6,
+      "actual_cp_sat_native_solves": 0
+    },
+    "final-focused": {
+      "records": [
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 23581
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 23581
+        },
+        {
+          "kind": "NATIVE_REQUEST_BLOCKED",
+          "api": "CpSolver.solve/Solve",
+          "pid": 23581
+        }
+      ],
+      "protected_python_processes": 1,
+      "blocked_test_probes": 2,
+      "actual_cp_sat_native_solves": 0
+    },
+    "report-generation": {
+      "records": [
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 23081
+        }
+      ],
+      "protected_python_processes": 1,
+      "blocked_test_probes": 0,
+      "actual_cp_sat_native_solves": 0
+    },
+    "source-and-export-proof": {
+      "records": [
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 24262
+        },
+        {
+          "kind": "GUARD_READY",
+          "api": "",
+          "pid": 24284
+        }
+      ],
+      "protected_python_processes": 2,
+      "blocked_test_probes": 0,
+      "actual_cp_sat_native_solves": 0
+    }
+  },
+  "new_20t_native": false,
+  "new_main": false,
+  "real_grant_claim_created": false,
+  "formal_full_ci_requested": false,
+  "automatic_fast_ci": "TO_BE_OBSERVED_AT_NEW_HEAD",
+  "inherited_ci_synthetic_native": "PRESERVED_NOT_INCLUDED_IN_LOCAL_ZERO_CLAIM",
+  "ui_review": {
+    "desktop": "1280x720",
+    "mobile": "390x844",
+    "mobile_document_width": 390,
+    "mobile_viewport_width": 390,
+    "mobile_pan_inside_canvas": true,
+    "p02_source_reference_display": "PASS",
+    "scheme_3850_separate_conditions": "30/40mm",
+    "console_errors": 0,
+    "svg_xml_and_js_syntax": "PASS",
+    "png_renderer": "sharp/librsvg_bounded_2000px_white"
+  },
+  "old_business_source_and_evidence_changed": false
+}
