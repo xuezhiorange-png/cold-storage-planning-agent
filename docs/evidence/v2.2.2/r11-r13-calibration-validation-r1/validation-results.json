@@ -1,0 +1,49 @@
+{
+  "task_id": "V2_2_2_R11_R13_H5_PHYSICAL_INPUT_CALIBRATION_R1",
+  "base_head": "5b7ec33f258bacc0797148edb70766b47c47298f",
+  "python": "3.12.13",
+  "local_tests": {
+    "functional-architecture": {
+      "total": 1504,
+      "passed": 1488,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 16
+    },
+    "new-focused": {
+      "total": 83,
+      "passed": 83,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "initial-architecture-rejection": {
+      "total": 1494,
+      "passed": 1477,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 16
+    }
+  },
+  "guarded_python_processes": 13,
+  "blocked_test_probes": 16,
+  "actual_functional_cp_sat_solves": 0,
+  "new_20t_native": false,
+  "new_main": false,
+  "real_grant_claim_created": false,
+  "formal_full_ci_requested": false,
+  "ci": "TO_BE_OBSERVED_AT_FROZEN_HEAD",
+  "inherited_ci_synthetic_native": "PRESERVED_NOT_COUNTED_AS_LOCAL_FUNCTIONAL_NATIVE",
+  "ui": {
+    "mobile_viewport": 390,
+    "mobile_document_width": 390,
+    "inside_canvas_zoom": true,
+    "desktop": "1280x720",
+    "file_sha256_and_export_roundtrip": "PASS_AFTER_VALUE_AND_LOCATOR_INPUT_FIX",
+    "console_errors": 0,
+    "viewport_reset": true
+  },
+  "actual_calibration": "INPUT_REQUIRED",
+  "engineering_approval": "NOT_EVALUATED",
+  "factory_applicability": "NOT_EVALUATED"
+}
