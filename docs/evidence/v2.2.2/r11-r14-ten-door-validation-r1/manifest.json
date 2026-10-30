@@ -1,0 +1,16 @@
+{
+  "new-focused-whitelist.json": "2f5392568a984c62982e5f4254165e5a510322143e456eec235c33332e40feb8",
+  "base-byte-comparison.json.gz": "bd0fbb22dc94c8fba79fa8d3b0e5d3b8016bd65ed2ebb9190e5169c8aa5a7487",
+  "browser-review.json": "d90dc5395afe7f6ccbbced1750b7a849b3816b4b8727b4e8ec05f1bd8c2d8ef0",
+  "new-focused-pytest.txt.gz": "2f7a5af562513bf9051fdc9de5b71d0e638d2177fcae9b040d45ad9016d78d75",
+  "new-focused-pytest.xml.gz": "91a981c500af166bcd98d9fdf2de863fe876505eca1c79d61f3d45bdd928fa92",
+  "source-preservation.json": "5dd02fb282d967232099bcf6f370399ced7532238d298fd42b8ba8495fe9c63c",
+  "functional-architecture-whitelist.json": "118c28076c85095c1e48b7203dcab502a0524984e3f980c27ee12d94259ccdb3",
+  "validation-results.json": "6ed4297cc64bfc0bd34fc8620325b7e4cf6be58e39eec8adc1cc292e54c4e4e8",
+  "static-checks.json": "d2a28a12366d29d48fdc22dfc032e14f5034623e53237b3abcf8d331966b5635",
+  "native-guard-records.json.gz": "0bd8b4e302380021fa4e39cb20dcbb9cf9dce60d6ffda9a78bd094012797075f",
+  "validation-report.md": "dabdd7d98f4f1a947b9c1e1720fcb7804ff83747d20b48cdb67919237a1ef5b0",
+  "csv-lf-export-regression.xml.gz": "ec90bb46aa4426ccf5d00553c2ea86cc94ec5b13c18f266b96f4614cff4c0cc8",
+  "functional-architecture-pytest.txt.gz": "85df4e65d61501182398b7d703cf4c5e092db9c60622865b64367c5a07ba4336",
+  "functional-architecture-pytest.xml.gz": "7895cc170b8e6e20250f6f28585289b8612f10e2def825ed55a719cdb3554cc2"
+}

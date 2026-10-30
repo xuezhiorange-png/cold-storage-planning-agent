@@ -1,0 +1,51 @@
+{
+  "task_id": "V2_2_2_R11_R13_H5_PHYSICAL_INPUT_CALIBRATION_R1",
+  "head": "9501238d7a815957e8bd46831b3f9f24767ce754",
+  "run_id": 41070314738,
+  "artifact_id": 12986312599,
+  "artifact_name": "ci-fast-backend-regression-41070314738-1",
+  "official_zip_digest": "sha256:7529569c5af0dcb1653d336610fb5b85041a0ddef615690618de1b7d34416686",
+  "actual_zip_sha256": "7529569c5af0dcb1653d336610fb5b85041a0ddef615690618de1b7d34416686",
+  "xml_sha256": "fc00792cb28cf75af322a9f09d7c1491f96f2651726655a2c3775721fdbc03ba",
+  "junit_actual_results": {
+    "total": 1996,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duplicates": 0
+  },
+  "modules": {
+    "test_v222_r11_r13_physical_calibration": {
+      "total": 80,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duplicates": 0
+    },
+    "test_v222_r11_r12_site_impact": {
+      "total": 43,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duplicates": 0
+    },
+    "test_v222_r11_r11_sizing_advisory": {
+      "total": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duplicates": 0
+    },
+    "test_v222_r11_r10_reverse_sizing": {
+      "total": 41,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duplicates": 0
+    }
+  },
+  "historical_files_changed": false,
+  "formal_ci_triggered": false,
+  "functional_local_native": 0,
+  "inherited_ci_synthetic_native": "PRESERVED_NOT_CLAIMED_ZERO"
+}

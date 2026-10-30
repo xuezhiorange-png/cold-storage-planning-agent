@@ -1,0 +1,1929 @@
+{
+  "actual_doors": [
+    {
+      "id": "U01-L-T1-DOOR",
+      "compartment_id": "U01-L-T1",
+      "unit_id": "U01",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U01-L-T2-DOOR",
+      "compartment_id": "U01-L-T2",
+      "unit_id": "U01",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U01-L-T3-DOOR",
+      "compartment_id": "U01-L-T3",
+      "unit_id": "U01",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U01-L-T4-DOOR",
+      "compartment_id": "U01-L-T4",
+      "unit_id": "U01",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U01-L-T5-DOOR",
+      "compartment_id": "U01-L-T5",
+      "unit_id": "U01",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U01-R-T1-DOOR",
+      "compartment_id": "U01-R-T1",
+      "unit_id": "U01",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U01-R-T2-DOOR",
+      "compartment_id": "U01-R-T2",
+      "unit_id": "U01",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U01-R-T3-DOOR",
+      "compartment_id": "U01-R-T3",
+      "unit_id": "U01",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U01-R-T4-DOOR",
+      "compartment_id": "U01-R-T4",
+      "unit_id": "U01",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U01-R-T5-DOOR",
+      "compartment_id": "U01-R-T5",
+      "unit_id": "U01",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U02-L-T1-DOOR",
+      "compartment_id": "U02-L-T1",
+      "unit_id": "U02",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U02-L-T2-DOOR",
+      "compartment_id": "U02-L-T2",
+      "unit_id": "U02",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U02-L-T3-DOOR",
+      "compartment_id": "U02-L-T3",
+      "unit_id": "U02",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U02-L-T4-DOOR",
+      "compartment_id": "U02-L-T4",
+      "unit_id": "U02",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U02-L-T5-DOOR",
+      "compartment_id": "U02-L-T5",
+      "unit_id": "U02",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U02-R-T1-DOOR",
+      "compartment_id": "U02-R-T1",
+      "unit_id": "U02",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U02-R-T2-DOOR",
+      "compartment_id": "U02-R-T2",
+      "unit_id": "U02",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U02-R-T3-DOOR",
+      "compartment_id": "U02-R-T3",
+      "unit_id": "U02",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U02-R-T4-DOOR",
+      "compartment_id": "U02-R-T4",
+      "unit_id": "U02",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U02-R-T5-DOOR",
+      "compartment_id": "U02-R-T5",
+      "unit_id": "U02",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U03-L-T1-DOOR",
+      "compartment_id": "U03-L-T1",
+      "unit_id": "U03",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U03-L-T2-DOOR",
+      "compartment_id": "U03-L-T2",
+      "unit_id": "U03",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U03-L-T3-DOOR",
+      "compartment_id": "U03-L-T3",
+      "unit_id": "U03",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U03-L-T4-DOOR",
+      "compartment_id": "U03-L-T4",
+      "unit_id": "U03",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U03-L-T5-DOOR",
+      "compartment_id": "U03-L-T5",
+      "unit_id": "U03",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U03-R-T1-DOOR",
+      "compartment_id": "U03-R-T1",
+      "unit_id": "U03",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U03-R-T2-DOOR",
+      "compartment_id": "U03-R-T2",
+      "unit_id": "U03",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U03-R-T3-DOOR",
+      "compartment_id": "U03-R-T3",
+      "unit_id": "U03",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U03-R-T4-DOOR",
+      "compartment_id": "U03-R-T4",
+      "unit_id": "U03",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U03-R-T5-DOOR",
+      "compartment_id": "U03-R-T5",
+      "unit_id": "U03",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U04-L-T1-DOOR",
+      "compartment_id": "U04-L-T1",
+      "unit_id": "U04",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U04-L-T2-DOOR",
+      "compartment_id": "U04-L-T2",
+      "unit_id": "U04",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U04-L-T3-DOOR",
+      "compartment_id": "U04-L-T3",
+      "unit_id": "U04",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U04-L-T4-DOOR",
+      "compartment_id": "U04-L-T4",
+      "unit_id": "U04",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U04-L-T5-DOOR",
+      "compartment_id": "U04-L-T5",
+      "unit_id": "U04",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U04-R-T1-DOOR",
+      "compartment_id": "U04-R-T1",
+      "unit_id": "U04",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U04-R-T2-DOOR",
+      "compartment_id": "U04-R-T2",
+      "unit_id": "U04",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U04-R-T3-DOOR",
+      "compartment_id": "U04-R-T3",
+      "unit_id": "U04",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U04-R-T4-DOOR",
+      "compartment_id": "U04-R-T4",
+      "unit_id": "U04",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U04-R-T5-DOOR",
+      "compartment_id": "U04-R-T5",
+      "unit_id": "U04",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U05-L-T1-DOOR",
+      "compartment_id": "U05-L-T1",
+      "unit_id": "U05",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U05-L-T2-DOOR",
+      "compartment_id": "U05-L-T2",
+      "unit_id": "U05",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U05-L-T3-DOOR",
+      "compartment_id": "U05-L-T3",
+      "unit_id": "U05",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U05-L-T4-DOOR",
+      "compartment_id": "U05-L-T4",
+      "unit_id": "U05",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U05-L-T5-DOOR",
+      "compartment_id": "U05-L-T5",
+      "unit_id": "U05",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U05-R-T1-DOOR",
+      "compartment_id": "U05-R-T1",
+      "unit_id": "U05",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U05-R-T2-DOOR",
+      "compartment_id": "U05-R-T2",
+      "unit_id": "U05",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U05-R-T3-DOOR",
+      "compartment_id": "U05-R-T3",
+      "unit_id": "U05",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U05-R-T4-DOOR",
+      "compartment_id": "U05-R-T4",
+      "unit_id": "U05",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U05-R-T5-DOOR",
+      "compartment_id": "U05-R-T5",
+      "unit_id": "U05",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U06-L-T1-DOOR",
+      "compartment_id": "U06-L-T1",
+      "unit_id": "U06",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U06-L-T2-DOOR",
+      "compartment_id": "U06-L-T2",
+      "unit_id": "U06",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U06-L-T3-DOOR",
+      "compartment_id": "U06-L-T3",
+      "unit_id": "U06",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U06-L-T4-DOOR",
+      "compartment_id": "U06-L-T4",
+      "unit_id": "U06",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U06-L-T5-DOOR",
+      "compartment_id": "U06-L-T5",
+      "unit_id": "U06",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U06-R-T1-DOOR",
+      "compartment_id": "U06-R-T1",
+      "unit_id": "U06",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U06-R-T2-DOOR",
+      "compartment_id": "U06-R-T2",
+      "unit_id": "U06",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U06-R-T3-DOOR",
+      "compartment_id": "U06-R-T3",
+      "unit_id": "U06",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U06-R-T4-DOOR",
+      "compartment_id": "U06-R-T4",
+      "unit_id": "U06",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U06-R-T5-DOOR",
+      "compartment_id": "U06-R-T5",
+      "unit_id": "U06",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U07-L-T1-DOOR",
+      "compartment_id": "U07-L-T1",
+      "unit_id": "U07",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U07-L-T2-DOOR",
+      "compartment_id": "U07-L-T2",
+      "unit_id": "U07",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U07-L-T3-DOOR",
+      "compartment_id": "U07-L-T3",
+      "unit_id": "U07",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U07-L-T4-DOOR",
+      "compartment_id": "U07-L-T4",
+      "unit_id": "U07",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U07-L-T5-DOOR",
+      "compartment_id": "U07-L-T5",
+      "unit_id": "U07",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U07-R-T1-DOOR",
+      "compartment_id": "U07-R-T1",
+      "unit_id": "U07",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U07-R-T2-DOOR",
+      "compartment_id": "U07-R-T2",
+      "unit_id": "U07",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U07-R-T3-DOOR",
+      "compartment_id": "U07-R-T3",
+      "unit_id": "U07",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U07-R-T4-DOOR",
+      "compartment_id": "U07-R-T4",
+      "unit_id": "U07",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U07-R-T5-DOOR",
+      "compartment_id": "U07-R-T5",
+      "unit_id": "U07",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U08-L-T1-DOOR",
+      "compartment_id": "U08-L-T1",
+      "unit_id": "U08",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U08-L-T2-DOOR",
+      "compartment_id": "U08-L-T2",
+      "unit_id": "U08",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U08-L-T3-DOOR",
+      "compartment_id": "U08-L-T3",
+      "unit_id": "U08",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U08-L-T4-DOOR",
+      "compartment_id": "U08-L-T4",
+      "unit_id": "U08",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U08-L-T5-DOOR",
+      "compartment_id": "U08-L-T5",
+      "unit_id": "U08",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U08-R-T1-DOOR",
+      "compartment_id": "U08-R-T1",
+      "unit_id": "U08",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U08-R-T2-DOOR",
+      "compartment_id": "U08-R-T2",
+      "unit_id": "U08",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U08-R-T3-DOOR",
+      "compartment_id": "U08-R-T3",
+      "unit_id": "U08",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U08-R-T4-DOOR",
+      "compartment_id": "U08-R-T4",
+      "unit_id": "U08",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U08-R-T5-DOOR",
+      "compartment_id": "U08-R-T5",
+      "unit_id": "U08",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U09-L-T1-DOOR",
+      "compartment_id": "U09-L-T1",
+      "unit_id": "U09",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U09-L-T2-DOOR",
+      "compartment_id": "U09-L-T2",
+      "unit_id": "U09",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U09-L-T3-DOOR",
+      "compartment_id": "U09-L-T3",
+      "unit_id": "U09",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U09-L-T4-DOOR",
+      "compartment_id": "U09-L-T4",
+      "unit_id": "U09",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U09-L-T5-DOOR",
+      "compartment_id": "U09-L-T5",
+      "unit_id": "U09",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U09-R-T1-DOOR",
+      "compartment_id": "U09-R-T1",
+      "unit_id": "U09",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U09-R-T2-DOOR",
+      "compartment_id": "U09-R-T2",
+      "unit_id": "U09",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U09-R-T3-DOOR",
+      "compartment_id": "U09-R-T3",
+      "unit_id": "U09",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U09-R-T4-DOOR",
+      "compartment_id": "U09-R-T4",
+      "unit_id": "U09",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U09-R-T5-DOOR",
+      "compartment_id": "U09-R-T5",
+      "unit_id": "U09",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U10-L-T1-DOOR",
+      "compartment_id": "U10-L-T1",
+      "unit_id": "U10",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U10-L-T2-DOOR",
+      "compartment_id": "U10-L-T2",
+      "unit_id": "U10",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U10-L-T3-DOOR",
+      "compartment_id": "U10-L-T3",
+      "unit_id": "U10",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U10-L-T4-DOOR",
+      "compartment_id": "U10-L-T4",
+      "unit_id": "U10",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U10-L-T5-DOOR",
+      "compartment_id": "U10-L-T5",
+      "unit_id": "U10",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U10-R-T1-DOOR",
+      "compartment_id": "U10-R-T1",
+      "unit_id": "U10",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U10-R-T2-DOOR",
+      "compartment_id": "U10-R-T2",
+      "unit_id": "U10",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U10-R-T3-DOOR",
+      "compartment_id": "U10-R-T3",
+      "unit_id": "U10",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U10-R-T4-DOOR",
+      "compartment_id": "U10-R-T4",
+      "unit_id": "U10",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U10-R-T5-DOOR",
+      "compartment_id": "U10-R-T5",
+      "unit_id": "U10",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U11-L-T1-DOOR",
+      "compartment_id": "U11-L-T1",
+      "unit_id": "U11",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U11-L-T2-DOOR",
+      "compartment_id": "U11-L-T2",
+      "unit_id": "U11",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U11-L-T3-DOOR",
+      "compartment_id": "U11-L-T3",
+      "unit_id": "U11",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U11-L-T4-DOOR",
+      "compartment_id": "U11-L-T4",
+      "unit_id": "U11",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U11-L-T5-DOOR",
+      "compartment_id": "U11-L-T5",
+      "unit_id": "U11",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U11-R-T1-DOOR",
+      "compartment_id": "U11-R-T1",
+      "unit_id": "U11",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U11-R-T2-DOOR",
+      "compartment_id": "U11-R-T2",
+      "unit_id": "U11",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U11-R-T3-DOOR",
+      "compartment_id": "U11-R-T3",
+      "unit_id": "U11",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U11-R-T4-DOOR",
+      "compartment_id": "U11-R-T4",
+      "unit_id": "U11",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    },
+    {
+      "id": "U11-R-T5-DOOR",
+      "compartment_id": "U11-R-T5",
+      "unit_id": "U11",
+      "nominal_label_mm": [
+        400,
+        360,
+        320
+      ],
+      "nominal_label_semantics": "OWNER_REPORTED_IMAGE_LABEL_NOT_INTERNAL_CLEAR_DIMENSIONS",
+      "actual_hinge": null,
+      "actual_angle_degrees": null,
+      "actual_leaf_thickness_mm": null,
+      "actual_front_frame_mm": null,
+      "actual_sweep": null,
+      "actual_status": "INPUT_REQUIRED"
+    }
+  ],
+  "checks": {
+    "capacity_arithmetic": {
+      "status": "SATISFIED_ARITHMETIC_ONLY",
+      "required": 106,
+      "allocated": 110,
+      "spare": 4
+    },
+    "actual_internal_clear_dimensions": {
+      "status": "INPUT_REQUIRED",
+      "net_width_mm": null,
+      "net_depth_mm": null,
+      "net_height_mm": null,
+      "nominal_400_360_320_is_net": false
+    },
+    "work_private_separation": {
+      "status": "INPUT_REQUIRED",
+      "automatic_extra_partition": false
+    },
+    "folded_clothing_storage": {
+      "status": "INPUT_REQUIRED",
+      "clothing_envelope_mm": null,
+      "volume": null,
+      "rails_reported": 0,
+      "extra_shelves_reported": 0
+    },
+    "lowest_highest_tier_retrieval": {
+      "status": "INPUT_REQUIRED",
+      "actual_reach_range_mm": null,
+      "conditional_door_face_range_mm": [
+        100,
+        1780
+      ],
+      "conditional_reference_reach_mm": [
+        100,
+        1800,
+        600
+      ]
+    },
+    "actual_hinges_opening_and_fixing": {
+      "status": "INPUT_REQUIRED",
+      "angle_degrees": null,
+      "hinges": null,
+      "fixing_clearance_mm": null,
+      "maintenance_clearance_mm": null
+    }
+  },
+  "missing": [
+    "Original selected photograph bytes; manufacturer/model and reviewed product drawing",
+    "Verified net width/depth/height of all five tiers and actual panels/base/frame",
+    "Actual hinges, left/right mirroring, opening angle and leaf thickness",
+    "Clothing folded dimensions/volume, work/private segregation and hygiene process",
+    "Actual lowest/highest tier retrieval reach and human activity envelopes",
+    "Fixing/maintenance/installation requirements, finish and construction tolerances",
+    "Room door swings, reviewed operating sequence, external Site/Access and hygiene review"
+  ]
+}

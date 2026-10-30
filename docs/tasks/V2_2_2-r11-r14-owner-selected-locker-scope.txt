@@ -1,0 +1,23 @@
+TASK_ID=V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1
+SOURCE=Owner instruction in the current Codex conversation
+SCOPE=Existing reviewed packaged-product 20000kg/day project; physical H5 Changing room represented by P01/P02
+
+Owner selects the pictured five-tier ten-door locker as the current design selection basis.
+Nominal complete cabinet: width 850mm, depth 390mm, height 1800mm.
+Two columns, five tiers, ten independent doors per complete cabinet.
+Image-described single-door nominal dimensions: width 400mm, depth 360mm, height 320mm.
+Image-described clothes rails: 0. Additional shelves: 0.
+These single-door nominal dimensions are NOT verified internal clear compartment dimensions.
+Selection is NOT supplier technical review, procurement acceptance or engineering approval.
+The original image bytes were not available in the supplied attachments; photo evidence and its SHA256 remain INPUT_REQUIRED.
+
+Baseline: eleven complete cabinets, twenty-two five-tier columns, 110 compartments.
+Two design shifts of 53 people, 55 allocated compartments per shift, two spare compartments per shift.
+Physical cabinet identity is independent of shift allocation. One complete cabinet may have columns assigned to different shifts; a compartment is never shared across shifts.
+No unconfirmed single-column half cabinet is selected.
+53 initially simultaneous room users, individual cabinet-front standing changing, no bench and no separate changing station remain unchanged.
+
+Manufacturer/model, panels, verified internal clear dimensions, actual hinges, opening angles, fixing/maintenance clearances, clothing and hygiene suitability remain INPUT_REQUIRED.
+425mm column pitch may only be an explicitly unapproved equal-division geometry hypothesis; it is NOT internal clear width.
+No new P1, Stage B, area Authority, comparator, production default or historical evidence changes.
+No Native solve, MAIN, real Grant/Claim, formal full CI, Ready, Merge or Deploy is authorized.

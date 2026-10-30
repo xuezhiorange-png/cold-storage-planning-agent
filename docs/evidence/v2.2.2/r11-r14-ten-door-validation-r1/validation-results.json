@@ -1,0 +1,48 @@
+{
+  "task": "V2_2_2_R11_R14_OWNER_SELECTED_TEN_DOOR_LOCKER_R1",
+  "base_head": "9501238d7a815957e8bd46831b3f9f24767ce754",
+  "python": "3.12.13",
+  "local_tests": {
+    "functional-architecture": {
+      "total": 1569,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 16,
+      "passed": 1553
+    },
+    "new-focused": {
+      "total": 65,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 65
+    }
+  },
+  "guarded_python_process_records": 35,
+  "blocked_negative_test_probes": 48,
+  "actual_functional_native_solves": 0,
+  "new_main": false,
+  "real_grant_claim": false,
+  "formal_full_ci_requested": false,
+  "automatic_ci": "TO_BE_VERIFIED_AT_FROZEN_HEAD",
+  "inherited_ci_synthetic_native": "PRESERVED_NOT_CLAIMED_ZERO",
+  "source_preservation": {
+    "base_head": "9501238d7a815957e8bd46831b3f9f24767ce754",
+    "base_files": 2544,
+    "unchanged_files": 2543,
+    "modified_existing_files": [
+      ".github/workflows/ci-fast.yml"
+    ],
+    "method": "Exact working bytes hashed with canonical Git blob header and compared against pinned base blob id; SHA256 additionally recorded",
+    "historical_files_changed": false,
+    "p1_stage_b_comparators_mcp_defaults_changed": false
+  },
+  "actual_calibration": "INPUT_REQUIRED",
+  "engineering_approval": "NOT_EVALUATED",
+  "factory_applicability": "NOT_EVALUATED",
+  "csv_lf_export_regression": {
+    "passed": 1,
+    "deselected": 61,
+    "physical_witnesses_unchanged": true
+  }
+}

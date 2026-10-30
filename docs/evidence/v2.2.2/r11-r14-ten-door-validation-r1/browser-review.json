@@ -1,0 +1,21 @@
+{
+  "url": "http://127.0.0.1:8772/",
+  "browser": "IAB",
+  "viewport": [
+    1280,
+    720
+  ],
+  "page_width": 1280,
+  "allocation_rows": 110,
+  "all_images_loaded": true,
+  "public_net_height_field_absent": true,
+  "nominal_door_face_320_explicit": true,
+  "internal_plan_zoom_width": 3600,
+  "page_overflow_on_zoom": false,
+  "browser_errors": 0,
+  "browser_warnings": 0,
+  "checked_cases": [
+    "R14-20-20-M50-C",
+    "R14-30-40-M100-3850"
+  ]
+}
