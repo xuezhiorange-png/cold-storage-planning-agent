@@ -1,0 +1,16 @@
+{
+  "base_head": "5b7ec33f258bacc0797148edb70766b47c47298f",
+  "old_file_count": 2473,
+  "old_files_unchanged": 2472,
+  "modified_original_files": [
+    ".github/workflows/ci-fast.yml"
+  ],
+  "source_and_witness_hashes_verified": true,
+  "source_export_recomputation": "IDENTICAL",
+  "actual_calibration": "INPUT_REQUIRED",
+  "engineering_approval": "NOT_EVALUATED",
+  "factory_applicability": "NOT_EVALUATED",
+  "local_new_native_solves": 0,
+  "main": false,
+  "real_grant_claim": false
+}

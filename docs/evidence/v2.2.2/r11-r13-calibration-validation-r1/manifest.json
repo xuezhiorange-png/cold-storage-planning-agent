@@ -1,0 +1,18 @@
+{
+  "base-byte-comparison.json.gz": "04b739a802d35d6e914ec6a6e42d1d14e097e3a70152d13e063d73a4ac11e942",
+  "browser-export-python-binding.json": "43b60e1d223eb4a55f90c9f398aba3a023e9d05baa4efc457096f3d663f619d5",
+  "browser-export.json": "ac11f80ace9ae612e889d9bc420dcb2a619f4d26f824435e1849980851a4ab66",
+  "figure-renderer.json": "01aacd8a990b562c056b04099ccdcc284dca207416de435a60ac32445690a984",
+  "functional-architecture-junit.xml.gz": "1d47d3670775bd7e037c71c8ff68606340c0d4eae3d1053ed9a5aec3c2f1eb01",
+  "functional-architecture-output.txt.gz": "7227bcfbf3f9463417509cb269d498d1125afd25505fe29af30d7944cbc12a33",
+  "functional-architecture-whitelist.json": "403d2fa11adf37338396dee67c198fa30757a7ab20560095c274983b61c1faee",
+  "initial-architecture-rejection-junit.xml.gz": "0a475bd8118b24aa155202aa7e9a67febc6b9902035450dedcac54add7c32079",
+  "initial-architecture-rejection-output.txt.gz": "0f09564035550ca39cf1cafbdaf71580a15431f4be964260fc93d34a3a3c070e",
+  "native-guard-records.json.gz": "f41bdb64660a279785de57c32224123e8b5fb2829fadc6616bab7d7fc41e4e3b",
+  "new-focused-junit.xml.gz": "12bc3a77c2722b736ecfa9ac929db2f9d1b858b1eef2f84e8378603f38f92227",
+  "new-focused-output.txt.gz": "832b603b0047e769f50f8faf89375554d4e416b6119ffa140f7e8beffa3e2a92",
+  "source-preservation.json": "8f127d651e864c6c2afe3b60ea0210900d929e38f071d6af5e445fba6d93508d",
+  "static-checks.json": "232a937d96447c518c30a9a698239500f7d7d8f35890685b7618ffa498aaa743",
+  "validation-report.md": "ea6c061e56c8f8097835c5e72b8c684c630238699a3535afdda9b20ff1743049",
+  "validation-results.json": "9ac6034dae35cac434d504dde1ef411c68721daae47be737764ee3356eaf81ae"
+}

@@ -1,0 +1,594 @@
+{
+  "schema_version": "h5-physical-input-calibration@1.0.0",
+  "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+  "physical_room_id": "sha256:489389cd160dd270501589fdea52cdace940c44e70be23b699c35a47c4d1af21",
+  "owner_template_sha256": "d93dae98bfda820fd3e35b11d2024cd263672b67571e48f97ba25fde74f8a1c9",
+  "parameters": {
+    "unit_width_mm": {
+      "value": 800,
+      "unit": "mm",
+      "document_id": "document_1",
+      "locator": "/parameters/unit_width_mm"
+    },
+    "unit_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "cabinet_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "column_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "plinth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "top_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "side_panel_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "back_panel_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "shelf_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "fixing_rear_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "fixing_side_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "fixing_top_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "partial_unit_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "door_leaf_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "door_leaf_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "door_leaf_thickness_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "door_frame_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "hinge_axis_offset_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "door_opening_clear_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "door_opening_clear_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "static_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "static_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "body_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "transport_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "transport_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "activity_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "activity_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "activity_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "turn_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "turn_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "operator_standoff_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "waiting_gap_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "reach_low_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "reach_high_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "reach_horizontal_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "aisle_required_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "finish_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "installation_gap_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "unit_gap_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "construction_tolerance_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "room_clear_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "room_door_intrusion_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "room_door_leaf_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "room_door_leaf_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "room_door_operation_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "work_bundle_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "work_bundle_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "work_bundle_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "private_bundle_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "private_bundle_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "private_bundle_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "partition_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "retrieval_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "retrieval_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "retrieval_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_1_clear_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_1_clear_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_1_clear_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_1_bottom_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_1_operation_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_2_clear_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_2_clear_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_2_clear_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_2_bottom_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_2_operation_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_3_clear_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_3_clear_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_3_clear_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_3_bottom_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_3_operation_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_4_clear_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_4_clear_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_4_clear_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_4_bottom_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_4_operation_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_5_clear_width_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_5_clear_depth_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_5_clear_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_5_bottom_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "tier_5_operation_height_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    },
+    "manufacturer": {
+      "value": null,
+      "unit": "text",
+      "document_id": null,
+      "locator": null
+    },
+    "model": {
+      "value": null,
+      "unit": "text",
+      "document_id": null,
+      "locator": null
+    },
+    "partial_unit_available": {
+      "value": null,
+      "unit": "enum",
+      "document_id": null,
+      "locator": null
+    },
+    "door_kind": {
+      "value": null,
+      "unit": "enum",
+      "document_id": null,
+      "locator": null
+    },
+    "hinge_side": {
+      "value": null,
+      "unit": "enum",
+      "document_id": null,
+      "locator": null
+    },
+    "door_simultaneity": {
+      "value": null,
+      "unit": "enum",
+      "document_id": null,
+      "locator": null
+    },
+    "operation_sequence": {
+      "value": null,
+      "unit": "enum",
+      "document_id": null,
+      "locator": null
+    },
+    "room_door_kind": {
+      "value": null,
+      "unit": "enum",
+      "document_id": null,
+      "locator": null
+    },
+    "separation_kind": {
+      "value": null,
+      "unit": "enum",
+      "document_id": null,
+      "locator": null
+    },
+    "clothing_use_method": {
+      "value": null,
+      "unit": "enum",
+      "document_id": null,
+      "locator": null
+    },
+    "hygiene_procedure": {
+      "value": null,
+      "unit": "text",
+      "document_id": null,
+      "locator": null
+    },
+    "columns_per_unit": {
+      "value": null,
+      "unit": "count",
+      "document_id": null,
+      "locator": null
+    },
+    "actual_tier_count": {
+      "value": null,
+      "unit": "count",
+      "document_id": null,
+      "locator": null
+    },
+    "door_open_angle_deg": {
+      "value": null,
+      "unit": "degree",
+      "document_id": null,
+      "locator": null
+    },
+    "front_concurrency": {
+      "value": null,
+      "unit": "count",
+      "document_id": null,
+      "locator": null
+    },
+    "margin_target_mm": {
+      "value": null,
+      "unit": "mm",
+      "document_id": null,
+      "locator": null
+    }
+  },
+  "source_documents": {
+    "document_1": {
+      "source_type": "HYPOTHETICAL_NOT_APPROVED",
+      "file_name": "historical-hypothesis-20-20.json",
+      "sha256": "a622bdd79c245e6d36caed8543a7e9772c5b651da6505b224d2fa2c5c49b55fe",
+      "document_date": null,
+      "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "reference": "UI QA · 未批准历史参数"
+    }
+  }
+}

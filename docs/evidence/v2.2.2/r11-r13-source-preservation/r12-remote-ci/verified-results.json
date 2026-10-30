@@ -1,0 +1,251 @@
+{
+  "task": "V2_2_2_R11_R12_FUNCTIONAL_ROOM_SITE_IMPACT_REVIEW_R1",
+  "head": "5b7ec33f258bacc0797148edb70766b47c47298f",
+  "base": "5a652a05afa438bd43631b7ffdaf4b541899c8ca",
+  "pr_number": 332,
+  "pr_state": "OPEN_DRAFT",
+  "run_id": 41047255405,
+  "status": "completed",
+  "conclusion": "success",
+  "attempt": 1,
+  "event": "pull_request",
+  "path": ".github/workflows/ci-fast.yml",
+  "artifact": {
+    "id": 12975355444,
+    "name": "ci-fast-backend-regression-41047255405-1",
+    "size_in_bytes": 28495,
+    "url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/actions/artifacts/12975355444",
+    "archive_download_url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/actions/artifacts/12975355444/zip",
+    "expired": false,
+    "created_at": "2026-10-30T11:56:28Z",
+    "expires_at": "2027-01-28T11:19:28Z",
+    "updated_at": "2026-10-30T11:56:28Z",
+    "digest": "sha256:3aa71e1aecd3d3140bbac179908c86534cce32d1a457b4da11e978d47b4e2962",
+    "workflow_run": {
+      "id": 41047255405,
+      "repository_id": 1275027802,
+      "head_repository_id": 1275027802,
+      "head_branch": "codex/v222-r11-r12-site-impact-review",
+      "head_sha": "5b7ec33f258bacc0797148edb70766b47c47298f"
+    }
+  },
+  "jobs": [
+    {
+      "id": 124034270213,
+      "name": "fast-checks",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41047255405,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run astral-sh/setup-uv@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "CI classifier and gate regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Identify non-authoritative development scope",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Locked backend dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Shared pytest CJK font prerequisite",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Stage B, geometry and deterministic resource regression (no factory solve)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Preserve actual backend test execution report",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Partition execution and shared fixture contracts (no layout search)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Architecture and security boundaries",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Ruff",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Format",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        },
+        {
+          "name": "Mypy",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14
+        },
+        {
+          "name": "Diff whitespace",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15
+        },
+        {
+          "name": "Explicit acceptance boundary",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16
+        },
+        {
+          "name": "Post Run astral-sh/setup-uv@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 31
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 32
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 33
+        }
+      ]
+    },
+    {
+      "id": 124049274805,
+      "name": "fast-ci-gate",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41047255405,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Require real fast-checks success",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        }
+      ]
+    }
+  ],
+  "junit": {
+    "run_id": 41047255405,
+    "head": "5b7ec33f258bacc0797148edb70766b47c47298f",
+    "artifact_id": 12975355444,
+    "zip_sha256": "sha256:3aa71e1aecd3d3140bbac179908c86534cce32d1a457b4da11e978d47b4e2962",
+    "xml_sha256": "3388beec58d4d16833d70cce2f03772b763502d003f2ccb894391bdc438e1d00",
+    "zip_entries": [
+      "backend-regression.xml"
+    ],
+    "total": {
+      "total": 1916,
+      "passed": 1916,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duplicate_count": 0
+    },
+    "groups": {
+      "r12_site_impact": {
+        "total": 43,
+        "passed": 43,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "duplicate_count": 0
+      },
+      "r11_advisory": {
+        "total": 48,
+        "passed": 48,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "duplicate_count": 0
+      },
+      "r10_reverse_sizing": {
+        "total": 41,
+        "passed": 41,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "duplicate_count": 0
+      }
+    }
+  },
+  "modified_original_files": [
+    ".github/workflows/ci-fast.yml"
+  ],
+  "original_p1_stage_b_comparators_history_changed": false,
+  "new_20t_native": false,
+  "new_main": false,
+  "real_grant_claim_created": false,
+  "formal_full_ci_requested": false,
+  "inherited_ci_synthetic_native": "PRESERVED_EXISTING_TESTS_NOT_INCLUDED_IN_LOCAL_ZERO_NATIVE_CLAIM"
+}

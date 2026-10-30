@@ -1,0 +1,3590 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "h5-physical-input-calibration@1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_scope_id",
+    "physical_room_id",
+    "owner_template_sha256",
+    "parameters",
+    "source_documents"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "h5-physical-input-calibration@1.0.0"
+    },
+    "project_scope_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "physical_room_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner_template_sha256": {
+      "type": "string",
+      "minLength": 1
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit_width_mm",
+        "unit_depth_mm",
+        "cabinet_height_mm",
+        "column_width_mm",
+        "plinth_mm",
+        "top_mm",
+        "side_panel_mm",
+        "back_panel_mm",
+        "shelf_mm",
+        "fixing_rear_mm",
+        "fixing_side_mm",
+        "fixing_top_mm",
+        "partial_unit_width_mm",
+        "door_leaf_width_mm",
+        "door_leaf_height_mm",
+        "door_leaf_thickness_mm",
+        "door_frame_mm",
+        "hinge_axis_offset_mm",
+        "door_opening_clear_width_mm",
+        "door_opening_clear_height_mm",
+        "static_width_mm",
+        "static_depth_mm",
+        "body_height_mm",
+        "transport_width_mm",
+        "transport_depth_mm",
+        "activity_width_mm",
+        "activity_depth_mm",
+        "activity_height_mm",
+        "turn_width_mm",
+        "turn_depth_mm",
+        "operator_standoff_mm",
+        "waiting_gap_mm",
+        "reach_low_mm",
+        "reach_high_mm",
+        "reach_horizontal_mm",
+        "aisle_required_mm",
+        "finish_mm",
+        "installation_gap_mm",
+        "unit_gap_mm",
+        "construction_tolerance_mm",
+        "room_clear_height_mm",
+        "room_door_intrusion_mm",
+        "room_door_leaf_width_mm",
+        "room_door_leaf_height_mm",
+        "room_door_operation_depth_mm",
+        "work_bundle_width_mm",
+        "work_bundle_depth_mm",
+        "work_bundle_height_mm",
+        "private_bundle_width_mm",
+        "private_bundle_depth_mm",
+        "private_bundle_height_mm",
+        "partition_mm",
+        "retrieval_width_mm",
+        "retrieval_height_mm",
+        "retrieval_depth_mm",
+        "tier_1_clear_width_mm",
+        "tier_1_clear_depth_mm",
+        "tier_1_clear_height_mm",
+        "tier_1_bottom_mm",
+        "tier_1_operation_height_mm",
+        "tier_2_clear_width_mm",
+        "tier_2_clear_depth_mm",
+        "tier_2_clear_height_mm",
+        "tier_2_bottom_mm",
+        "tier_2_operation_height_mm",
+        "tier_3_clear_width_mm",
+        "tier_3_clear_depth_mm",
+        "tier_3_clear_height_mm",
+        "tier_3_bottom_mm",
+        "tier_3_operation_height_mm",
+        "tier_4_clear_width_mm",
+        "tier_4_clear_depth_mm",
+        "tier_4_clear_height_mm",
+        "tier_4_bottom_mm",
+        "tier_4_operation_height_mm",
+        "tier_5_clear_width_mm",
+        "tier_5_clear_depth_mm",
+        "tier_5_clear_height_mm",
+        "tier_5_bottom_mm",
+        "tier_5_operation_height_mm",
+        "manufacturer",
+        "model",
+        "partial_unit_available",
+        "door_kind",
+        "hinge_side",
+        "door_simultaneity",
+        "operation_sequence",
+        "room_door_kind",
+        "separation_kind",
+        "clothing_use_method",
+        "hygiene_procedure",
+        "columns_per_unit",
+        "actual_tier_count",
+        "door_open_angle_deg",
+        "front_concurrency",
+        "margin_target_mm"
+      ],
+      "properties": {
+        "unit_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "unit_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "cabinet_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "column_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "plinth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "top_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "side_panel_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "back_panel_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "shelf_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "fixing_rear_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "fixing_side_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "fixing_top_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "partial_unit_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "door_leaf_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "door_leaf_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "door_leaf_thickness_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "door_frame_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "hinge_axis_offset_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "door_opening_clear_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "door_opening_clear_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "static_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "static_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "body_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "transport_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "transport_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "activity_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "activity_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "activity_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "turn_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "turn_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "operator_standoff_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "waiting_gap_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "reach_low_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "reach_high_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "reach_horizontal_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "aisle_required_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "finish_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "installation_gap_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "unit_gap_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "construction_tolerance_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "room_clear_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "room_door_intrusion_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "room_door_leaf_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "room_door_leaf_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "room_door_operation_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "work_bundle_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "work_bundle_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "work_bundle_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "private_bundle_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "private_bundle_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "private_bundle_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "partition_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "retrieval_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "retrieval_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "retrieval_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_1_clear_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_1_clear_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_1_clear_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_1_bottom_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_1_operation_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_2_clear_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_2_clear_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_2_clear_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_2_bottom_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_2_operation_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_3_clear_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_3_clear_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_3_clear_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_3_bottom_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_3_operation_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_4_clear_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_4_clear_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_4_clear_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_4_bottom_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_4_operation_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_5_clear_width_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_5_clear_depth_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_5_clear_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_5_bottom_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tier_5_operation_height_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "manufacturer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "unit": {
+              "const": "text"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "unit": {
+              "const": "text"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "partial_unit_available": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256,
+              "enum": [
+                "AVAILABLE",
+                "UNAVAILABLE",
+                null
+              ]
+            },
+            "unit": {
+              "const": "enum"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "door_kind": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256,
+              "enum": [
+                "OUTWARD_HINGED_90",
+                "NO_PLAN_INTRUSION",
+                "OTHER",
+                null
+              ]
+            },
+            "unit": {
+              "const": "enum"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "hinge_side": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256,
+              "enum": [
+                "LEFT",
+                "RIGHT",
+                "OTHER",
+                null
+              ]
+            },
+            "unit": {
+              "const": "enum"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "door_simultaneity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256,
+              "enum": [
+                "ONE_OPERATOR_PER_COLUMN",
+                "OTHER",
+                null
+              ]
+            },
+            "unit": {
+              "const": "enum"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "operation_sequence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256,
+              "enum": [
+                "OPEN_RETRIEVE_CLOSE_CHANGE_OPEN_STORE_CLOSE_EXIT",
+                "OTHER",
+                null
+              ]
+            },
+            "unit": {
+              "const": "enum"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "room_door_kind": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256,
+              "enum": [
+                "OPEN_RECESSED_WITHOUT_SWEEP",
+                "INWARD",
+                "OUTWARD",
+                "OTHER",
+                null
+              ]
+            },
+            "unit": {
+              "const": "enum"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "separation_kind": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256,
+              "enum": [
+                "SIDE_BY_SIDE",
+                "FRONT_BACK",
+                "STACKED",
+                "TWO_COMPARTMENTS",
+                "OTHER",
+                null
+              ]
+            },
+            "unit": {
+              "const": "enum"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "clothing_use_method": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256,
+              "enum": [
+                "FOLDED_BUNDLE_THROUGH_CLEAR_OPENING",
+                "OTHER",
+                null
+              ]
+            },
+            "unit": {
+              "const": "enum"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "hygiene_procedure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "unit": {
+              "const": "text"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "columns_per_unit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "count"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "actual_tier_count": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "count"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "door_open_angle_deg": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "degree"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "front_concurrency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "count"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "margin_target_mm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit",
+            "document_id",
+            "locator"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "unit": {
+              "const": "mm"
+            },
+            "document_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "source_documents": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_type",
+          "file_name",
+          "sha256",
+          "document_date",
+          "project_scope_id",
+          "reference"
+        ],
+        "properties": {
+          "source_type": {
+            "enum": [
+              "SUPPLIER_UNREVIEWED",
+              "SITE_MEASUREMENT_UNREVIEWED",
+              "HYPOTHETICAL_NOT_APPROVED"
+            ]
+          },
+          "file_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "document_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "project_scope_id": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "description": "Unreviewed input only. JSON cannot construct ReviewedProjectDatum or approve any field."
+}
