@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cold-storage:functional-room-sizing-advisory:1.0.0",
+  "title": "FunctionalRoomSizingAdvisoryV1",
+  "description": "Preview-only data. Schema/hash matching is not engineering approval.",
+  "type": "object",
+  "required": [
+    "advised_room",
+    "advisory_hash",
+    "approval_boundary",
+    "calculation_basis",
+    "comparison_scope",
+    "conditions",
+    "external_impact",
+    "functional_evidence",
+    "identity",
+    "invalidation_conditions",
+    "margins",
+    "original_room",
+    "owner_confirmation_checklist",
+    "p1_requirement",
+    "physical_room",
+    "project",
+    "schema_version",
+    "sources",
+    "units"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "advised_room": {
+      "type": "object"
+    },
+    "approval_boundary": {
+      "const": {
+        "actual_functional_status": "INPUT_REQUIRED",
+        "engineering_approval": "NOT_EVALUATED",
+        "whole_factory_fit": "NOT_EVALUATED",
+        "authority_effect": "NONE",
+        "solver_consumption": "FORBIDDEN_PREVIEW_ONLY"
+      }
+    },
+    "calculation_basis": {
+      "type": "object"
+    },
+    "comparison_scope": {
+      "type": "object"
+    },
+    "conditions": {
+      "type": "object",
+      "required": [
+        "classification",
+        "parameters",
+        "approval"
+      ],
+      "properties": {
+        "classification": {
+          "const": "HYPOTHETICAL_NOT_APPROVED"
+        },
+        "approval": {
+          "const": "INPUT_REQUIRED"
+        }
+      }
+    },
+    "external_impact": {
+      "type": "object"
+    },
+    "functional_evidence": {
+      "type": "object"
+    },
+    "identity": {
+      "const": "functional-room-sizing-advisory@1.0.0"
+    },
+    "invalidation_conditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "margins": {
+      "type": "object"
+    },
+    "original_room": {
+      "type": "object"
+    },
+    "owner_confirmation_checklist": {
+      "type": "array",
+      "minItems": 1
+    },
+    "p1_requirement": {
+      "type": "object"
+    },
+    "physical_room": {
+      "type": "object",
+      "required": [
+        "id",
+        "room_code",
+        "room_count",
+        "aliases"
+      ],
+      "properties": {
+        "room_code": {
+          "const": "changing_room"
+        },
+        "room_count": {
+          "const": 1
+        }
+      }
+    },
+    "project": {
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1
+    },
+    "units": {
+      "type": "string"
+    },
+    "advisory_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

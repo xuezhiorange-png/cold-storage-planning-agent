@@ -1,0 +1,32 @@
+{
+  "base_head": "9629019ddd704426b5f7fe72b9a98d2273fca1c4",
+  "base_tracked_files": 2374,
+  "unchanged_base_files": 2373,
+  "changed_base_files": [
+    ".github/workflows/ci-fast.yml"
+  ],
+  "old_python_and_evidence_files_changed": false,
+  "raw_history_copies": [
+    {
+      "path": "server-authorities.json",
+      "sha256": "1702c24afacece810e7a7e133a9db3c6bcdbe99842c06e78086efdbc432e253d",
+      "byte_equal_to_sealed_original": true
+    },
+    {
+      "path": "source-binding.json",
+      "sha256": "159628ea1aaf771c77739fb9a5cb7be931161550ed2ed80f649a3f2236a03e56",
+      "byte_equal_to_sealed_original": true
+    },
+    {
+      "path": "previews/proposal-01/candidate-01/candidate.json",
+      "sha256": "faa7a645bef1be1b61e84102b041a1cfe4c0bf002a5f8485d47c039158406d9f",
+      "byte_equal_to_sealed_original": true
+    },
+    {
+      "path": "previews/proposal-02/candidate-01/candidate.json",
+      "sha256": "c9e38907e5a6924ab261550c0478237924ac61f24f68e9185ba5782e8733c99b",
+      "byte_equal_to_sealed_original": true
+    }
+  ],
+  "p01_p02_physical_room_count": 1
+}

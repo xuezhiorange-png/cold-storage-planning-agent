@@ -1,0 +1,47 @@
+[
+  {
+    "id": "CABINET_MODEL",
+    "item": "实际五层柜型号、实体柜分组、外形及格口净尺寸",
+    "status": "INPUT_REQUIRED"
+  },
+  {
+    "id": "CLOTHING_SEPARATION",
+    "item": "工作服与私人衣物采用何种实际分隔，卫生工艺是否认可",
+    "status": "INPUT_REQUIRED"
+  },
+  {
+    "id": "CABINET_DOORS",
+    "item": "柜门铰链、开启角度、分层扫掠及取放操作方式",
+    "status": "INPUT_REQUIRED"
+  },
+  {
+    "id": "FINISHED_DIMENSIONS",
+    "item": "实际完成面尺寸、安装间隙、公差和柜体固定要求",
+    "status": "INPUT_REQUIRED"
+  },
+  {
+    "id": "HUMAN_ENVELOPES",
+    "item": "站立更衣、运输和转身的人体活动包络及五层可达性",
+    "status": "INPUT_REQUIRED"
+  },
+  {
+    "id": "OPERATING_PROTOCOL",
+    "item": "已知53人同时在室条件下的柜前并发、等候本位和换位组织",
+    "status": "INPUT_REQUIRED"
+  },
+  {
+    "id": "HYGIENE_AND_ROOM_DOORS",
+    "item": "洁污工艺、房门开向、门前停留与连续人员通行条件",
+    "status": "INPUT_REQUIRED"
+  },
+  {
+    "id": "OPERATION_TIMES",
+    "item": "真实取放、更衣和步行时间及允许的换班时间窗口",
+    "status": "INPUT_REQUIRED"
+  },
+  {
+    "id": "EXTERNAL_EXPANSION",
+    "item": "扩建后的Site、Footprint、外部Access、相邻房间及工艺关系",
+    "status": "INPUT_REQUIRED"
+  }
+]
