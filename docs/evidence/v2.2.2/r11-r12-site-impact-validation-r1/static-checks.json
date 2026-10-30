@@ -1,0 +1,38 @@
+[
+  {
+    "command": [
+      "/Users/charles/codex-v222-r11-r8-py312/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "."
+    ],
+    "exit": 0,
+    "stdout": "All checks passed!\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/Users/charles/codex-v222-r11-r8-py312/bin/python",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    "exit": 0,
+    "stdout": "1125 files already formatted\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/Users/charles/codex-v222-r11-r8-py312/bin/python",
+      "-m",
+      "mypy",
+      "src"
+    ],
+    "exit": 0,
+    "stdout": "Success: no issues found in 512 source files\n",
+    "stderr": ""
+  }
+]

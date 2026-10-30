@@ -1,0 +1,316 @@
+{
+  "task": "V2_2_2_R11_R11_FUNCTIONAL_SIZING_ADVISORY_HANDOFF_R1",
+  "head": "5a652a05afa438bd43631b7ffdaf4b541899c8ca",
+  "base": "9629019ddd704426b5f7fe72b9a98d2273fca1c4",
+  "run_id": 40984178267,
+  "status": "completed",
+  "conclusion": "success",
+  "attempt": 1,
+  "event": "pull_request",
+  "path": ".github/workflows/ci-fast.yml",
+  "pr_number": 331,
+  "pr_state": "open",
+  "draft": true,
+  "merged": false,
+  "artifact": {
+    "id": 12947348071,
+    "name": "ci-fast-backend-regression-40984178267-1",
+    "size_in_bytes": 28187,
+    "url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/actions/artifacts/12947348071",
+    "archive_download_url": "https://api.github.com/repos/xuezhiorange-png/cold-storage-planning-agent/actions/artifacts/12947348071/zip",
+    "expired": false,
+    "created_at": "2026-10-30T01:46:01Z",
+    "expires_at": "2027-01-28T01:09:58Z",
+    "updated_at": "2026-10-30T01:46:01Z",
+    "digest": "sha256:5148ccc2de597b3de70ee6c4e2b3ad9532bc5cbef43e1a57511ae1de002d192f",
+    "workflow_run": {
+      "id": 40984178267,
+      "repository_id": 1275027802,
+      "head_repository_id": 1275027802,
+      "head_branch": "codex/v222-r11-r11-functional-sizing-advisory",
+      "head_sha": "5a652a05afa438bd43631b7ffdaf4b541899c8ca"
+    }
+  },
+  "jobs": [
+    {
+      "id": 123831168263,
+      "name": "fast-checks",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 40984178267,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run astral-sh/setup-uv@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "CI classifier and gate regression",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Identify non-authoritative development scope",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Locked backend dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Shared pytest CJK font prerequisite",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Stage B, geometry and deterministic resource regression (no factory solve)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Preserve actual backend test execution report",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Partition execution and shared fixture contracts (no layout search)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Architecture and security boundaries",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Ruff",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Format",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        },
+        {
+          "name": "Mypy",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14
+        },
+        {
+          "name": "Diff whitespace",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15
+        },
+        {
+          "name": "Explicit acceptance boundary",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16
+        },
+        {
+          "name": "Post Run astral-sh/setup-uv@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 31
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 32
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 33
+        }
+      ]
+    },
+    {
+      "id": 123842895477,
+      "name": "fast-ci-gate",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 40984178267,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Require real fast-checks success",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        }
+      ]
+    }
+  ],
+  "junit_total": 1873,
+  "new_advisory_tests": {
+    "total": 48,
+    "passed": 48,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duplicates": 0,
+    "names": [
+      "test_real_advisory_dimensions_and_own_conditions[0-26331-3550-93.475050-7.899300-20-20-50]",
+      "test_real_advisory_dimensions_and_own_conditions[1-26331-3850-101.374350-15.798600-30-40-70]",
+      "test_real_advisory_dimensions_and_own_conditions[2-28000-4350-121.800000-36.224250-20-20-150]",
+      "test_p1_is_existing_immutable_reference_not_new_authority",
+      "test_two_distinct_candidate_hashes_are_one_physical_room",
+      "test_duplicate_record_rejected_not_silently_counted",
+      "test_other_candidate_or_source_cannot_reuse_advice[source_p1_handoff_hash]",
+      "test_other_candidate_or_source_cannot_reuse_advice[source_zone_plan_hash]",
+      "test_other_candidate_or_source_cannot_reuse_advice[source_site_geometry_hash]",
+      "test_other_candidate_or_source_cannot_reuse_advice[source_composition_hash]",
+      "test_other_candidate_or_source_cannot_reuse_advice[canonical_result_hash]",
+      "test_other_project_scope_or_fixture_identity_rejected[project_scope_id]",
+      "test_other_project_scope_or_fixture_identity_rejected[project_input_identity]",
+      "test_changed_historical_geometry_and_acceptance_rejected[rectangle]",
+      "test_changed_historical_geometry_and_acceptance_rejected[portal]",
+      "test_changed_historical_geometry_and_acceptance_rejected[acceptance]",
+      "test_missing_real_source_fails_closed[docs/previews/v2.2.2/r11-r10-functional-room-reverse-sizing-r1/selected-evidence.json.gz]",
+      "test_missing_real_source_fails_closed[docs/previews/v2.2.2/r11-r10-functional-room-reverse-sizing-r1/evaluation-grid.jsonl.gz]",
+      "test_missing_real_source_fails_closed[docs/evidence/v2.2.2/r11-r11-h5-sizing-sources/server-authorities.json]",
+      "test_missing_real_source_fails_closed[docs/evidence/v2.2.2/r11-r11-h5-sizing-sources/previews/proposal-01/candidate-01/candidate.json]",
+      "test_missing_real_source_fails_closed[docs/evidence/v2.2.2/r11-r11-h5-sizing-sources/r10-remote-ci/backend-regression.xml]",
+      "test_missing_real_source_fails_closed[docs/tasks/V2_2_2-r11-r8-reviewed-cabinet-front-facts.txt]",
+      "test_missing_real_source_fails_closed[docs/previews/v2.2.2/r11-r9-h5-space-relayout-r1/execution-boundary-exception.md]",
+      "test_altered_p1_source_and_rehashed_manifest_still_rejected",
+      "test_modified_advisory_and_recomputed_hash_never_promotes[conditions]",
+      "test_modified_advisory_and_recomputed_hash_never_promotes[approval]",
+      "test_modified_advisory_and_recomputed_hash_never_promotes[area]",
+      "test_modified_advisory_and_recomputed_hash_never_promotes[margin]",
+      "test_modified_advisory_and_recomputed_hash_never_promotes[source]",
+      "test_modified_advisory_and_recomputed_hash_never_promotes[scope]",
+      "test_modified_advisory_and_recomputed_hash_never_promotes[room_type]",
+      "test_modified_advisory_and_recomputed_hash_never_promotes[owner_source]",
+      "test_advisory_roundtrip_and_selection_require_current_evidence",
+      "test_other_functional_rooms_are_not_implicitly_supported[office]",
+      "test_other_functional_rooms_are_not_implicitly_supported[coating_room]",
+      "test_other_functional_rooms_are_not_implicitly_supported[unknown_room]",
+      "test_conditions_grouping_is_not_optimality_or_safety_claim",
+      "test_external_impacts_remain_unvalidated[0-0-300-False]",
+      "test_external_impacts_remain_unvalidated[1-0-600-False]",
+      "test_external_impacts_remain_unvalidated[2-1669-1100-True]",
+      "test_both_shift_complete_proofs_and_real_margin_locations",
+      "test_confirmed_facts_are_not_reintroduced_as_unknown",
+      "test_preview_is_deterministic_and_does_not_change_inputs",
+      "test_precheck_has_no_filesystem_write_port",
+      "test_current_parent_native_apis_are_disabled",
+      "test_schema_does_not_allow_engineering_approval_labels",
+      "test_contract_schema_is_stable_across_python_hash_seeds",
+      "test_approval_and_evidence_anchors_are_immutable"
+    ]
+  },
+  "original_r10_tests": {
+    "total": 41,
+    "passed": 41,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duplicates": 0,
+    "names": [
+      "test_owner_facts_retained_and_dimensions_never_promoted",
+      "test_json_status_labels_and_fact_overrides_rejected[raw0]",
+      "test_json_status_labels_and_fact_overrides_rejected[raw1]",
+      "test_json_status_labels_and_fact_overrides_rejected[raw2]",
+      "test_unreviewed_owner_source_rejected",
+      "test_full_default_grid_is_finite_and_covers_owner_points",
+      "test_not_shrinking_bodies_or_passage_to_fit[c0]",
+      "test_not_shrinking_bodies_or_passage_to_fit[c1]",
+      "test_not_shrinking_bodies_or_passage_to_fit[c2]",
+      "test_not_shrinking_bodies_or_passage_to_fit[c3]",
+      "test_invalid_ranges_and_options_fail_before_geometry[search0]",
+      "test_invalid_ranges_and_options_fail_before_geometry[search1]",
+      "test_invalid_ranges_and_options_fail_before_geometry[search2]",
+      "test_invalid_ranges_and_options_fail_before_geometry[search3]",
+      "test_invalid_ranges_and_options_fail_before_geometry[search4]",
+      "test_preview_size_limit_is_not_an_engineering_infeasibility",
+      "test_original_room_and_source_portals_are_immutable",
+      "test_width_only_keeps_portal_coordinates_but_not_external_approval",
+      "test_r9_baseline_geometry_and_10mm_reproduced",
+      "test_r9_30mm_finish_failure_is_not_reinterpreted",
+      "test_full_53_users_and_110_compartments_both_shifts[0]",
+      "test_full_53_users_and_110_compartments_both_shifts[1]",
+      "test_full_53_users_and_110_compartments_both_shifts[2]",
+      "test_full_53_users_and_110_compartments_both_shifts[3]",
+      "test_complete_position_replay_no_teleportation[0]",
+      "test_complete_position_replay_no_teleportation[1]",
+      "test_complete_position_replay_no_teleportation[2]",
+      "test_complete_position_replay_no_teleportation[3]",
+      "test_3440_is_full_witness_only_for_checked_template_not_a_general_rule",
+      "test_margin_is_measured_not_copied_from_request",
+      "test_generous_design_and_actual_dimension_chain",
+      "test_robust_width_only_alternative_is_actually_checked",
+      "test_sizing_goals_do_not_choose_unvalidated_or_tight_as_recommendation",
+      "test_same_input_has_identical_complete_witness",
+      "test_original_inventory_demand_cannot_be_reduced",
+      "test_height_is_not_truncated_in_activity_proof",
+      "test_svg_dimensions_are_from_candidate_and_comparison_common_scale",
+      "test_parent_native_requests_are_blocked_without_execution",
+      "test_child_native_startup_guard_covers_both_apis",
+      "test_whitelist_has_no_stage_b_or_historical_native_test_modules",
+      "test_preview_http_api_returns_real_flow_and_rejects_approval_override"
+    ]
+  },
+  "zip_digest_verified": "sha256:5148ccc2de597b3de70ee6c4e2b3ad9532bc5cbef43e1a57511ae1de002d192f",
+  "original_sources_changed": false,
+  "new_20t_native": false,
+  "main_executed": false,
+  "real_grant_claim_created": false,
+  "full_ci_requested": false
+}
