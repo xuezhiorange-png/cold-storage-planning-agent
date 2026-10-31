@@ -1,0 +1,39 @@
+[
+  {
+    "name": "ruff",
+    "command": [
+      "uv",
+      "run",
+      "ruff",
+      "check",
+      "."
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "format",
+    "command": [
+      "uv",
+      "run",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "mypy",
+    "command": [
+      "uv",
+      "run",
+      "mypy",
+      "src"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "diff-check",
+    "exit_code": 0
+  }
+]

@@ -1,0 +1,95 @@
+{
+  "task": "V2_2_2_R11_R15_R4_LOCAL_CLEARANCE_IMPROVEMENT",
+  "base_head": "b8e6e19f83a44b0bbba76ced2538372a8cb23763",
+  "local_tests": {
+    "total": 61,
+    "passed": 61,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "new_unit": 36,
+    "new_architecture": 3,
+    "inherited_directed": 22,
+    "existing_import_warnings_preserved": 5
+  },
+  "static_checks": [
+    {
+      "name": "ruff",
+      "command": [
+        "uv",
+        "run",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "format",
+      "command": [
+        "uv",
+        "run",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "mypy",
+      "command": [
+        "uv",
+        "run",
+        "mypy",
+        "src"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "diff-check",
+      "exit_code": 0
+    }
+  ],
+  "boundary": {
+    "new_native_solves": 0,
+    "parent_child_guards_ready": 6,
+    "intentional_negative_native_requests_blocked": 4,
+    "layout_generator_r15_r1_reexecuted": false,
+    "new_real_main": false,
+    "new_real_grant_claim": false,
+    "formal_ci_requested": false,
+    "photo_r2": "PAUSED_NOT_EVALUATED",
+    "photo_searched_or_read": false,
+    "fast_ci_inherited_synthetic_native_tests_retained": true
+  },
+  "browser_review": {
+    "six_rows": true,
+    "selected": "R4-02",
+    "loaded_images": [
+      "R4-02-plan.svg",
+      "R4-02-difference.svg",
+      "R4-02-section.svg"
+    ],
+    "console_errors": []
+  },
+  "selected_conditional_scheme": {
+    "id": "R4-02",
+    "operator_delta_mm": 35,
+    "branch_delta_mm": 35,
+    "home_delta_mm": 0,
+    "minimum_exact_conservative_door_mm": [
+      100,
+      100
+    ],
+    "minimum_declared_closed_margin_mm": 100,
+    "completed_users": [
+      53,
+      53
+    ],
+    "checked_open_events_per_hypothesis": 212,
+    "actual_calibration": "INPUT_REQUIRED",
+    "engineering_approval": "NOT_EVALUATED",
+    "factory_applicability": "NOT_EVALUATED"
+  }
+}

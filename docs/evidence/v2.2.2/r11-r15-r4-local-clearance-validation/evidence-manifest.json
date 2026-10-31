@@ -1,0 +1,13 @@
+{
+  "base-byte-comparison.json.gz": "4d55d8d859f724ed341abd6afa8fb1d5f6b5f2fb372a087972b28fcb3d0b717a",
+  "native-guard-records.json.gz": "6b52ecddfa0a212e7cae665460ce4acb095f87b24d53b124521e5b683c08c63e",
+  "pytest.txt": "5cdf1fc20147634b27eb609738861202abcb43dad5ad49cd8d40ee42ba3f7e84",
+  "pytest.xml": "9ab73e6b207cffff965f3e27b3f7b2ae9acb25099a2699640b7bd3d2e6334f29",
+  "static-diff.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "static-format.txt": "a6095560494fc0450378cd15dca69e5ee60f35a708e4dc97d7f4da5cc44f6cbf",
+  "static-mypy.txt": "8a1b53083ee382d784f461d24a34f92cb6c590efe0d292353d8531a3717d165c",
+  "static-results.json": "37f5dbd23c40d315c301c07fcc183c06d83463b5976e39047096c5702db41167",
+  "static-ruff.txt": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+  "validation-summary.json": "cdaf3c13f8c8be6c58e312bd31c31fc767df3d146eb556560a61b840dbb61e5f",
+  "whitelist.json": "d1de2635107534c4a208f2442fa8b6946872619b83c6234afd105547c9c47f4e"
+}
