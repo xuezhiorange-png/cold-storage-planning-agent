@@ -1,0 +1,62 @@
+{
+  "renderer": "bundled sharp/librsvg",
+  "original_svg_unchanged": true,
+  "records": [
+    {
+      "svg": "original-52-plan.svg",
+      "source_sha256": "d1c7ad790e3e6405cc9d30d5a0b07277f41722258581cb50eb3d641eff8086f3",
+      "png": "original-52-plan.png",
+      "png_sha256": "952334e5f6bd1bc416f7e7187c3d5ed1a482bd22dcdbede7b2c0e561f779cb82",
+      "width": 2400,
+      "height": 557,
+      "viewbox": [
+        -600,
+        -4850,
+        27600,
+        6400
+      ]
+    },
+    {
+      "svg": "R15-03-plan.svg",
+      "source_sha256": "6d12431e3aef5697a734911bdfcff935c5e283ab87622cfd64ffb421f1ed7b55",
+      "png": "R15-03-plan.png",
+      "png_sha256": "7a7870bb707dfafbb9c5d80b0aa54f3a93238e5e35ce812ff1de54a63af5b283",
+      "width": 2400,
+      "height": 557,
+      "viewbox": [
+        -600,
+        -4850,
+        27600,
+        6400
+      ]
+    },
+    {
+      "svg": "R15-03-difference.svg",
+      "source_sha256": "9bfc25d8c699819cf09653077b1b12c30131c854a9bffef92edcd4fea34cde7a",
+      "png": "R15-03-difference.png",
+      "png_sha256": "edf765a0b67d8b65ba2abb650a65bbd1274059c0aa0ac04a91e563d5edf998f3",
+      "width": 2400,
+      "height": 574,
+      "viewbox": [
+        -600,
+        -5100,
+        27600,
+        6600
+      ]
+    },
+    {
+      "svg": "r14-worst-clearance.svg",
+      "source_sha256": "759bd0ea292ee1eae5ade168f94019834652a721a8bdce7966526ca665409c4f",
+      "png": "r14-worst-clearance.png",
+      "png_sha256": "05b359967cbf4d3a09aa90f1fb0c12cfc27680f8b1ec122b0c9da6793df809ab",
+      "width": 1600,
+      "height": 1664,
+      "viewbox": [
+        657,
+        -2010,
+        2000,
+        2080
+      ]
+    }
+  ]
+}

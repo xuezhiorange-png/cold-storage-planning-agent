@@ -1,0 +1,21 @@
+{
+  "python": "3.12.13",
+  "dependency_lock_changed": false,
+  "ruff": {
+    "command": "python -m ruff check .",
+    "status": "PASS",
+    "output": "All checks passed!"
+  },
+  "format": {
+    "command": "python -m ruff format --check .",
+    "status": "PASS",
+    "files": 1151
+  },
+  "mypy": {
+    "command": "python -m mypy src",
+    "status": "PASS",
+    "source_files": 526
+  },
+  "git_diff_check": "PASS",
+  "inherited_ci_synthetic_native_tests_removed": false
+}

@@ -1,0 +1,122 @@
+{
+  "task": "V2_2_2_R11_R15_TEN_DOOR_LOCKER_LOCAL_RELAYOUT_R1",
+  "base_head": "784e87e1e1307b6379214903da6b2fcc393a244d",
+  "python": "Python 3.12.13",
+  "results": {
+    "focused": {
+      "total": 66,
+      "passed": 66,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "duplicates": 0,
+      "r15_unit": 63,
+      "r15_architecture": 3,
+      "skips": []
+    },
+    "whitelist": {
+      "total": 1635,
+      "passed": 1619,
+      "skipped": 16,
+      "failures": 0,
+      "errors": 0,
+      "duplicates": 0,
+      "r15_unit": 63,
+      "r15_architecture": 3,
+      "skips": [
+        {
+          "classname": "tests.architecture.test_post_v09_p1_hide_planning_run_nav_contract",
+          "name": "test_p1_changed_paths_are_subset_of_allowlist",
+          "reason": "allowlist applies on the P1 branch only"
+        },
+        {
+          "classname": "tests.architecture.test_post_v09_p2_stage_result_display_contract",
+          "name": "test_p2_changed_paths_are_subset_of_allowlist",
+          "reason": "allowlist applies on the P2 branch only"
+        },
+        {
+          "classname": "tests.architecture.test_post_v09_p3_report_calculation_logic_contract",
+          "name": "test_p3_changed_paths_are_subset_of_allowlist",
+          "reason": "allowlist applies on the P3 branch only"
+        },
+        {
+          "classname": "tests.architecture.test_post_v09_p4_zone_area_recut_contract",
+          "name": "test_p4_changed_paths_are_subset_of_allowlist",
+          "reason": "allowlist applies on the P4 branch only"
+        },
+        {
+          "classname": "tests.architecture.test_post_v09_p5_result_tables_contract",
+          "name": "test_p5_changed_paths_are_subset_of_allowlist",
+          "reason": "allowlist applies on the P5 branch only"
+        },
+        {
+          "classname": "tests.architecture.test_post_v09_p6_report_readability_contract",
+          "name": "test_p6_changed_paths_are_subset_of_allowlist",
+          "reason": "allowlist applies on the P6 branch only"
+        },
+        {
+          "classname": "tests.architecture.test_post_v09_p7_scheme_button_contract",
+          "name": "test_p7_changed_paths_are_subset_of_allowlist",
+          "reason": "allowlist applies on the P7 branch only"
+        },
+        {
+          "classname": "tests.architecture.test_post_v09_p8_frontend_polish_contract",
+          "name": "test_p8_changed_paths_are_subset_of_allowlist",
+          "reason": "allowlist applies on the P8 branch only"
+        },
+        {
+          "classname": "tests.architecture.test_v09_p1_operator_key_contract",
+          "name": "test_p1_diff_stays_on_allowlist_and_does_not_edit_zone_planning",
+          "reason": "P1 allowlist diff only enforced on v09-p1-operator-key branch"
+        },
+        {
+          "classname": "tests.architecture.test_v09_p2_zone_formula_contract",
+          "name": "test_p2_diff_stays_on_allowlist",
+          "reason": "P2 allowlist diff only enforced on v09-p2-zone-formula branch"
+        },
+        {
+          "classname": "tests.architecture.test_v09_p2_zone_formula_contract",
+          "name": "test_zone_planning_is_only_production_formula_file_changed",
+          "reason": "P2 formula-file and Vue-diff assertions only run on v09-p2-zone-formula"
+        },
+        {
+          "classname": "tests.architecture.test_v09_p2_zone_formula_contract",
+          "name": "test_no_vue_changes_in_p2_diff",
+          "reason": "P2 formula-file and Vue-diff assertions only run on v09-p2-zone-formula"
+        },
+        {
+          "classname": "tests.architecture.test_v09_p3_zone_result_display_contract",
+          "name": "test_p3_diff_stays_on_allowlist",
+          "reason": "P3 allowlist diff only enforced on branches whose name contains v09-p3-zone-result"
+        },
+        {
+          "classname": "tests.architecture.test_v09_p3_zone_result_display_contract",
+          "name": "test_no_backend_src_changes_in_p3_diff",
+          "reason": "P3 backend-src freeze only enforced on branches whose name contains v09-p3-zone-result"
+        },
+        {
+          "classname": "tests.architecture.test_v09_p6_operator_sample_contract",
+          "name": "test_p6_diff_stays_on_allowlist",
+          "reason": "P6 allowlist diff only enforced on branches whose name contains v09-p6-operator"
+        },
+        {
+          "classname": "tests.architecture.test_v09_p6_operator_sample_contract",
+          "name": "test_p6_diff_does_not_edit_zone_planning_or_cooling_load",
+          "reason": "P6 formula-file freeze only enforced on branches whose name contains v09-p6-operator"
+        }
+      ]
+    }
+  },
+  "guard_ready_records": 35,
+  "intentional_blocked_negative_probes": 40,
+  "actual_local_native_solves": 0,
+  "new_20t_native": 0,
+  "new_main": false,
+  "real_grant_claim": false,
+  "formal_ci_requested": false,
+  "fast_ci_tests_preserved": true,
+  "fast_ci_may_run_inherited_synthetic_native": true,
+  "actual_calibration": "INPUT_REQUIRED",
+  "engineering_approval": "NOT_EVALUATED",
+  "factory_applicability": "NOT_EVALUATED"
+}

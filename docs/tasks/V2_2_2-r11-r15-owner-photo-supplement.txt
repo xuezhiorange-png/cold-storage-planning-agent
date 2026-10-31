@@ -1,0 +1,20 @@
+TASK_ID=V2_2_2_R11_R15_TEN_DOOR_LOCKER_LOCAL_RELAYOUT_R1
+PROJECT_SCOPE=Frozen 20t/day packaged-product H5 project, P01/P02 one physical room.
+R14_SELECTION_SOURCE=docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt
+R14_SELECTION_SOURCE_SHA256=2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b
+OWNER_REPORTED_ORIGINAL_PHOTO_FILENAME=IMG_0875.jpeg
+OWNER_REPORTED_ORIGINAL_PHOTO_SHA256=833c674259d29129d75703c37c6eb532b360d09647f3e221f6cce3951b41ccaa
+OWNER_REPORTED_NOMINAL_COMPLETE_CABINET_MM=850,390,1800
+OWNER_REPORTED_COLUMNS_TIERS_DOORS=2,5,10
+OWNER_REPORTED_SINGLE_DOOR_LABEL_MM=400,360,320
+OWNER_REPORTED_RAIL_COUNT=0
+OWNER_REPORTED_EXTRA_SHELF_COUNT=0
+Photo bytes must be independently hashed before reporting verified file evidence.
+The Owner-reported digest is not proof that the original photo file is available.
+Do not publish the original photograph without separate authorization.
+Nominal labels are not verified compartment clear dimensions or hardware.
+R14 history and approval status must not be overwritten by this supplement.
+Retain 11 complete cabinets, 110 cells, each shift 53 people and 55 allocated cells.
+U06 has two separately allocated columns within one complete physical cabinet.
+Only finite deterministic local rearrangements, original conditional checks and reports.
+No new Native, MAIN, real Grant/Claim, formal CI, Ready, Merge or Deploy.

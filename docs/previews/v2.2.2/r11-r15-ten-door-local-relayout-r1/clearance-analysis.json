@@ -1,0 +1,5258 @@
+[
+  {
+    "case_id": "R14-20-20-M50-C",
+    "hinges": "ALL_LEFT",
+    "shift": 1,
+    "event": 110,
+    "operation": "OPEN_FOR_RETRIEVE",
+    "batch": "S1-B01",
+    "tier": 1,
+    "door": {
+      "actual_hardware_status": "INPUT_REQUIRED",
+      "angle_degrees": 90,
+      "arc_mm": [
+        [
+          1207,
+          480
+        ],
+        [
+          1206,
+          511
+        ],
+        [
+          1202,
+          543
+        ],
+        [
+          1196,
+          573
+        ],
+        [
+          1187,
+          604
+        ],
+        [
+          1177,
+          633
+        ],
+        [
+          1163,
+          662
+        ],
+        [
+          1148,
+          689
+        ],
+        [
+          1131,
+          715
+        ],
+        [
+          1111,
+          740
+        ],
+        [
+          1090,
+          763
+        ],
+        [
+          1067,
+          784
+        ],
+        [
+          1042,
+          804
+        ],
+        [
+          1016,
+          821
+        ],
+        [
+          989,
+          836
+        ],
+        [
+          960,
+          850
+        ],
+        [
+          931,
+          860
+        ],
+        [
+          900,
+          869
+        ],
+        [
+          870,
+          875
+        ],
+        [
+          838,
+          879
+        ],
+        [
+          807,
+          880
+        ]
+      ],
+      "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+      "column_id": "U01-L",
+      "compartment_id": "U01-L-T1",
+      "conditional_front_frame_mm": [
+        12,
+        13
+      ],
+      "direction": [
+        1,
+        1
+      ],
+      "hinge_mm": [
+        807,
+        480
+      ],
+      "hinge_side": "LEFT",
+      "id": "U01-L-T1-DOOR",
+      "kind": "OUTWARD_HINGED_90",
+      "open_leaf_mm": [
+        [
+          807,
+          480
+        ],
+        [
+          807,
+          880
+        ]
+      ],
+      "radius_mm": 400,
+      "source_label": "HYPOTHETICAL_NOT_APPROVED",
+      "thickness_mm": 15,
+      "unit_id": "U01",
+      "z_interval_mm": [
+        100,
+        420
+      ]
+    },
+    "person": {
+      "bounds_mm": [
+        795,
+        910,
+        1245,
+        1560
+      ],
+      "column_id": "U01-L",
+      "compartment_id": "U01-L-T1",
+      "id": "S1-P001",
+      "pose": "STANDING",
+      "role": "FRONT_OPERATOR",
+      "volumes_mm": [
+        [
+          795,
+          910,
+          0,
+          1245,
+          1560,
+          1800
+        ]
+      ]
+    },
+    "active_people": [
+      "S1-P001",
+      "S1-P011",
+      "S1-P021",
+      "S1-P031"
+    ],
+    "people_count": 53,
+    "simultaneous_doors": [
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            1207,
+            480
+          ],
+          [
+            1206,
+            511
+          ],
+          [
+            1202,
+            543
+          ],
+          [
+            1196,
+            573
+          ],
+          [
+            1187,
+            604
+          ],
+          [
+            1177,
+            633
+          ],
+          [
+            1163,
+            662
+          ],
+          [
+            1148,
+            689
+          ],
+          [
+            1131,
+            715
+          ],
+          [
+            1111,
+            740
+          ],
+          [
+            1090,
+            763
+          ],
+          [
+            1067,
+            784
+          ],
+          [
+            1042,
+            804
+          ],
+          [
+            1016,
+            821
+          ],
+          [
+            989,
+            836
+          ],
+          [
+            960,
+            850
+          ],
+          [
+            931,
+            860
+          ],
+          [
+            900,
+            869
+          ],
+          [
+            870,
+            875
+          ],
+          [
+            838,
+            879
+          ],
+          [
+            807,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U01-L",
+        "compartment_id": "U01-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          807,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U01-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            807,
+            480
+          ],
+          [
+            807,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U01",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            2127,
+            480
+          ],
+          [
+            2126,
+            511
+          ],
+          [
+            2122,
+            543
+          ],
+          [
+            2116,
+            573
+          ],
+          [
+            2107,
+            604
+          ],
+          [
+            2097,
+            633
+          ],
+          [
+            2083,
+            662
+          ],
+          [
+            2068,
+            689
+          ],
+          [
+            2051,
+            715
+          ],
+          [
+            2031,
+            740
+          ],
+          [
+            2010,
+            763
+          ],
+          [
+            1987,
+            784
+          ],
+          [
+            1962,
+            804
+          ],
+          [
+            1936,
+            821
+          ],
+          [
+            1909,
+            836
+          ],
+          [
+            1880,
+            850
+          ],
+          [
+            1851,
+            860
+          ],
+          [
+            1820,
+            869
+          ],
+          [
+            1790,
+            875
+          ],
+          [
+            1758,
+            879
+          ],
+          [
+            1727,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U02-L",
+        "compartment_id": "U02-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          1727,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U02-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            1727,
+            480
+          ],
+          [
+            1727,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U02",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            3047,
+            480
+          ],
+          [
+            3046,
+            511
+          ],
+          [
+            3042,
+            543
+          ],
+          [
+            3036,
+            573
+          ],
+          [
+            3027,
+            604
+          ],
+          [
+            3017,
+            633
+          ],
+          [
+            3003,
+            662
+          ],
+          [
+            2988,
+            689
+          ],
+          [
+            2971,
+            715
+          ],
+          [
+            2951,
+            740
+          ],
+          [
+            2930,
+            763
+          ],
+          [
+            2907,
+            784
+          ],
+          [
+            2882,
+            804
+          ],
+          [
+            2856,
+            821
+          ],
+          [
+            2829,
+            836
+          ],
+          [
+            2800,
+            850
+          ],
+          [
+            2771,
+            860
+          ],
+          [
+            2740,
+            869
+          ],
+          [
+            2710,
+            875
+          ],
+          [
+            2678,
+            879
+          ],
+          [
+            2647,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U03-L",
+        "compartment_id": "U03-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          2647,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U03-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            2647,
+            480
+          ],
+          [
+            2647,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U03",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            3967,
+            480
+          ],
+          [
+            3966,
+            511
+          ],
+          [
+            3962,
+            543
+          ],
+          [
+            3956,
+            573
+          ],
+          [
+            3947,
+            604
+          ],
+          [
+            3937,
+            633
+          ],
+          [
+            3923,
+            662
+          ],
+          [
+            3908,
+            689
+          ],
+          [
+            3891,
+            715
+          ],
+          [
+            3871,
+            740
+          ],
+          [
+            3850,
+            763
+          ],
+          [
+            3827,
+            784
+          ],
+          [
+            3802,
+            804
+          ],
+          [
+            3776,
+            821
+          ],
+          [
+            3749,
+            836
+          ],
+          [
+            3720,
+            850
+          ],
+          [
+            3691,
+            860
+          ],
+          [
+            3660,
+            869
+          ],
+          [
+            3630,
+            875
+          ],
+          [
+            3598,
+            879
+          ],
+          [
+            3567,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U04-L",
+        "compartment_id": "U04-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          3567,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U04-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            3567,
+            480
+          ],
+          [
+            3567,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U04",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      }
+    ],
+    "reserved_aisles_mm": [
+      [
+        1007,
+        1610,
+        11620,
+        2860
+      ],
+      [
+        10995,
+        1625,
+        12245,
+        2235
+      ],
+      [
+        10995,
+        1610,
+        12245,
+        2860
+      ],
+      [
+        13165,
+        1000,
+        26331,
+        2250
+      ],
+      [
+        12540,
+        0,
+        13790,
+        1625
+      ],
+      [
+        12540,
+        1000,
+        13790,
+        2250
+      ],
+      [
+        11620,
+        1000,
+        13165,
+        2250
+      ],
+      [
+        382,
+        1610,
+        1632,
+        2860
+      ],
+      [
+        10995,
+        1610,
+        12245,
+        2860
+      ],
+      [
+        10995,
+        1000,
+        12245,
+        2250
+      ],
+      [
+        12540,
+        1000,
+        13790,
+        2250
+      ]
+    ],
+    "standing_change_envelope_mm": [
+      600,
+      900,
+      1800
+    ],
+    "standing_change_phase": "DOORS_CLOSED; OPEN_EVENT_BODY_IS_TRANSPORT_450x650x1800",
+    "cabinet_front_y_mm": 480,
+    "archived_lower_bound_mm": 15,
+    "distance": {
+      "collision_original_predicate": false,
+      "bounding_box_lower_bound_mm": 15,
+      "model_distance_lower_um": 15000,
+      "model_distance_upper_um": 15000,
+      "interval_unit": "0.001 mm",
+      "exact_interval": true,
+      "expanded_target_in_hinge_axes_mm": [
+        -27,
+        415,
+        453,
+        1095
+      ],
+      "z_separation_mm": 0,
+      "feature_certificates": [
+        {
+          "feature": "VERTICAL_RADIUS",
+          "squared_mm2": 225,
+          "lower_um": 15000,
+          "upper_um": 15000
+        },
+        {
+          "feature": "HORIZONTAL_RADIUS",
+          "squared_mm2": 172225,
+          "lower_um": 415000,
+          "upper_um": 415000
+        },
+        {
+          "feature": "CIRCULAR_ARC_OR_INTERIOR",
+          "squared_mm2": 172225,
+          "radius_mm": 400,
+          "lower_um": 15000,
+          "upper_um": 15000
+        }
+      ],
+      "formula": "distance(Q_radius + [-thickness,thickness]^2, target) = distance(Q_radius, target + [-thickness,thickness]^2); combine z gap by Pythagoras",
+      "mathematical_scope": "EXACT_DISTANCE_TO_ORIGINAL_CONSERVATIVE_THICKNESS_MODEL_ONLY",
+      "actual_hardware_and_human_clearance": "INPUT_REQUIRED",
+      "sensitivity_50mm_met": false,
+      "normative_minimum_claim": false
+    },
+    "original_event_revalidation": {
+      "status": "VERIFIED_UNDER_HYPOTHESES",
+      "conflicts": [],
+      "doors": [
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              1207,
+              480
+            ],
+            [
+              1206,
+              511
+            ],
+            [
+              1202,
+              543
+            ],
+            [
+              1196,
+              573
+            ],
+            [
+              1187,
+              604
+            ],
+            [
+              1177,
+              633
+            ],
+            [
+              1163,
+              662
+            ],
+            [
+              1148,
+              689
+            ],
+            [
+              1131,
+              715
+            ],
+            [
+              1111,
+              740
+            ],
+            [
+              1090,
+              763
+            ],
+            [
+              1067,
+              784
+            ],
+            [
+              1042,
+              804
+            ],
+            [
+              1016,
+              821
+            ],
+            [
+              989,
+              836
+            ],
+            [
+              960,
+              850
+            ],
+            [
+              931,
+              860
+            ],
+            [
+              900,
+              869
+            ],
+            [
+              870,
+              875
+            ],
+            [
+              838,
+              879
+            ],
+            [
+              807,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U01-L",
+          "compartment_id": "U01-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            807,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U01-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              807,
+              480
+            ],
+            [
+              807,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U01",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              2127,
+              480
+            ],
+            [
+              2126,
+              511
+            ],
+            [
+              2122,
+              543
+            ],
+            [
+              2116,
+              573
+            ],
+            [
+              2107,
+              604
+            ],
+            [
+              2097,
+              633
+            ],
+            [
+              2083,
+              662
+            ],
+            [
+              2068,
+              689
+            ],
+            [
+              2051,
+              715
+            ],
+            [
+              2031,
+              740
+            ],
+            [
+              2010,
+              763
+            ],
+            [
+              1987,
+              784
+            ],
+            [
+              1962,
+              804
+            ],
+            [
+              1936,
+              821
+            ],
+            [
+              1909,
+              836
+            ],
+            [
+              1880,
+              850
+            ],
+            [
+              1851,
+              860
+            ],
+            [
+              1820,
+              869
+            ],
+            [
+              1790,
+              875
+            ],
+            [
+              1758,
+              879
+            ],
+            [
+              1727,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U02-L",
+          "compartment_id": "U02-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            1727,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U02-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              1727,
+              480
+            ],
+            [
+              1727,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U02",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              3047,
+              480
+            ],
+            [
+              3046,
+              511
+            ],
+            [
+              3042,
+              543
+            ],
+            [
+              3036,
+              573
+            ],
+            [
+              3027,
+              604
+            ],
+            [
+              3017,
+              633
+            ],
+            [
+              3003,
+              662
+            ],
+            [
+              2988,
+              689
+            ],
+            [
+              2971,
+              715
+            ],
+            [
+              2951,
+              740
+            ],
+            [
+              2930,
+              763
+            ],
+            [
+              2907,
+              784
+            ],
+            [
+              2882,
+              804
+            ],
+            [
+              2856,
+              821
+            ],
+            [
+              2829,
+              836
+            ],
+            [
+              2800,
+              850
+            ],
+            [
+              2771,
+              860
+            ],
+            [
+              2740,
+              869
+            ],
+            [
+              2710,
+              875
+            ],
+            [
+              2678,
+              879
+            ],
+            [
+              2647,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U03-L",
+          "compartment_id": "U03-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            2647,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U03-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              2647,
+              480
+            ],
+            [
+              2647,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U03",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              3967,
+              480
+            ],
+            [
+              3966,
+              511
+            ],
+            [
+              3962,
+              543
+            ],
+            [
+              3956,
+              573
+            ],
+            [
+              3947,
+              604
+            ],
+            [
+              3937,
+              633
+            ],
+            [
+              3923,
+              662
+            ],
+            [
+              3908,
+              689
+            ],
+            [
+              3891,
+              715
+            ],
+            [
+              3871,
+              740
+            ],
+            [
+              3850,
+              763
+            ],
+            [
+              3827,
+              784
+            ],
+            [
+              3802,
+              804
+            ],
+            [
+              3776,
+              821
+            ],
+            [
+              3749,
+              836
+            ],
+            [
+              3720,
+              850
+            ],
+            [
+              3691,
+              860
+            ],
+            [
+              3660,
+              869
+            ],
+            [
+              3630,
+              875
+            ],
+            [
+              3598,
+              879
+            ],
+            [
+              3567,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U04-L",
+          "compartment_id": "U04-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            3567,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U04-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              3567,
+              480
+            ],
+            [
+              3567,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U04",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        }
+      ],
+      "people_count": 53,
+      "minimum_clearance_lower_bound": {
+        "extra_mm": 15,
+        "door": "U01-L-T1-DOOR",
+        "object": "S1-P001",
+        "bounds_mm": [
+          807,
+          480,
+          1222,
+          895
+        ],
+        "definition": "CONSERVATIVE_SWEEP_BOUNDING_BOX_LOWER_BOUND; NOT_ERGONOMIC_APPROVAL"
+      },
+      "scope": "ALL_ACTIVE_FULL_3D_SWEEPS_AT_THIS_ACTUAL_FLOW_EVENT; NOT_ACTUAL_HARDWARE_APPROVAL"
+    },
+    "inherited_status_unchanged": true,
+    "actual_status": "INPUT_REQUIRED"
+  },
+  {
+    "case_id": "R14-20-20-M50-C",
+    "hinges": "MIRRORED",
+    "shift": 1,
+    "event": 110,
+    "operation": "OPEN_FOR_RETRIEVE",
+    "batch": "S1-B01",
+    "tier": 1,
+    "door": {
+      "actual_hardware_status": "INPUT_REQUIRED",
+      "angle_degrees": 90,
+      "arc_mm": [
+        [
+          1207,
+          480
+        ],
+        [
+          1206,
+          511
+        ],
+        [
+          1202,
+          543
+        ],
+        [
+          1196,
+          573
+        ],
+        [
+          1187,
+          604
+        ],
+        [
+          1177,
+          633
+        ],
+        [
+          1163,
+          662
+        ],
+        [
+          1148,
+          689
+        ],
+        [
+          1131,
+          715
+        ],
+        [
+          1111,
+          740
+        ],
+        [
+          1090,
+          763
+        ],
+        [
+          1067,
+          784
+        ],
+        [
+          1042,
+          804
+        ],
+        [
+          1016,
+          821
+        ],
+        [
+          989,
+          836
+        ],
+        [
+          960,
+          850
+        ],
+        [
+          931,
+          860
+        ],
+        [
+          900,
+          869
+        ],
+        [
+          870,
+          875
+        ],
+        [
+          838,
+          879
+        ],
+        [
+          807,
+          880
+        ]
+      ],
+      "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+      "column_id": "U01-L",
+      "compartment_id": "U01-L-T1",
+      "conditional_front_frame_mm": [
+        12,
+        13
+      ],
+      "direction": [
+        1,
+        1
+      ],
+      "hinge_mm": [
+        807,
+        480
+      ],
+      "hinge_side": "LEFT",
+      "id": "U01-L-T1-DOOR",
+      "kind": "OUTWARD_HINGED_90",
+      "open_leaf_mm": [
+        [
+          807,
+          480
+        ],
+        [
+          807,
+          880
+        ]
+      ],
+      "radius_mm": 400,
+      "source_label": "HYPOTHETICAL_NOT_APPROVED",
+      "thickness_mm": 15,
+      "unit_id": "U01",
+      "z_interval_mm": [
+        100,
+        420
+      ]
+    },
+    "person": {
+      "bounds_mm": [
+        795,
+        910,
+        1245,
+        1560
+      ],
+      "column_id": "U01-L",
+      "compartment_id": "U01-L-T1",
+      "id": "S1-P001",
+      "pose": "STANDING",
+      "role": "FRONT_OPERATOR",
+      "volumes_mm": [
+        [
+          795,
+          910,
+          0,
+          1245,
+          1560,
+          1800
+        ]
+      ]
+    },
+    "active_people": [
+      "S1-P001",
+      "S1-P011",
+      "S1-P021",
+      "S1-P031"
+    ],
+    "people_count": 53,
+    "simultaneous_doors": [
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            1207,
+            480
+          ],
+          [
+            1206,
+            511
+          ],
+          [
+            1202,
+            543
+          ],
+          [
+            1196,
+            573
+          ],
+          [
+            1187,
+            604
+          ],
+          [
+            1177,
+            633
+          ],
+          [
+            1163,
+            662
+          ],
+          [
+            1148,
+            689
+          ],
+          [
+            1131,
+            715
+          ],
+          [
+            1111,
+            740
+          ],
+          [
+            1090,
+            763
+          ],
+          [
+            1067,
+            784
+          ],
+          [
+            1042,
+            804
+          ],
+          [
+            1016,
+            821
+          ],
+          [
+            989,
+            836
+          ],
+          [
+            960,
+            850
+          ],
+          [
+            931,
+            860
+          ],
+          [
+            900,
+            869
+          ],
+          [
+            870,
+            875
+          ],
+          [
+            838,
+            879
+          ],
+          [
+            807,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U01-L",
+        "compartment_id": "U01-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          807,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U01-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            807,
+            480
+          ],
+          [
+            807,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U01",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            2127,
+            480
+          ],
+          [
+            2126,
+            511
+          ],
+          [
+            2122,
+            543
+          ],
+          [
+            2116,
+            573
+          ],
+          [
+            2107,
+            604
+          ],
+          [
+            2097,
+            633
+          ],
+          [
+            2083,
+            662
+          ],
+          [
+            2068,
+            689
+          ],
+          [
+            2051,
+            715
+          ],
+          [
+            2031,
+            740
+          ],
+          [
+            2010,
+            763
+          ],
+          [
+            1987,
+            784
+          ],
+          [
+            1962,
+            804
+          ],
+          [
+            1936,
+            821
+          ],
+          [
+            1909,
+            836
+          ],
+          [
+            1880,
+            850
+          ],
+          [
+            1851,
+            860
+          ],
+          [
+            1820,
+            869
+          ],
+          [
+            1790,
+            875
+          ],
+          [
+            1758,
+            879
+          ],
+          [
+            1727,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U02-L",
+        "compartment_id": "U02-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          1727,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U02-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            1727,
+            480
+          ],
+          [
+            1727,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U02",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            3047,
+            480
+          ],
+          [
+            3046,
+            511
+          ],
+          [
+            3042,
+            543
+          ],
+          [
+            3036,
+            573
+          ],
+          [
+            3027,
+            604
+          ],
+          [
+            3017,
+            633
+          ],
+          [
+            3003,
+            662
+          ],
+          [
+            2988,
+            689
+          ],
+          [
+            2971,
+            715
+          ],
+          [
+            2951,
+            740
+          ],
+          [
+            2930,
+            763
+          ],
+          [
+            2907,
+            784
+          ],
+          [
+            2882,
+            804
+          ],
+          [
+            2856,
+            821
+          ],
+          [
+            2829,
+            836
+          ],
+          [
+            2800,
+            850
+          ],
+          [
+            2771,
+            860
+          ],
+          [
+            2740,
+            869
+          ],
+          [
+            2710,
+            875
+          ],
+          [
+            2678,
+            879
+          ],
+          [
+            2647,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U03-L",
+        "compartment_id": "U03-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          2647,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U03-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            2647,
+            480
+          ],
+          [
+            2647,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U03",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            3967,
+            480
+          ],
+          [
+            3966,
+            511
+          ],
+          [
+            3962,
+            543
+          ],
+          [
+            3956,
+            573
+          ],
+          [
+            3947,
+            604
+          ],
+          [
+            3937,
+            633
+          ],
+          [
+            3923,
+            662
+          ],
+          [
+            3908,
+            689
+          ],
+          [
+            3891,
+            715
+          ],
+          [
+            3871,
+            740
+          ],
+          [
+            3850,
+            763
+          ],
+          [
+            3827,
+            784
+          ],
+          [
+            3802,
+            804
+          ],
+          [
+            3776,
+            821
+          ],
+          [
+            3749,
+            836
+          ],
+          [
+            3720,
+            850
+          ],
+          [
+            3691,
+            860
+          ],
+          [
+            3660,
+            869
+          ],
+          [
+            3630,
+            875
+          ],
+          [
+            3598,
+            879
+          ],
+          [
+            3567,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U04-L",
+        "compartment_id": "U04-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          3567,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U04-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            3567,
+            480
+          ],
+          [
+            3567,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U04",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      }
+    ],
+    "reserved_aisles_mm": [
+      [
+        1007,
+        1610,
+        11620,
+        2860
+      ],
+      [
+        10995,
+        1625,
+        12245,
+        2235
+      ],
+      [
+        10995,
+        1610,
+        12245,
+        2860
+      ],
+      [
+        13165,
+        1000,
+        26331,
+        2250
+      ],
+      [
+        12540,
+        0,
+        13790,
+        1625
+      ],
+      [
+        12540,
+        1000,
+        13790,
+        2250
+      ],
+      [
+        11620,
+        1000,
+        13165,
+        2250
+      ],
+      [
+        382,
+        1610,
+        1632,
+        2860
+      ],
+      [
+        10995,
+        1610,
+        12245,
+        2860
+      ],
+      [
+        10995,
+        1000,
+        12245,
+        2250
+      ],
+      [
+        12540,
+        1000,
+        13790,
+        2250
+      ]
+    ],
+    "standing_change_envelope_mm": [
+      600,
+      900,
+      1800
+    ],
+    "standing_change_phase": "DOORS_CLOSED; OPEN_EVENT_BODY_IS_TRANSPORT_450x650x1800",
+    "cabinet_front_y_mm": 480,
+    "archived_lower_bound_mm": 15,
+    "distance": {
+      "collision_original_predicate": false,
+      "bounding_box_lower_bound_mm": 15,
+      "model_distance_lower_um": 15000,
+      "model_distance_upper_um": 15000,
+      "interval_unit": "0.001 mm",
+      "exact_interval": true,
+      "expanded_target_in_hinge_axes_mm": [
+        -27,
+        415,
+        453,
+        1095
+      ],
+      "z_separation_mm": 0,
+      "feature_certificates": [
+        {
+          "feature": "VERTICAL_RADIUS",
+          "squared_mm2": 225,
+          "lower_um": 15000,
+          "upper_um": 15000
+        },
+        {
+          "feature": "HORIZONTAL_RADIUS",
+          "squared_mm2": 172225,
+          "lower_um": 415000,
+          "upper_um": 415000
+        },
+        {
+          "feature": "CIRCULAR_ARC_OR_INTERIOR",
+          "squared_mm2": 172225,
+          "radius_mm": 400,
+          "lower_um": 15000,
+          "upper_um": 15000
+        }
+      ],
+      "formula": "distance(Q_radius + [-thickness,thickness]^2, target) = distance(Q_radius, target + [-thickness,thickness]^2); combine z gap by Pythagoras",
+      "mathematical_scope": "EXACT_DISTANCE_TO_ORIGINAL_CONSERVATIVE_THICKNESS_MODEL_ONLY",
+      "actual_hardware_and_human_clearance": "INPUT_REQUIRED",
+      "sensitivity_50mm_met": false,
+      "normative_minimum_claim": false
+    },
+    "original_event_revalidation": {
+      "status": "VERIFIED_UNDER_HYPOTHESES",
+      "conflicts": [],
+      "doors": [
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              1207,
+              480
+            ],
+            [
+              1206,
+              511
+            ],
+            [
+              1202,
+              543
+            ],
+            [
+              1196,
+              573
+            ],
+            [
+              1187,
+              604
+            ],
+            [
+              1177,
+              633
+            ],
+            [
+              1163,
+              662
+            ],
+            [
+              1148,
+              689
+            ],
+            [
+              1131,
+              715
+            ],
+            [
+              1111,
+              740
+            ],
+            [
+              1090,
+              763
+            ],
+            [
+              1067,
+              784
+            ],
+            [
+              1042,
+              804
+            ],
+            [
+              1016,
+              821
+            ],
+            [
+              989,
+              836
+            ],
+            [
+              960,
+              850
+            ],
+            [
+              931,
+              860
+            ],
+            [
+              900,
+              869
+            ],
+            [
+              870,
+              875
+            ],
+            [
+              838,
+              879
+            ],
+            [
+              807,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U01-L",
+          "compartment_id": "U01-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            807,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U01-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              807,
+              480
+            ],
+            [
+              807,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U01",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              2127,
+              480
+            ],
+            [
+              2126,
+              511
+            ],
+            [
+              2122,
+              543
+            ],
+            [
+              2116,
+              573
+            ],
+            [
+              2107,
+              604
+            ],
+            [
+              2097,
+              633
+            ],
+            [
+              2083,
+              662
+            ],
+            [
+              2068,
+              689
+            ],
+            [
+              2051,
+              715
+            ],
+            [
+              2031,
+              740
+            ],
+            [
+              2010,
+              763
+            ],
+            [
+              1987,
+              784
+            ],
+            [
+              1962,
+              804
+            ],
+            [
+              1936,
+              821
+            ],
+            [
+              1909,
+              836
+            ],
+            [
+              1880,
+              850
+            ],
+            [
+              1851,
+              860
+            ],
+            [
+              1820,
+              869
+            ],
+            [
+              1790,
+              875
+            ],
+            [
+              1758,
+              879
+            ],
+            [
+              1727,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U02-L",
+          "compartment_id": "U02-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            1727,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U02-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              1727,
+              480
+            ],
+            [
+              1727,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U02",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              3047,
+              480
+            ],
+            [
+              3046,
+              511
+            ],
+            [
+              3042,
+              543
+            ],
+            [
+              3036,
+              573
+            ],
+            [
+              3027,
+              604
+            ],
+            [
+              3017,
+              633
+            ],
+            [
+              3003,
+              662
+            ],
+            [
+              2988,
+              689
+            ],
+            [
+              2971,
+              715
+            ],
+            [
+              2951,
+              740
+            ],
+            [
+              2930,
+              763
+            ],
+            [
+              2907,
+              784
+            ],
+            [
+              2882,
+              804
+            ],
+            [
+              2856,
+              821
+            ],
+            [
+              2829,
+              836
+            ],
+            [
+              2800,
+              850
+            ],
+            [
+              2771,
+              860
+            ],
+            [
+              2740,
+              869
+            ],
+            [
+              2710,
+              875
+            ],
+            [
+              2678,
+              879
+            ],
+            [
+              2647,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U03-L",
+          "compartment_id": "U03-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            2647,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U03-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              2647,
+              480
+            ],
+            [
+              2647,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U03",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              3967,
+              480
+            ],
+            [
+              3966,
+              511
+            ],
+            [
+              3962,
+              543
+            ],
+            [
+              3956,
+              573
+            ],
+            [
+              3947,
+              604
+            ],
+            [
+              3937,
+              633
+            ],
+            [
+              3923,
+              662
+            ],
+            [
+              3908,
+              689
+            ],
+            [
+              3891,
+              715
+            ],
+            [
+              3871,
+              740
+            ],
+            [
+              3850,
+              763
+            ],
+            [
+              3827,
+              784
+            ],
+            [
+              3802,
+              804
+            ],
+            [
+              3776,
+              821
+            ],
+            [
+              3749,
+              836
+            ],
+            [
+              3720,
+              850
+            ],
+            [
+              3691,
+              860
+            ],
+            [
+              3660,
+              869
+            ],
+            [
+              3630,
+              875
+            ],
+            [
+              3598,
+              879
+            ],
+            [
+              3567,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U04-L",
+          "compartment_id": "U04-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            3567,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U04-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              3567,
+              480
+            ],
+            [
+              3567,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U04",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        }
+      ],
+      "people_count": 53,
+      "minimum_clearance_lower_bound": {
+        "extra_mm": 15,
+        "door": "U01-L-T1-DOOR",
+        "object": "S1-P001",
+        "bounds_mm": [
+          807,
+          480,
+          1222,
+          895
+        ],
+        "definition": "CONSERVATIVE_SWEEP_BOUNDING_BOX_LOWER_BOUND; NOT_ERGONOMIC_APPROVAL"
+      },
+      "scope": "ALL_ACTIVE_FULL_3D_SWEEPS_AT_THIS_ACTUAL_FLOW_EVENT; NOT_ACTUAL_HARDWARE_APPROVAL"
+    },
+    "inherited_status_unchanged": true,
+    "actual_status": "INPUT_REQUIRED"
+  },
+  {
+    "case_id": "R14-20-20-M50-3850",
+    "hinges": "ALL_LEFT",
+    "shift": 1,
+    "event": 110,
+    "operation": "OPEN_FOR_RETRIEVE",
+    "batch": "S1-B01",
+    "tier": 1,
+    "door": {
+      "actual_hardware_status": "INPUT_REQUIRED",
+      "angle_degrees": 90,
+      "arc_mm": [
+        [
+          1207,
+          480
+        ],
+        [
+          1206,
+          511
+        ],
+        [
+          1202,
+          543
+        ],
+        [
+          1196,
+          573
+        ],
+        [
+          1187,
+          604
+        ],
+        [
+          1177,
+          633
+        ],
+        [
+          1163,
+          662
+        ],
+        [
+          1148,
+          689
+        ],
+        [
+          1131,
+          715
+        ],
+        [
+          1111,
+          740
+        ],
+        [
+          1090,
+          763
+        ],
+        [
+          1067,
+          784
+        ],
+        [
+          1042,
+          804
+        ],
+        [
+          1016,
+          821
+        ],
+        [
+          989,
+          836
+        ],
+        [
+          960,
+          850
+        ],
+        [
+          931,
+          860
+        ],
+        [
+          900,
+          869
+        ],
+        [
+          870,
+          875
+        ],
+        [
+          838,
+          879
+        ],
+        [
+          807,
+          880
+        ]
+      ],
+      "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+      "column_id": "U01-L",
+      "compartment_id": "U01-L-T1",
+      "conditional_front_frame_mm": [
+        12,
+        13
+      ],
+      "direction": [
+        1,
+        1
+      ],
+      "hinge_mm": [
+        807,
+        480
+      ],
+      "hinge_side": "LEFT",
+      "id": "U01-L-T1-DOOR",
+      "kind": "OUTWARD_HINGED_90",
+      "open_leaf_mm": [
+        [
+          807,
+          480
+        ],
+        [
+          807,
+          880
+        ]
+      ],
+      "radius_mm": 400,
+      "source_label": "HYPOTHETICAL_NOT_APPROVED",
+      "thickness_mm": 15,
+      "unit_id": "U01",
+      "z_interval_mm": [
+        100,
+        420
+      ]
+    },
+    "person": {
+      "bounds_mm": [
+        795,
+        910,
+        1245,
+        1560
+      ],
+      "column_id": "U01-L",
+      "compartment_id": "U01-L-T1",
+      "id": "S1-P001",
+      "pose": "STANDING",
+      "role": "FRONT_OPERATOR",
+      "volumes_mm": [
+        [
+          795,
+          910,
+          0,
+          1245,
+          1560,
+          1800
+        ]
+      ]
+    },
+    "active_people": [
+      "S1-P001",
+      "S1-P011",
+      "S1-P021",
+      "S1-P031"
+    ],
+    "people_count": 53,
+    "simultaneous_doors": [
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            1207,
+            480
+          ],
+          [
+            1206,
+            511
+          ],
+          [
+            1202,
+            543
+          ],
+          [
+            1196,
+            573
+          ],
+          [
+            1187,
+            604
+          ],
+          [
+            1177,
+            633
+          ],
+          [
+            1163,
+            662
+          ],
+          [
+            1148,
+            689
+          ],
+          [
+            1131,
+            715
+          ],
+          [
+            1111,
+            740
+          ],
+          [
+            1090,
+            763
+          ],
+          [
+            1067,
+            784
+          ],
+          [
+            1042,
+            804
+          ],
+          [
+            1016,
+            821
+          ],
+          [
+            989,
+            836
+          ],
+          [
+            960,
+            850
+          ],
+          [
+            931,
+            860
+          ],
+          [
+            900,
+            869
+          ],
+          [
+            870,
+            875
+          ],
+          [
+            838,
+            879
+          ],
+          [
+            807,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U01-L",
+        "compartment_id": "U01-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          807,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U01-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            807,
+            480
+          ],
+          [
+            807,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U01",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            2127,
+            480
+          ],
+          [
+            2126,
+            511
+          ],
+          [
+            2122,
+            543
+          ],
+          [
+            2116,
+            573
+          ],
+          [
+            2107,
+            604
+          ],
+          [
+            2097,
+            633
+          ],
+          [
+            2083,
+            662
+          ],
+          [
+            2068,
+            689
+          ],
+          [
+            2051,
+            715
+          ],
+          [
+            2031,
+            740
+          ],
+          [
+            2010,
+            763
+          ],
+          [
+            1987,
+            784
+          ],
+          [
+            1962,
+            804
+          ],
+          [
+            1936,
+            821
+          ],
+          [
+            1909,
+            836
+          ],
+          [
+            1880,
+            850
+          ],
+          [
+            1851,
+            860
+          ],
+          [
+            1820,
+            869
+          ],
+          [
+            1790,
+            875
+          ],
+          [
+            1758,
+            879
+          ],
+          [
+            1727,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U02-L",
+        "compartment_id": "U02-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          1727,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U02-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            1727,
+            480
+          ],
+          [
+            1727,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U02",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            3047,
+            480
+          ],
+          [
+            3046,
+            511
+          ],
+          [
+            3042,
+            543
+          ],
+          [
+            3036,
+            573
+          ],
+          [
+            3027,
+            604
+          ],
+          [
+            3017,
+            633
+          ],
+          [
+            3003,
+            662
+          ],
+          [
+            2988,
+            689
+          ],
+          [
+            2971,
+            715
+          ],
+          [
+            2951,
+            740
+          ],
+          [
+            2930,
+            763
+          ],
+          [
+            2907,
+            784
+          ],
+          [
+            2882,
+            804
+          ],
+          [
+            2856,
+            821
+          ],
+          [
+            2829,
+            836
+          ],
+          [
+            2800,
+            850
+          ],
+          [
+            2771,
+            860
+          ],
+          [
+            2740,
+            869
+          ],
+          [
+            2710,
+            875
+          ],
+          [
+            2678,
+            879
+          ],
+          [
+            2647,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U03-L",
+        "compartment_id": "U03-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          2647,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U03-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            2647,
+            480
+          ],
+          [
+            2647,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U03",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            3967,
+            480
+          ],
+          [
+            3966,
+            511
+          ],
+          [
+            3962,
+            543
+          ],
+          [
+            3956,
+            573
+          ],
+          [
+            3947,
+            604
+          ],
+          [
+            3937,
+            633
+          ],
+          [
+            3923,
+            662
+          ],
+          [
+            3908,
+            689
+          ],
+          [
+            3891,
+            715
+          ],
+          [
+            3871,
+            740
+          ],
+          [
+            3850,
+            763
+          ],
+          [
+            3827,
+            784
+          ],
+          [
+            3802,
+            804
+          ],
+          [
+            3776,
+            821
+          ],
+          [
+            3749,
+            836
+          ],
+          [
+            3720,
+            850
+          ],
+          [
+            3691,
+            860
+          ],
+          [
+            3660,
+            869
+          ],
+          [
+            3630,
+            875
+          ],
+          [
+            3598,
+            879
+          ],
+          [
+            3567,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U04-L",
+        "compartment_id": "U04-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          3567,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U04-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            3567,
+            480
+          ],
+          [
+            3567,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U04",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      }
+    ],
+    "reserved_aisles_mm": [
+      [
+        1007,
+        1610,
+        11620,
+        2860
+      ],
+      [
+        10995,
+        1625,
+        12245,
+        2235
+      ],
+      [
+        10995,
+        1610,
+        12245,
+        2860
+      ],
+      [
+        13165,
+        1000,
+        26331,
+        2250
+      ],
+      [
+        12540,
+        0,
+        13790,
+        1625
+      ],
+      [
+        12540,
+        1000,
+        13790,
+        2250
+      ],
+      [
+        11620,
+        1000,
+        13165,
+        2250
+      ],
+      [
+        382,
+        1610,
+        1632,
+        2860
+      ],
+      [
+        10995,
+        1610,
+        12245,
+        2860
+      ],
+      [
+        10995,
+        1000,
+        12245,
+        2250
+      ],
+      [
+        12540,
+        1000,
+        13790,
+        2250
+      ]
+    ],
+    "standing_change_envelope_mm": [
+      600,
+      900,
+      1800
+    ],
+    "standing_change_phase": "DOORS_CLOSED; OPEN_EVENT_BODY_IS_TRANSPORT_450x650x1800",
+    "cabinet_front_y_mm": 480,
+    "archived_lower_bound_mm": 15,
+    "distance": {
+      "collision_original_predicate": false,
+      "bounding_box_lower_bound_mm": 15,
+      "model_distance_lower_um": 15000,
+      "model_distance_upper_um": 15000,
+      "interval_unit": "0.001 mm",
+      "exact_interval": true,
+      "expanded_target_in_hinge_axes_mm": [
+        -27,
+        415,
+        453,
+        1095
+      ],
+      "z_separation_mm": 0,
+      "feature_certificates": [
+        {
+          "feature": "VERTICAL_RADIUS",
+          "squared_mm2": 225,
+          "lower_um": 15000,
+          "upper_um": 15000
+        },
+        {
+          "feature": "HORIZONTAL_RADIUS",
+          "squared_mm2": 172225,
+          "lower_um": 415000,
+          "upper_um": 415000
+        },
+        {
+          "feature": "CIRCULAR_ARC_OR_INTERIOR",
+          "squared_mm2": 172225,
+          "radius_mm": 400,
+          "lower_um": 15000,
+          "upper_um": 15000
+        }
+      ],
+      "formula": "distance(Q_radius + [-thickness,thickness]^2, target) = distance(Q_radius, target + [-thickness,thickness]^2); combine z gap by Pythagoras",
+      "mathematical_scope": "EXACT_DISTANCE_TO_ORIGINAL_CONSERVATIVE_THICKNESS_MODEL_ONLY",
+      "actual_hardware_and_human_clearance": "INPUT_REQUIRED",
+      "sensitivity_50mm_met": false,
+      "normative_minimum_claim": false
+    },
+    "original_event_revalidation": {
+      "status": "VERIFIED_UNDER_HYPOTHESES",
+      "conflicts": [],
+      "doors": [
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              1207,
+              480
+            ],
+            [
+              1206,
+              511
+            ],
+            [
+              1202,
+              543
+            ],
+            [
+              1196,
+              573
+            ],
+            [
+              1187,
+              604
+            ],
+            [
+              1177,
+              633
+            ],
+            [
+              1163,
+              662
+            ],
+            [
+              1148,
+              689
+            ],
+            [
+              1131,
+              715
+            ],
+            [
+              1111,
+              740
+            ],
+            [
+              1090,
+              763
+            ],
+            [
+              1067,
+              784
+            ],
+            [
+              1042,
+              804
+            ],
+            [
+              1016,
+              821
+            ],
+            [
+              989,
+              836
+            ],
+            [
+              960,
+              850
+            ],
+            [
+              931,
+              860
+            ],
+            [
+              900,
+              869
+            ],
+            [
+              870,
+              875
+            ],
+            [
+              838,
+              879
+            ],
+            [
+              807,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U01-L",
+          "compartment_id": "U01-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            807,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U01-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              807,
+              480
+            ],
+            [
+              807,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U01",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              2127,
+              480
+            ],
+            [
+              2126,
+              511
+            ],
+            [
+              2122,
+              543
+            ],
+            [
+              2116,
+              573
+            ],
+            [
+              2107,
+              604
+            ],
+            [
+              2097,
+              633
+            ],
+            [
+              2083,
+              662
+            ],
+            [
+              2068,
+              689
+            ],
+            [
+              2051,
+              715
+            ],
+            [
+              2031,
+              740
+            ],
+            [
+              2010,
+              763
+            ],
+            [
+              1987,
+              784
+            ],
+            [
+              1962,
+              804
+            ],
+            [
+              1936,
+              821
+            ],
+            [
+              1909,
+              836
+            ],
+            [
+              1880,
+              850
+            ],
+            [
+              1851,
+              860
+            ],
+            [
+              1820,
+              869
+            ],
+            [
+              1790,
+              875
+            ],
+            [
+              1758,
+              879
+            ],
+            [
+              1727,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U02-L",
+          "compartment_id": "U02-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            1727,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U02-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              1727,
+              480
+            ],
+            [
+              1727,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U02",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              3047,
+              480
+            ],
+            [
+              3046,
+              511
+            ],
+            [
+              3042,
+              543
+            ],
+            [
+              3036,
+              573
+            ],
+            [
+              3027,
+              604
+            ],
+            [
+              3017,
+              633
+            ],
+            [
+              3003,
+              662
+            ],
+            [
+              2988,
+              689
+            ],
+            [
+              2971,
+              715
+            ],
+            [
+              2951,
+              740
+            ],
+            [
+              2930,
+              763
+            ],
+            [
+              2907,
+              784
+            ],
+            [
+              2882,
+              804
+            ],
+            [
+              2856,
+              821
+            ],
+            [
+              2829,
+              836
+            ],
+            [
+              2800,
+              850
+            ],
+            [
+              2771,
+              860
+            ],
+            [
+              2740,
+              869
+            ],
+            [
+              2710,
+              875
+            ],
+            [
+              2678,
+              879
+            ],
+            [
+              2647,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U03-L",
+          "compartment_id": "U03-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            2647,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U03-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              2647,
+              480
+            ],
+            [
+              2647,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U03",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              3967,
+              480
+            ],
+            [
+              3966,
+              511
+            ],
+            [
+              3962,
+              543
+            ],
+            [
+              3956,
+              573
+            ],
+            [
+              3947,
+              604
+            ],
+            [
+              3937,
+              633
+            ],
+            [
+              3923,
+              662
+            ],
+            [
+              3908,
+              689
+            ],
+            [
+              3891,
+              715
+            ],
+            [
+              3871,
+              740
+            ],
+            [
+              3850,
+              763
+            ],
+            [
+              3827,
+              784
+            ],
+            [
+              3802,
+              804
+            ],
+            [
+              3776,
+              821
+            ],
+            [
+              3749,
+              836
+            ],
+            [
+              3720,
+              850
+            ],
+            [
+              3691,
+              860
+            ],
+            [
+              3660,
+              869
+            ],
+            [
+              3630,
+              875
+            ],
+            [
+              3598,
+              879
+            ],
+            [
+              3567,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U04-L",
+          "compartment_id": "U04-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            3567,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U04-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              3567,
+              480
+            ],
+            [
+              3567,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U04",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        }
+      ],
+      "people_count": 53,
+      "minimum_clearance_lower_bound": {
+        "extra_mm": 15,
+        "door": "U01-L-T1-DOOR",
+        "object": "S1-P001",
+        "bounds_mm": [
+          807,
+          480,
+          1222,
+          895
+        ],
+        "definition": "CONSERVATIVE_SWEEP_BOUNDING_BOX_LOWER_BOUND; NOT_ERGONOMIC_APPROVAL"
+      },
+      "scope": "ALL_ACTIVE_FULL_3D_SWEEPS_AT_THIS_ACTUAL_FLOW_EVENT; NOT_ACTUAL_HARDWARE_APPROVAL"
+    },
+    "inherited_status_unchanged": true,
+    "actual_status": "INPUT_REQUIRED"
+  },
+  {
+    "case_id": "R14-20-20-M50-3850",
+    "hinges": "MIRRORED",
+    "shift": 1,
+    "event": 110,
+    "operation": "OPEN_FOR_RETRIEVE",
+    "batch": "S1-B01",
+    "tier": 1,
+    "door": {
+      "actual_hardware_status": "INPUT_REQUIRED",
+      "angle_degrees": 90,
+      "arc_mm": [
+        [
+          1207,
+          480
+        ],
+        [
+          1206,
+          511
+        ],
+        [
+          1202,
+          543
+        ],
+        [
+          1196,
+          573
+        ],
+        [
+          1187,
+          604
+        ],
+        [
+          1177,
+          633
+        ],
+        [
+          1163,
+          662
+        ],
+        [
+          1148,
+          689
+        ],
+        [
+          1131,
+          715
+        ],
+        [
+          1111,
+          740
+        ],
+        [
+          1090,
+          763
+        ],
+        [
+          1067,
+          784
+        ],
+        [
+          1042,
+          804
+        ],
+        [
+          1016,
+          821
+        ],
+        [
+          989,
+          836
+        ],
+        [
+          960,
+          850
+        ],
+        [
+          931,
+          860
+        ],
+        [
+          900,
+          869
+        ],
+        [
+          870,
+          875
+        ],
+        [
+          838,
+          879
+        ],
+        [
+          807,
+          880
+        ]
+      ],
+      "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+      "column_id": "U01-L",
+      "compartment_id": "U01-L-T1",
+      "conditional_front_frame_mm": [
+        12,
+        13
+      ],
+      "direction": [
+        1,
+        1
+      ],
+      "hinge_mm": [
+        807,
+        480
+      ],
+      "hinge_side": "LEFT",
+      "id": "U01-L-T1-DOOR",
+      "kind": "OUTWARD_HINGED_90",
+      "open_leaf_mm": [
+        [
+          807,
+          480
+        ],
+        [
+          807,
+          880
+        ]
+      ],
+      "radius_mm": 400,
+      "source_label": "HYPOTHETICAL_NOT_APPROVED",
+      "thickness_mm": 15,
+      "unit_id": "U01",
+      "z_interval_mm": [
+        100,
+        420
+      ]
+    },
+    "person": {
+      "bounds_mm": [
+        795,
+        910,
+        1245,
+        1560
+      ],
+      "column_id": "U01-L",
+      "compartment_id": "U01-L-T1",
+      "id": "S1-P001",
+      "pose": "STANDING",
+      "role": "FRONT_OPERATOR",
+      "volumes_mm": [
+        [
+          795,
+          910,
+          0,
+          1245,
+          1560,
+          1800
+        ]
+      ]
+    },
+    "active_people": [
+      "S1-P001",
+      "S1-P011",
+      "S1-P021",
+      "S1-P031"
+    ],
+    "people_count": 53,
+    "simultaneous_doors": [
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            1207,
+            480
+          ],
+          [
+            1206,
+            511
+          ],
+          [
+            1202,
+            543
+          ],
+          [
+            1196,
+            573
+          ],
+          [
+            1187,
+            604
+          ],
+          [
+            1177,
+            633
+          ],
+          [
+            1163,
+            662
+          ],
+          [
+            1148,
+            689
+          ],
+          [
+            1131,
+            715
+          ],
+          [
+            1111,
+            740
+          ],
+          [
+            1090,
+            763
+          ],
+          [
+            1067,
+            784
+          ],
+          [
+            1042,
+            804
+          ],
+          [
+            1016,
+            821
+          ],
+          [
+            989,
+            836
+          ],
+          [
+            960,
+            850
+          ],
+          [
+            931,
+            860
+          ],
+          [
+            900,
+            869
+          ],
+          [
+            870,
+            875
+          ],
+          [
+            838,
+            879
+          ],
+          [
+            807,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U01-L",
+        "compartment_id": "U01-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          807,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U01-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            807,
+            480
+          ],
+          [
+            807,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U01",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            2127,
+            480
+          ],
+          [
+            2126,
+            511
+          ],
+          [
+            2122,
+            543
+          ],
+          [
+            2116,
+            573
+          ],
+          [
+            2107,
+            604
+          ],
+          [
+            2097,
+            633
+          ],
+          [
+            2083,
+            662
+          ],
+          [
+            2068,
+            689
+          ],
+          [
+            2051,
+            715
+          ],
+          [
+            2031,
+            740
+          ],
+          [
+            2010,
+            763
+          ],
+          [
+            1987,
+            784
+          ],
+          [
+            1962,
+            804
+          ],
+          [
+            1936,
+            821
+          ],
+          [
+            1909,
+            836
+          ],
+          [
+            1880,
+            850
+          ],
+          [
+            1851,
+            860
+          ],
+          [
+            1820,
+            869
+          ],
+          [
+            1790,
+            875
+          ],
+          [
+            1758,
+            879
+          ],
+          [
+            1727,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U02-L",
+        "compartment_id": "U02-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          1727,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U02-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            1727,
+            480
+          ],
+          [
+            1727,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U02",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            3047,
+            480
+          ],
+          [
+            3046,
+            511
+          ],
+          [
+            3042,
+            543
+          ],
+          [
+            3036,
+            573
+          ],
+          [
+            3027,
+            604
+          ],
+          [
+            3017,
+            633
+          ],
+          [
+            3003,
+            662
+          ],
+          [
+            2988,
+            689
+          ],
+          [
+            2971,
+            715
+          ],
+          [
+            2951,
+            740
+          ],
+          [
+            2930,
+            763
+          ],
+          [
+            2907,
+            784
+          ],
+          [
+            2882,
+            804
+          ],
+          [
+            2856,
+            821
+          ],
+          [
+            2829,
+            836
+          ],
+          [
+            2800,
+            850
+          ],
+          [
+            2771,
+            860
+          ],
+          [
+            2740,
+            869
+          ],
+          [
+            2710,
+            875
+          ],
+          [
+            2678,
+            879
+          ],
+          [
+            2647,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U03-L",
+        "compartment_id": "U03-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          2647,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U03-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            2647,
+            480
+          ],
+          [
+            2647,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U03",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      },
+      {
+        "actual_hardware_status": "INPUT_REQUIRED",
+        "angle_degrees": 90,
+        "arc_mm": [
+          [
+            3967,
+            480
+          ],
+          [
+            3966,
+            511
+          ],
+          [
+            3962,
+            543
+          ],
+          [
+            3956,
+            573
+          ],
+          [
+            3947,
+            604
+          ],
+          [
+            3937,
+            633
+          ],
+          [
+            3923,
+            662
+          ],
+          [
+            3908,
+            689
+          ],
+          [
+            3891,
+            715
+          ],
+          [
+            3871,
+            740
+          ],
+          [
+            3850,
+            763
+          ],
+          [
+            3827,
+            784
+          ],
+          [
+            3802,
+            804
+          ],
+          [
+            3776,
+            821
+          ],
+          [
+            3749,
+            836
+          ],
+          [
+            3720,
+            850
+          ],
+          [
+            3691,
+            860
+          ],
+          [
+            3660,
+            869
+          ],
+          [
+            3630,
+            875
+          ],
+          [
+            3598,
+            879
+          ],
+          [
+            3567,
+            880
+          ]
+        ],
+        "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+        "column_id": "U04-L",
+        "compartment_id": "U04-L-T1",
+        "conditional_front_frame_mm": [
+          12,
+          13
+        ],
+        "direction": [
+          1,
+          1
+        ],
+        "hinge_mm": [
+          3567,
+          480
+        ],
+        "hinge_side": "LEFT",
+        "id": "U04-L-T1-DOOR",
+        "kind": "OUTWARD_HINGED_90",
+        "open_leaf_mm": [
+          [
+            3567,
+            480
+          ],
+          [
+            3567,
+            880
+          ]
+        ],
+        "radius_mm": 400,
+        "source_label": "HYPOTHETICAL_NOT_APPROVED",
+        "thickness_mm": 15,
+        "unit_id": "U04",
+        "z_interval_mm": [
+          100,
+          420
+        ]
+      }
+    ],
+    "reserved_aisles_mm": [
+      [
+        1007,
+        1610,
+        11620,
+        2860
+      ],
+      [
+        10995,
+        1625,
+        12245,
+        2235
+      ],
+      [
+        10995,
+        1610,
+        12245,
+        2860
+      ],
+      [
+        13165,
+        1000,
+        26331,
+        2250
+      ],
+      [
+        12540,
+        0,
+        13790,
+        1625
+      ],
+      [
+        12540,
+        1000,
+        13790,
+        2250
+      ],
+      [
+        11620,
+        1000,
+        13165,
+        2250
+      ],
+      [
+        382,
+        1610,
+        1632,
+        2860
+      ],
+      [
+        10995,
+        1610,
+        12245,
+        2860
+      ],
+      [
+        10995,
+        1000,
+        12245,
+        2250
+      ],
+      [
+        12540,
+        1000,
+        13790,
+        2250
+      ]
+    ],
+    "standing_change_envelope_mm": [
+      600,
+      900,
+      1800
+    ],
+    "standing_change_phase": "DOORS_CLOSED; OPEN_EVENT_BODY_IS_TRANSPORT_450x650x1800",
+    "cabinet_front_y_mm": 480,
+    "archived_lower_bound_mm": 15,
+    "distance": {
+      "collision_original_predicate": false,
+      "bounding_box_lower_bound_mm": 15,
+      "model_distance_lower_um": 15000,
+      "model_distance_upper_um": 15000,
+      "interval_unit": "0.001 mm",
+      "exact_interval": true,
+      "expanded_target_in_hinge_axes_mm": [
+        -27,
+        415,
+        453,
+        1095
+      ],
+      "z_separation_mm": 0,
+      "feature_certificates": [
+        {
+          "feature": "VERTICAL_RADIUS",
+          "squared_mm2": 225,
+          "lower_um": 15000,
+          "upper_um": 15000
+        },
+        {
+          "feature": "HORIZONTAL_RADIUS",
+          "squared_mm2": 172225,
+          "lower_um": 415000,
+          "upper_um": 415000
+        },
+        {
+          "feature": "CIRCULAR_ARC_OR_INTERIOR",
+          "squared_mm2": 172225,
+          "radius_mm": 400,
+          "lower_um": 15000,
+          "upper_um": 15000
+        }
+      ],
+      "formula": "distance(Q_radius + [-thickness,thickness]^2, target) = distance(Q_radius, target + [-thickness,thickness]^2); combine z gap by Pythagoras",
+      "mathematical_scope": "EXACT_DISTANCE_TO_ORIGINAL_CONSERVATIVE_THICKNESS_MODEL_ONLY",
+      "actual_hardware_and_human_clearance": "INPUT_REQUIRED",
+      "sensitivity_50mm_met": false,
+      "normative_minimum_claim": false
+    },
+    "original_event_revalidation": {
+      "status": "VERIFIED_UNDER_HYPOTHESES",
+      "conflicts": [],
+      "doors": [
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              1207,
+              480
+            ],
+            [
+              1206,
+              511
+            ],
+            [
+              1202,
+              543
+            ],
+            [
+              1196,
+              573
+            ],
+            [
+              1187,
+              604
+            ],
+            [
+              1177,
+              633
+            ],
+            [
+              1163,
+              662
+            ],
+            [
+              1148,
+              689
+            ],
+            [
+              1131,
+              715
+            ],
+            [
+              1111,
+              740
+            ],
+            [
+              1090,
+              763
+            ],
+            [
+              1067,
+              784
+            ],
+            [
+              1042,
+              804
+            ],
+            [
+              1016,
+              821
+            ],
+            [
+              989,
+              836
+            ],
+            [
+              960,
+              850
+            ],
+            [
+              931,
+              860
+            ],
+            [
+              900,
+              869
+            ],
+            [
+              870,
+              875
+            ],
+            [
+              838,
+              879
+            ],
+            [
+              807,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U01-L",
+          "compartment_id": "U01-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            807,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U01-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              807,
+              480
+            ],
+            [
+              807,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U01",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              2127,
+              480
+            ],
+            [
+              2126,
+              511
+            ],
+            [
+              2122,
+              543
+            ],
+            [
+              2116,
+              573
+            ],
+            [
+              2107,
+              604
+            ],
+            [
+              2097,
+              633
+            ],
+            [
+              2083,
+              662
+            ],
+            [
+              2068,
+              689
+            ],
+            [
+              2051,
+              715
+            ],
+            [
+              2031,
+              740
+            ],
+            [
+              2010,
+              763
+            ],
+            [
+              1987,
+              784
+            ],
+            [
+              1962,
+              804
+            ],
+            [
+              1936,
+              821
+            ],
+            [
+              1909,
+              836
+            ],
+            [
+              1880,
+              850
+            ],
+            [
+              1851,
+              860
+            ],
+            [
+              1820,
+              869
+            ],
+            [
+              1790,
+              875
+            ],
+            [
+              1758,
+              879
+            ],
+            [
+              1727,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U02-L",
+          "compartment_id": "U02-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            1727,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U02-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              1727,
+              480
+            ],
+            [
+              1727,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U02",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              3047,
+              480
+            ],
+            [
+              3046,
+              511
+            ],
+            [
+              3042,
+              543
+            ],
+            [
+              3036,
+              573
+            ],
+            [
+              3027,
+              604
+            ],
+            [
+              3017,
+              633
+            ],
+            [
+              3003,
+              662
+            ],
+            [
+              2988,
+              689
+            ],
+            [
+              2971,
+              715
+            ],
+            [
+              2951,
+              740
+            ],
+            [
+              2930,
+              763
+            ],
+            [
+              2907,
+              784
+            ],
+            [
+              2882,
+              804
+            ],
+            [
+              2856,
+              821
+            ],
+            [
+              2829,
+              836
+            ],
+            [
+              2800,
+              850
+            ],
+            [
+              2771,
+              860
+            ],
+            [
+              2740,
+              869
+            ],
+            [
+              2710,
+              875
+            ],
+            [
+              2678,
+              879
+            ],
+            [
+              2647,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U03-L",
+          "compartment_id": "U03-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            2647,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U03-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              2647,
+              480
+            ],
+            [
+              2647,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U03",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        },
+        {
+          "actual_hardware_status": "INPUT_REQUIRED",
+          "angle_degrees": 90,
+          "arc_mm": [
+            [
+              3967,
+              480
+            ],
+            [
+              3966,
+              511
+            ],
+            [
+              3962,
+              543
+            ],
+            [
+              3956,
+              573
+            ],
+            [
+              3947,
+              604
+            ],
+            [
+              3937,
+              633
+            ],
+            [
+              3923,
+              662
+            ],
+            [
+              3908,
+              689
+            ],
+            [
+              3891,
+              715
+            ],
+            [
+              3871,
+              740
+            ],
+            [
+              3850,
+              763
+            ],
+            [
+              3827,
+              784
+            ],
+            [
+              3802,
+              804
+            ],
+            [
+              3776,
+              821
+            ],
+            [
+              3749,
+              836
+            ],
+            [
+              3720,
+              850
+            ],
+            [
+              3691,
+              860
+            ],
+            [
+              3660,
+              869
+            ],
+            [
+              3630,
+              875
+            ],
+            [
+              3598,
+              879
+            ],
+            [
+              3567,
+              880
+            ]
+          ],
+          "body_collision_model": "ORIGINAL_ANALYTIC_QUARTER_DISK_WITH_THICKNESS",
+          "column_id": "U04-L",
+          "compartment_id": "U04-L-T1",
+          "conditional_front_frame_mm": [
+            12,
+            13
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "hinge_mm": [
+            3567,
+            480
+          ],
+          "hinge_side": "LEFT",
+          "id": "U04-L-T1-DOOR",
+          "kind": "OUTWARD_HINGED_90",
+          "open_leaf_mm": [
+            [
+              3567,
+              480
+            ],
+            [
+              3567,
+              880
+            ]
+          ],
+          "radius_mm": 400,
+          "source_label": "HYPOTHETICAL_NOT_APPROVED",
+          "thickness_mm": 15,
+          "unit_id": "U04",
+          "z_interval_mm": [
+            100,
+            420
+          ]
+        }
+      ],
+      "people_count": 53,
+      "minimum_clearance_lower_bound": {
+        "extra_mm": 15,
+        "door": "U01-L-T1-DOOR",
+        "object": "S1-P001",
+        "bounds_mm": [
+          807,
+          480,
+          1222,
+          895
+        ],
+        "definition": "CONSERVATIVE_SWEEP_BOUNDING_BOX_LOWER_BOUND; NOT_ERGONOMIC_APPROVAL"
+      },
+      "scope": "ALL_ACTIVE_FULL_3D_SWEEPS_AT_THIS_ACTUAL_FLOW_EVENT; NOT_ACTUAL_HARDWARE_APPROVAL"
+    },
+    "inherited_status_unchanged": true,
+    "actual_status": "INPUT_REQUIRED"
+  }
+]

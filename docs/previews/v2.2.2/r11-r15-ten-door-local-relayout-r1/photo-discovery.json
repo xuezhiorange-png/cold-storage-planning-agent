@@ -1,0 +1,32 @@
+{
+  "filename": "IMG_0875.jpeg",
+  "expected_sha256": "833c674259d29129d75703c37c6eb532b360d09647f3e221f6cce3951b41ccaa",
+  "searches": [
+    {
+      "roots": [
+        "Codex attachments",
+        "Downloads",
+        "Documents/Codex"
+      ],
+      "exact_filename_matches": []
+    },
+    {
+      "roots": [
+        "Codex attachments",
+        "Downloads",
+        "Desktop"
+      ],
+      "image_files_hashed_under_30MB": 91,
+      "matching_digest_files": []
+    },
+    {
+      "query": "Spotlight filename IMG_0875.jpeg",
+      "matches": []
+    }
+  ],
+  "photo_raw_bytes_available": false,
+  "actual_photo_sha256": null,
+  "status": "INPUT_REQUIRED_ORIGINAL_PHOTO_FILE_MISSING",
+  "not_a_claim_of_complete_disk_search": true,
+  "photo_publication": false
+}
