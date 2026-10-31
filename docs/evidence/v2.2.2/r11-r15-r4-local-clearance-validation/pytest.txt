@@ -1,0 +1,16 @@
+.............................................................            [100%]
+=============================== warnings summary ===============================
+tests/unit/test_v222_r11_r15_r4_clearance.py::test_six_predeclared_checks_include_control_and_section_only_negative
+tests/unit/test_v222_r11_r15_r4_clearance.py::test_six_predeclared_checks_include_control_and_section_only_negative
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/unit/test_v222_r11_r15_r4_clearance.py::test_six_predeclared_checks_include_control_and_section_only_negative
+tests/unit/test_v222_r11_r15_r4_clearance.py::test_six_predeclared_checks_include_control_and_section_only_negative
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/unit/test_v222_r11_r15_r4_clearance.py::test_six_predeclared_checks_include_control_and_section_only_negative
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+61 passed, 5 warnings in 33.72s
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute

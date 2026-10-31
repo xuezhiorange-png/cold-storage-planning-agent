@@ -1,0 +1,2469 @@
+{
+  "R4-00": {
+    "changed_homes": [],
+    "cabinets_changed": false,
+    "room_changed": false,
+    "portals_changed": false,
+    "dimensions_mm": [
+      26331,
+      3850
+    ],
+    "source_operator_mm": [
+      880,
+      1040,
+      1330,
+      1690
+    ],
+    "new_operator_mm": [
+      880,
+      1040,
+      1330,
+      1690
+    ],
+    "source_activity": [
+      {
+        "bounds_mm": [
+          805,
+          790,
+          1405,
+          1690
+        ],
+        "id": "S1-P001",
+        "volumes_mm": [
+          [
+            805,
+            790,
+            0,
+            1405,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          1775,
+          790,
+          2375,
+          1690
+        ],
+        "id": "S1-P011",
+        "volumes_mm": [
+          [
+            1775,
+            790,
+            0,
+            2375,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          2745,
+          790,
+          3345,
+          1690
+        ],
+        "id": "S1-P021",
+        "volumes_mm": [
+          [
+            2745,
+            790,
+            0,
+            3345,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          3715,
+          790,
+          4315,
+          1690
+        ],
+        "id": "S1-P031",
+        "volumes_mm": [
+          [
+            3715,
+            790,
+            0,
+            4315,
+            1690,
+            1800
+          ]
+        ]
+      }
+    ],
+    "new_activity": [
+      {
+        "id": "S1-P001",
+        "bounds_mm": [
+          805,
+          790,
+          1405,
+          1690
+        ],
+        "volumes_mm": [
+          [
+            805,
+            790,
+            0,
+            1405,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P011",
+        "bounds_mm": [
+          1775,
+          790,
+          2375,
+          1690
+        ],
+        "volumes_mm": [
+          [
+            1775,
+            790,
+            0,
+            2375,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P021",
+        "bounds_mm": [
+          2745,
+          790,
+          3345,
+          1690
+        ],
+        "volumes_mm": [
+          [
+            2745,
+            790,
+            0,
+            3345,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P031",
+        "bounds_mm": [
+          3715,
+          790,
+          4315,
+          1690
+        ],
+        "volumes_mm": [
+          [
+            3715,
+            790,
+            0,
+            4315,
+            1690,
+            1800
+          ]
+        ]
+      }
+    ],
+    "source_branch": [
+      [
+        1092,
+        2440
+      ],
+      [
+        12280,
+        2440
+      ],
+      [
+        12280,
+        1625
+      ]
+    ],
+    "new_branch": [
+      [
+        1092,
+        2440
+      ],
+      [
+        12280,
+        2440
+      ],
+      [
+        12280,
+        1625
+      ]
+    ],
+    "source_aisles": [
+      [
+        1092,
+        1790,
+        12280,
+        3090
+      ],
+      [
+        11630,
+        1625,
+        12930,
+        2440
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        13165,
+        975,
+        26331,
+        2275
+      ],
+      [
+        12515,
+        0,
+        13815,
+        1625
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ],
+      [
+        12280,
+        975,
+        13165,
+        2275
+      ],
+      [
+        442,
+        1790,
+        1742,
+        3090
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        11630,
+        975,
+        12930,
+        2275
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ]
+    ],
+    "new_aisles": [
+      [
+        1092,
+        1790,
+        12280,
+        3090
+      ],
+      [
+        11630,
+        1625,
+        12930,
+        2440
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        13165,
+        975,
+        26331,
+        2275
+      ],
+      [
+        12515,
+        0,
+        13815,
+        1625
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ],
+      [
+        12280,
+        975,
+        13165,
+        2275
+      ],
+      [
+        442,
+        1790,
+        1742,
+        3090
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        11630,
+        975,
+        12930,
+        2275
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ]
+    ],
+    "portals_unchanged": true
+  },
+  "R4-02": {
+    "changed_homes": [],
+    "cabinets_changed": false,
+    "room_changed": false,
+    "portals_changed": false,
+    "dimensions_mm": [
+      26331,
+      3850
+    ],
+    "source_operator_mm": [
+      880,
+      1040,
+      1330,
+      1690
+    ],
+    "new_operator_mm": [
+      880,
+      1075,
+      1330,
+      1725
+    ],
+    "source_activity": [
+      {
+        "bounds_mm": [
+          805,
+          790,
+          1405,
+          1690
+        ],
+        "id": "S1-P001",
+        "volumes_mm": [
+          [
+            805,
+            790,
+            0,
+            1405,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          1775,
+          790,
+          2375,
+          1690
+        ],
+        "id": "S1-P011",
+        "volumes_mm": [
+          [
+            1775,
+            790,
+            0,
+            2375,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          2745,
+          790,
+          3345,
+          1690
+        ],
+        "id": "S1-P021",
+        "volumes_mm": [
+          [
+            2745,
+            790,
+            0,
+            3345,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          3715,
+          790,
+          4315,
+          1690
+        ],
+        "id": "S1-P031",
+        "volumes_mm": [
+          [
+            3715,
+            790,
+            0,
+            4315,
+            1690,
+            1800
+          ]
+        ]
+      }
+    ],
+    "new_activity": [
+      {
+        "id": "S1-P001",
+        "bounds_mm": [
+          805,
+          825,
+          1405,
+          1725
+        ],
+        "volumes_mm": [
+          [
+            805,
+            825,
+            0,
+            1405,
+            1725,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P011",
+        "bounds_mm": [
+          1775,
+          825,
+          2375,
+          1725
+        ],
+        "volumes_mm": [
+          [
+            1775,
+            825,
+            0,
+            2375,
+            1725,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P021",
+        "bounds_mm": [
+          2745,
+          825,
+          3345,
+          1725
+        ],
+        "volumes_mm": [
+          [
+            2745,
+            825,
+            0,
+            3345,
+            1725,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P031",
+        "bounds_mm": [
+          3715,
+          825,
+          4315,
+          1725
+        ],
+        "volumes_mm": [
+          [
+            3715,
+            825,
+            0,
+            4315,
+            1725,
+            1800
+          ]
+        ]
+      }
+    ],
+    "source_branch": [
+      [
+        1092,
+        2440
+      ],
+      [
+        12280,
+        2440
+      ],
+      [
+        12280,
+        1625
+      ]
+    ],
+    "new_branch": [
+      [
+        1092,
+        2475
+      ],
+      [
+        12280,
+        2475
+      ],
+      [
+        12280,
+        1625
+      ]
+    ],
+    "source_aisles": [
+      [
+        1092,
+        1790,
+        12280,
+        3090
+      ],
+      [
+        11630,
+        1625,
+        12930,
+        2440
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        13165,
+        975,
+        26331,
+        2275
+      ],
+      [
+        12515,
+        0,
+        13815,
+        1625
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ],
+      [
+        12280,
+        975,
+        13165,
+        2275
+      ],
+      [
+        442,
+        1790,
+        1742,
+        3090
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        11630,
+        975,
+        12930,
+        2275
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ]
+    ],
+    "new_aisles": [
+      [
+        1092,
+        1825,
+        12280,
+        3125
+      ],
+      [
+        11630,
+        1625,
+        12930,
+        2475
+      ],
+      [
+        11630,
+        1825,
+        12930,
+        3125
+      ],
+      [
+        13165,
+        975,
+        26331,
+        2275
+      ],
+      [
+        12515,
+        0,
+        13815,
+        1625
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ],
+      [
+        12280,
+        975,
+        13165,
+        2275
+      ],
+      [
+        442,
+        1825,
+        1742,
+        3125
+      ],
+      [
+        11630,
+        1825,
+        12930,
+        3125
+      ],
+      [
+        11630,
+        975,
+        12930,
+        2275
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ]
+    ],
+    "portals_unchanged": true
+  },
+  "R4-03": {
+    "changed_homes": [],
+    "cabinets_changed": false,
+    "room_changed": false,
+    "portals_changed": false,
+    "dimensions_mm": [
+      26331,
+      3850
+    ],
+    "source_operator_mm": [
+      880,
+      1040,
+      1330,
+      1690
+    ],
+    "new_operator_mm": [
+      880,
+      1090,
+      1330,
+      1740
+    ],
+    "source_activity": [
+      {
+        "bounds_mm": [
+          805,
+          790,
+          1405,
+          1690
+        ],
+        "id": "S1-P001",
+        "volumes_mm": [
+          [
+            805,
+            790,
+            0,
+            1405,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          1775,
+          790,
+          2375,
+          1690
+        ],
+        "id": "S1-P011",
+        "volumes_mm": [
+          [
+            1775,
+            790,
+            0,
+            2375,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          2745,
+          790,
+          3345,
+          1690
+        ],
+        "id": "S1-P021",
+        "volumes_mm": [
+          [
+            2745,
+            790,
+            0,
+            3345,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          3715,
+          790,
+          4315,
+          1690
+        ],
+        "id": "S1-P031",
+        "volumes_mm": [
+          [
+            3715,
+            790,
+            0,
+            4315,
+            1690,
+            1800
+          ]
+        ]
+      }
+    ],
+    "new_activity": [
+      {
+        "id": "S1-P001",
+        "bounds_mm": [
+          805,
+          840,
+          1405,
+          1740
+        ],
+        "volumes_mm": [
+          [
+            805,
+            840,
+            0,
+            1405,
+            1740,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P011",
+        "bounds_mm": [
+          1775,
+          840,
+          2375,
+          1740
+        ],
+        "volumes_mm": [
+          [
+            1775,
+            840,
+            0,
+            2375,
+            1740,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P021",
+        "bounds_mm": [
+          2745,
+          840,
+          3345,
+          1740
+        ],
+        "volumes_mm": [
+          [
+            2745,
+            840,
+            0,
+            3345,
+            1740,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P031",
+        "bounds_mm": [
+          3715,
+          840,
+          4315,
+          1740
+        ],
+        "volumes_mm": [
+          [
+            3715,
+            840,
+            0,
+            4315,
+            1740,
+            1800
+          ]
+        ]
+      }
+    ],
+    "source_branch": [
+      [
+        1092,
+        2440
+      ],
+      [
+        12280,
+        2440
+      ],
+      [
+        12280,
+        1625
+      ]
+    ],
+    "new_branch": [
+      [
+        1092,
+        2490
+      ],
+      [
+        12280,
+        2490
+      ],
+      [
+        12280,
+        1625
+      ]
+    ],
+    "source_aisles": [
+      [
+        1092,
+        1790,
+        12280,
+        3090
+      ],
+      [
+        11630,
+        1625,
+        12930,
+        2440
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        13165,
+        975,
+        26331,
+        2275
+      ],
+      [
+        12515,
+        0,
+        13815,
+        1625
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ],
+      [
+        12280,
+        975,
+        13165,
+        2275
+      ],
+      [
+        442,
+        1790,
+        1742,
+        3090
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        11630,
+        975,
+        12930,
+        2275
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ]
+    ],
+    "new_aisles": [
+      [
+        1092,
+        1840,
+        12280,
+        3140
+      ],
+      [
+        11630,
+        1625,
+        12930,
+        2490
+      ],
+      [
+        11630,
+        1840,
+        12930,
+        3140
+      ],
+      [
+        13165,
+        975,
+        26331,
+        2275
+      ],
+      [
+        12515,
+        0,
+        13815,
+        1625
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ],
+      [
+        12280,
+        975,
+        13165,
+        2275
+      ],
+      [
+        442,
+        1840,
+        1742,
+        3140
+      ],
+      [
+        11630,
+        1840,
+        12930,
+        3140
+      ],
+      [
+        11630,
+        975,
+        12930,
+        2275
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ]
+    ],
+    "portals_unchanged": true
+  },
+  "R4-04": {
+    "changed_homes": [
+      {
+        "home": 39,
+        "before": {
+          "bounds_mm": [
+            880,
+            3225,
+            1530,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            880,
+            3240,
+            1530,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 40,
+        "before": {
+          "bounds_mm": [
+            1730,
+            3225,
+            2380,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            1730,
+            3240,
+            2380,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 41,
+        "before": {
+          "bounds_mm": [
+            2580,
+            3225,
+            3230,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            2580,
+            3240,
+            3230,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 42,
+        "before": {
+          "bounds_mm": [
+            3430,
+            3225,
+            4080,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            3430,
+            3240,
+            4080,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 43,
+        "before": {
+          "bounds_mm": [
+            4280,
+            3225,
+            4930,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            4280,
+            3240,
+            4930,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 44,
+        "before": {
+          "bounds_mm": [
+            5130,
+            3225,
+            5780,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            5130,
+            3240,
+            5780,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 45,
+        "before": {
+          "bounds_mm": [
+            5980,
+            3225,
+            6630,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            5980,
+            3240,
+            6630,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 46,
+        "before": {
+          "bounds_mm": [
+            6830,
+            3225,
+            7480,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            6830,
+            3240,
+            7480,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 47,
+        "before": {
+          "bounds_mm": [
+            7680,
+            3225,
+            8330,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            7680,
+            3240,
+            8330,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 48,
+        "before": {
+          "bounds_mm": [
+            8530,
+            3225,
+            9180,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            8530,
+            3240,
+            9180,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 49,
+        "before": {
+          "bounds_mm": [
+            9380,
+            3225,
+            10030,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            9380,
+            3240,
+            10030,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 50,
+        "before": {
+          "bounds_mm": [
+            10230,
+            3225,
+            10880,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            10230,
+            3240,
+            10880,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 51,
+        "before": {
+          "bounds_mm": [
+            11080,
+            3225,
+            11730,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            11080,
+            3240,
+            11730,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 52,
+        "before": {
+          "bounds_mm": [
+            11930,
+            3225,
+            12580,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            11930,
+            3240,
+            12580,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 53,
+        "before": {
+          "bounds_mm": [
+            12780,
+            3225,
+            13430,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            12780,
+            3240,
+            13430,
+            3690
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      }
+    ],
+    "cabinets_changed": false,
+    "room_changed": false,
+    "portals_changed": false,
+    "dimensions_mm": [
+      26331,
+      3850
+    ],
+    "source_operator_mm": [
+      880,
+      1040,
+      1330,
+      1690
+    ],
+    "new_operator_mm": [
+      880,
+      1090,
+      1330,
+      1740
+    ],
+    "source_activity": [
+      {
+        "bounds_mm": [
+          805,
+          790,
+          1405,
+          1690
+        ],
+        "id": "S1-P001",
+        "volumes_mm": [
+          [
+            805,
+            790,
+            0,
+            1405,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          1775,
+          790,
+          2375,
+          1690
+        ],
+        "id": "S1-P011",
+        "volumes_mm": [
+          [
+            1775,
+            790,
+            0,
+            2375,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          2745,
+          790,
+          3345,
+          1690
+        ],
+        "id": "S1-P021",
+        "volumes_mm": [
+          [
+            2745,
+            790,
+            0,
+            3345,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          3715,
+          790,
+          4315,
+          1690
+        ],
+        "id": "S1-P031",
+        "volumes_mm": [
+          [
+            3715,
+            790,
+            0,
+            4315,
+            1690,
+            1800
+          ]
+        ]
+      }
+    ],
+    "new_activity": [
+      {
+        "id": "S1-P001",
+        "bounds_mm": [
+          805,
+          840,
+          1405,
+          1740
+        ],
+        "volumes_mm": [
+          [
+            805,
+            840,
+            0,
+            1405,
+            1740,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P011",
+        "bounds_mm": [
+          1775,
+          840,
+          2375,
+          1740
+        ],
+        "volumes_mm": [
+          [
+            1775,
+            840,
+            0,
+            2375,
+            1740,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P021",
+        "bounds_mm": [
+          2745,
+          840,
+          3345,
+          1740
+        ],
+        "volumes_mm": [
+          [
+            2745,
+            840,
+            0,
+            3345,
+            1740,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P031",
+        "bounds_mm": [
+          3715,
+          840,
+          4315,
+          1740
+        ],
+        "volumes_mm": [
+          [
+            3715,
+            840,
+            0,
+            4315,
+            1740,
+            1800
+          ]
+        ]
+      }
+    ],
+    "source_branch": [
+      [
+        1092,
+        2440
+      ],
+      [
+        12280,
+        2440
+      ],
+      [
+        12280,
+        1625
+      ]
+    ],
+    "new_branch": [
+      [
+        1092,
+        2490
+      ],
+      [
+        12280,
+        2490
+      ],
+      [
+        12280,
+        1625
+      ]
+    ],
+    "source_aisles": [
+      [
+        1092,
+        1790,
+        12280,
+        3090
+      ],
+      [
+        11630,
+        1625,
+        12930,
+        2440
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        13165,
+        975,
+        26331,
+        2275
+      ],
+      [
+        12515,
+        0,
+        13815,
+        1625
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ],
+      [
+        12280,
+        975,
+        13165,
+        2275
+      ],
+      [
+        442,
+        1790,
+        1742,
+        3090
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        11630,
+        975,
+        12930,
+        2275
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ]
+    ],
+    "new_aisles": [
+      [
+        1092,
+        1840,
+        12280,
+        3140
+      ],
+      [
+        11630,
+        1625,
+        12930,
+        2490
+      ],
+      [
+        11630,
+        1840,
+        12930,
+        3140
+      ],
+      [
+        13165,
+        975,
+        26331,
+        2275
+      ],
+      [
+        12515,
+        0,
+        13815,
+        1625
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ],
+      [
+        12280,
+        975,
+        13165,
+        2275
+      ],
+      [
+        442,
+        1840,
+        1742,
+        3140
+      ],
+      [
+        11630,
+        1840,
+        12930,
+        3140
+      ],
+      [
+        11630,
+        975,
+        12930,
+        2275
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ]
+    ],
+    "portals_unchanged": true
+  },
+  "R4-05": {
+    "changed_homes": [
+      {
+        "home": 39,
+        "before": {
+          "bounds_mm": [
+            880,
+            3225,
+            1530,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            880,
+            3270,
+            1530,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 40,
+        "before": {
+          "bounds_mm": [
+            1730,
+            3225,
+            2380,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            1730,
+            3270,
+            2380,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 41,
+        "before": {
+          "bounds_mm": [
+            2580,
+            3225,
+            3230,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            2580,
+            3270,
+            3230,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 42,
+        "before": {
+          "bounds_mm": [
+            3430,
+            3225,
+            4080,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            3430,
+            3270,
+            4080,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 43,
+        "before": {
+          "bounds_mm": [
+            4280,
+            3225,
+            4930,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            4280,
+            3270,
+            4930,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 44,
+        "before": {
+          "bounds_mm": [
+            5130,
+            3225,
+            5780,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            5130,
+            3270,
+            5780,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 45,
+        "before": {
+          "bounds_mm": [
+            5980,
+            3225,
+            6630,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            5980,
+            3270,
+            6630,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 46,
+        "before": {
+          "bounds_mm": [
+            6830,
+            3225,
+            7480,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            6830,
+            3270,
+            7480,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 47,
+        "before": {
+          "bounds_mm": [
+            7680,
+            3225,
+            8330,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            7680,
+            3270,
+            8330,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 48,
+        "before": {
+          "bounds_mm": [
+            8530,
+            3225,
+            9180,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            8530,
+            3270,
+            9180,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 49,
+        "before": {
+          "bounds_mm": [
+            9380,
+            3225,
+            10030,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            9380,
+            3270,
+            10030,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 50,
+        "before": {
+          "bounds_mm": [
+            10230,
+            3225,
+            10880,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            10230,
+            3270,
+            10880,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 51,
+        "before": {
+          "bounds_mm": [
+            11080,
+            3225,
+            11730,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            11080,
+            3270,
+            11730,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 52,
+        "before": {
+          "bounds_mm": [
+            11930,
+            3225,
+            12580,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            11930,
+            3270,
+            12580,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      },
+      {
+        "home": 53,
+        "before": {
+          "bounds_mm": [
+            12780,
+            3225,
+            13430,
+            3675
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        },
+        "after": {
+          "bounds_mm": [
+            12780,
+            3270,
+            13430,
+            3720
+          ],
+          "pose": "STANDING",
+          "region": "NORTH_ROTATED",
+          "yaw_degrees": 90
+        }
+      }
+    ],
+    "cabinets_changed": false,
+    "room_changed": false,
+    "portals_changed": false,
+    "dimensions_mm": [
+      26331,
+      3850
+    ],
+    "source_operator_mm": [
+      880,
+      1040,
+      1330,
+      1690
+    ],
+    "new_operator_mm": [
+      880,
+      1120,
+      1330,
+      1770
+    ],
+    "source_activity": [
+      {
+        "bounds_mm": [
+          805,
+          790,
+          1405,
+          1690
+        ],
+        "id": "S1-P001",
+        "volumes_mm": [
+          [
+            805,
+            790,
+            0,
+            1405,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          1775,
+          790,
+          2375,
+          1690
+        ],
+        "id": "S1-P011",
+        "volumes_mm": [
+          [
+            1775,
+            790,
+            0,
+            2375,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          2745,
+          790,
+          3345,
+          1690
+        ],
+        "id": "S1-P021",
+        "volumes_mm": [
+          [
+            2745,
+            790,
+            0,
+            3345,
+            1690,
+            1800
+          ]
+        ]
+      },
+      {
+        "bounds_mm": [
+          3715,
+          790,
+          4315,
+          1690
+        ],
+        "id": "S1-P031",
+        "volumes_mm": [
+          [
+            3715,
+            790,
+            0,
+            4315,
+            1690,
+            1800
+          ]
+        ]
+      }
+    ],
+    "new_activity": [
+      {
+        "id": "S1-P001",
+        "bounds_mm": [
+          805,
+          870,
+          1405,
+          1770
+        ],
+        "volumes_mm": [
+          [
+            805,
+            870,
+            0,
+            1405,
+            1770,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P011",
+        "bounds_mm": [
+          1775,
+          870,
+          2375,
+          1770
+        ],
+        "volumes_mm": [
+          [
+            1775,
+            870,
+            0,
+            2375,
+            1770,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P021",
+        "bounds_mm": [
+          2745,
+          870,
+          3345,
+          1770
+        ],
+        "volumes_mm": [
+          [
+            2745,
+            870,
+            0,
+            3345,
+            1770,
+            1800
+          ]
+        ]
+      },
+      {
+        "id": "S1-P031",
+        "bounds_mm": [
+          3715,
+          870,
+          4315,
+          1770
+        ],
+        "volumes_mm": [
+          [
+            3715,
+            870,
+            0,
+            4315,
+            1770,
+            1800
+          ]
+        ]
+      }
+    ],
+    "source_branch": [
+      [
+        1092,
+        2440
+      ],
+      [
+        12280,
+        2440
+      ],
+      [
+        12280,
+        1625
+      ]
+    ],
+    "new_branch": [
+      [
+        1092,
+        2520
+      ],
+      [
+        12280,
+        2520
+      ],
+      [
+        12280,
+        1625
+      ]
+    ],
+    "source_aisles": [
+      [
+        1092,
+        1790,
+        12280,
+        3090
+      ],
+      [
+        11630,
+        1625,
+        12930,
+        2440
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        13165,
+        975,
+        26331,
+        2275
+      ],
+      [
+        12515,
+        0,
+        13815,
+        1625
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ],
+      [
+        12280,
+        975,
+        13165,
+        2275
+      ],
+      [
+        442,
+        1790,
+        1742,
+        3090
+      ],
+      [
+        11630,
+        1790,
+        12930,
+        3090
+      ],
+      [
+        11630,
+        975,
+        12930,
+        2275
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ]
+    ],
+    "new_aisles": [
+      [
+        1092,
+        1870,
+        12280,
+        3170
+      ],
+      [
+        11630,
+        1625,
+        12930,
+        2520
+      ],
+      [
+        11630,
+        1870,
+        12930,
+        3170
+      ],
+      [
+        13165,
+        975,
+        26331,
+        2275
+      ],
+      [
+        12515,
+        0,
+        13815,
+        1625
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ],
+      [
+        12280,
+        975,
+        13165,
+        2275
+      ],
+      [
+        442,
+        1870,
+        1742,
+        3170
+      ],
+      [
+        11630,
+        1870,
+        12930,
+        3170
+      ],
+      [
+        11630,
+        975,
+        12930,
+        2275
+      ],
+      [
+        12515,
+        975,
+        13815,
+        2275
+      ]
+    ],
+    "portals_unchanged": true
+  }
+}

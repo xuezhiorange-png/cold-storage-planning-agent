@@ -1,0 +1,33 @@
+{
+  "files": [
+    "tests/unit/test_v222_r11_r15_r4_clearance.py",
+    "tests/architecture/test_v222_r11_local_clearance_boundary.py",
+    "tests/architecture/test_v222_r11_local_relayout_boundary.py",
+    "tests/architecture/test_v222_r11_ten_door_locker_boundary.py",
+    "tests/unit/test_v222_r11_r15_local_relayout.py::test_bounding_box_overlap_does_not_prevent_tighter_arc_distance",
+    "tests/unit/test_v222_r11_r15_local_relayout.py::test_certified_axes_quadrants_thickness_and_height",
+    "tests/unit/test_v222_r11_r15_local_relayout.py::test_distance_is_invariant_under_hinge_axis_mirroring",
+    "tests/unit/test_v222_r11_r15_local_relayout.py::test_unknown_hardware_geometry_is_not_silently_approximated",
+    "tests/unit/test_v222_r11_r15_local_relayout.py::test_new_tests_are_in_fast_ci_without_removing_existing_modules"
+  ],
+  "command": [
+    "/Users/charles/codex-v222-r11-r15-r4-local-clearance/backend/.venv/bin/python3",
+    "-m",
+    "pytest",
+    "tests/unit/test_v222_r11_r15_r4_clearance.py",
+    "tests/architecture/test_v222_r11_local_clearance_boundary.py",
+    "tests/architecture/test_v222_r11_local_relayout_boundary.py",
+    "tests/architecture/test_v222_r11_ten_door_locker_boundary.py",
+    "tests/unit/test_v222_r11_r15_local_relayout.py::test_bounding_box_overlap_does_not_prevent_tighter_arc_distance",
+    "tests/unit/test_v222_r11_r15_local_relayout.py::test_certified_axes_quadrants_thickness_and_height",
+    "tests/unit/test_v222_r11_r15_local_relayout.py::test_distance_is_invariant_under_hinge_axis_mirroring",
+    "tests/unit/test_v222_r11_r15_local_relayout.py::test_unknown_hardware_geometry_is_not_silently_approximated",
+    "tests/unit/test_v222_r11_r15_local_relayout.py::test_new_tests_are_in_fast_ci_without_removing_existing_modules",
+    "-q",
+    "-o",
+    "addopts=",
+    "--basetemp=/Users/charles/codex-v222-r11-r15-r4-local-clearance/artifacts/r15-r4-final-directed-validation/pytest-temp",
+    "--junitxml=/Users/charles/codex-v222-r11-r15-r4-local-clearance/artifacts/r15-r4-final-directed-validation/pytest.xml"
+  ],
+  "python": "3.12.13 (main, May 10 2026, 19:20:41) [Clang 22.1.3 ]"
+}
