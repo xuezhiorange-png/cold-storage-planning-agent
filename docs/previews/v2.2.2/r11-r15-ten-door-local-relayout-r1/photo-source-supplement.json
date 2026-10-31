@@ -1,0 +1,22 @@
+{
+  "version": "h5-complete-ten-door-local-relayout-r11-r15@1.0.0",
+  "task": "V2_2_2_R11_R15_TEN_DOOR_LOCKER_LOCAL_RELAYOUT_R1",
+  "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+  "physical_room_id": "sha256:489389cd160dd270501589fdea52cdace940c44e70be23b699c35a47c4d1af21",
+  "r14_selection_source_path": "docs/tasks/V2_2_2-r11-r14-owner-selected-locker-scope.txt",
+  "r14_selection_source_sha256": "2efef566238708208f74a17e3b64b69921cb5032d6f9d124d6e04490f8df985b",
+  "supplement_source_path": "docs/tasks/V2_2_2-r11-r15-owner-photo-supplement.txt",
+  "supplement_source_sha256": "6c4026e6c40a084ca1eff339cf199e7c46f662935b4bd8dc1f08a6b1959f59af",
+  "owner_reported_filename": "IMG_0875.jpeg",
+  "owner_reported_sha256": "833c674259d29129d75703c37c6eb532b360d09647f3e221f6cce3951b41ccaa",
+  "actual_photo_sha256": null,
+  "photo_file_evidence": "INPUT_REQUIRED_ORIGINAL_PHOTO_FILE_MISSING",
+  "photo_publication_authorized": false,
+  "photo_embedded_or_copied": false,
+  "nominal_label_basis": "OWNER_REPORTED_850x390x1800_AND_400x360x320; NOT_NET_COMPARTMENT_DIMENSIONS",
+  "actual_net_compartment_dimensions": "INPUT_REQUIRED",
+  "actual_hardware": "INPUT_REQUIRED",
+  "supplier_technical_review": "NOT_EVALUATED",
+  "procurement_acceptance": "NOT_EVALUATED",
+  "r14_history_overwritten": false
+}

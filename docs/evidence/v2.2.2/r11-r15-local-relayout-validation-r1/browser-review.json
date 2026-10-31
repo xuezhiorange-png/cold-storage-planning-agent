@@ -1,0 +1,29 @@
+{
+  "url": "http://127.0.0.1:8774/",
+  "browser": "in-app browser",
+  "viewport_width": 1280,
+  "page_scroll_width": 1280,
+  "twelve_rows": true,
+  "selected_case": "R15-03",
+  "all_four_svg_images_loaded": true,
+  "case_R15_04_completed_users": [
+    0,
+    0
+  ],
+  "case_R15_04_real_conflict": "SWEPT_BODY_COLLISION",
+  "case_R15_03_completed_users": [
+    53,
+    53
+  ],
+  "checked_open_events_per_hinge_profile": 212,
+  "internal_zoom_width_px": 3600,
+  "internal_scroll_container_width_px": 1218,
+  "whole_page_overflow": false,
+  "console_errors_warnings": [],
+  "local_locator_label_issue_corrected_with_explicit_for_attribute": true,
+  "pngs_reviewed": [
+    "R15-03-plan.png",
+    "r14-worst-clearance.png"
+  ],
+  "mobile_viewport_override_tested": false
+}

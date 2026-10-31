@@ -1,0 +1,18 @@
+{
+  "base_head": "784e87e1e1307b6379214903da6b2fcc393a244d",
+  "files": {
+    "base-byte-comparison.json.gz": "b4eb4e80167b212c3230bac5e882c951cd575066368121b7a8b856072d84db22",
+    "browser-review.json": "26a08fd7975322e0af6958ad017e620f65f4bb51470f7e96cb7255c5a2b5ca4d",
+    "focused-pytest.txt.gz": "ed71c0899cb7b2471f65d8f8a8ce3c13658c3125b328862d9c8270c8bc9b0645",
+    "focused-pytest.xml.gz": "c907561d64cecdc2300bd325ce91a02dd848e105433e91f12e0e5a36f276d98c",
+    "focused-whitelist.json": "68450181aede69a61dc385a11e85c385e16297a30527e922da010c6c3d03cce3",
+    "native-guard-records.json.gz": "0dee6d1cba5d61c458329dc8b7df2674c3721a6e53d82c57cf4101d621456777",
+    "photo-discovery.json": "fc7f83ff48c4a10423d97fc569559dfd49624ce88a800420ea3f714a91e22d38",
+    "static-checks.json": "137613d5bd89c9dbf6c74b773a6803ae47e936f2205e5dfad56e06af655fea15",
+    "validation-report.md": "76a60da392e72a3db6610aebed6e69217e85379f5b4c7f7c4e734a495ff447f0",
+    "validation-results.json": "936fdb1c230e7acf2934b825d5708dc2131d771db4f67811f86a8df0751a5f47",
+    "whitelist-pytest.txt.gz": "c783a17f7c5ca183845c41159b66bce111a5df94325907e81b40243e0d4e71f7",
+    "whitelist-pytest.xml.gz": "8c377100718150d0adcada96df57cb5bc60bd9bf555d73b384d159f45f0db5d3",
+    "whitelist-whitelist.json": "b272a267528e8aa03624704b6daeb3f71f396d7bb268f3502f287d1df09e7953"
+  }
+}

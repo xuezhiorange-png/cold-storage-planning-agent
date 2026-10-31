@@ -80,6 +80,7 @@ jobs:
           tests/unit/test_v222_r11_r12_site_impact.py
           tests/unit/test_v222_r11_r13_physical_calibration.py
           tests/unit/test_v222_r11_r14_ten_door_locker.py
+          tests/unit/test_v222_r11_r15_local_relayout.py
           -m "not physical_rss_linux" -q
           --junitxml=../artifacts/ci-fast/backend-regression.xml
       - name: Preserve actual backend test execution report
