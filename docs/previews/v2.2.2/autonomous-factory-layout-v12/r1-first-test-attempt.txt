@@ -11,7 +11,7 @@ parameters = {'schema_version': 'autonomous-process-parameters@1.2.0', 'main_ais
     ):
         from cold_storage.modules.layout.domain import access_routing as routing
         from cold_storage.modules.layout.domain.autonomous_process_routes import _ring
-    
+
         assert not routing._route_is_safe(
             [(1250, 3250), (3750, 3250)],
             width_mm=2500,
