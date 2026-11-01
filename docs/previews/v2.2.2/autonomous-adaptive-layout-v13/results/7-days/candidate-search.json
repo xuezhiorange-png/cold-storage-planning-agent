@@ -1,0 +1,2719 @@
+[
+  {
+    "kind": "CURRENT_INPUT_SEED",
+    "room_geometry_hash": "sha256:669e435028be3788902dfff9a3301140a1cea577d318628469c238191428d0dc",
+    "node": 1,
+    "room_coordinates": [
+      {
+        "zone_code": "changing_room",
+        "bbox_mm": [
+          87126,
+          14519,
+          99726,
+          24219
+        ],
+        "width_m": "12.6",
+        "depth_m": "9.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "coating_room",
+        "bbox_mm": [
+          86680,
+          25234,
+          102980,
+          33534
+        ],
+        "width_m": "16.3",
+        "depth_m": "8.3",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "finished_goods_room",
+        "bbox_mm": [
+          86680,
+          33534,
+          105280,
+          65934
+        ],
+        "width_m": "32.4",
+        "depth_m": "18.6",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "frozen_fruit_room",
+        "bbox_mm": [
+          58200,
+          12643,
+          69000,
+          20843
+        ],
+        "width_m": "10.8",
+        "depth_m": "8.2",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "office",
+        "bbox_mm": [
+          76880,
+          40034,
+          84626,
+          47780
+        ],
+        "width_m": "7.746",
+        "depth_m": "7.746",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "packaging_material_storage",
+        "bbox_mm": [
+          16620,
+          17143,
+          31120,
+          34443
+        ],
+        "width_m": "17.3",
+        "depth_m": "14.5",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "primary_precooling_room",
+        "bbox_mm": [
+          20070,
+          34443,
+          34770,
+          44493
+        ],
+        "width_m": "14.7",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "raw_fruit_buffer",
+        "bbox_mm": [
+          4870,
+          35793,
+          20070,
+          44493
+        ],
+        "width_m": "15.2",
+        "depth_m": "8.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_fruit_buffer",
+        "bbox_mm": [
+          49800,
+          13943,
+          58200,
+          20843
+        ],
+        "width_m": "8.4",
+        "depth_m": "6.9",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_precooling_room",
+        "bbox_mm": [
+          76880,
+          20843,
+          86680,
+          30893
+        ],
+        "width_m": "9.8",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "shipping_channel",
+        "bbox_mm": [
+          78987,
+          33534,
+          86680,
+          40034
+        ],
+        "width_m": "6.5",
+        "depth_m": "7.693",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "sorting_packaging_room",
+        "bbox_mm": [
+          31120,
+          20843,
+          76880,
+          34443
+        ],
+        "width_m": "45.76",
+        "depth_m": "13.6",
+        "rotation_deg": 0
+      }
+    ],
+    "finished_storage_trials": [
+      {
+        "layout": "STORE-T2-X100-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X100-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X100-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X100-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X100-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X100-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X200-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X200-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X200-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X200-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X100-Y0",
+        "positions": 321,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X100-Y100",
+        "positions": 321,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X200-Y0",
+        "positions": 321,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X200-Y100",
+        "positions": 321,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y0",
+        "positions": 318,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y0",
+        "positions": 317,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y0-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y100-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y0-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y100-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y0-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y100-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y0",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y0",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y0-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y100-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y0",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y0",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y0",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y100",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y0-LOAD90",
+        "positions": 303,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y100-LOAD90",
+        "positions": 303,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y0-LOAD90",
+        "positions": 303,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y100-LOAD90",
+        "positions": 303,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y0",
+        "positions": 299,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y100",
+        "positions": 299,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y100",
+        "positions": 291,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y100",
+        "positions": 291,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y0-LOAD90",
+        "positions": 290,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y100-LOAD90",
+        "positions": 290,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y0-LOAD90",
+        "positions": 290,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y100-LOAD90",
+        "positions": 290,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y100",
+        "positions": 280,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y100",
+        "positions": 280,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y100",
+        "positions": 280,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y100",
+        "positions": 280,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      }
+    ],
+    "operation_counts": {
+      "stock_motion_attempts": 493,
+      "stock_event_grid_nodes": 2745,
+      "process_route_grid_nodes": 7123
+    },
+    "status": "INTERRUPTED_PROCESS_CANDIDATE",
+    "failures": [
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+        "id": "interior"
+      },
+      {
+        "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+        "id": "storage"
+      },
+      {
+        "code": "ORIGINAL_ENGINEERING_CONSTRAINT_REJECTED",
+        "id": "all_eleven_original_nontruck_access"
+      }
+    ],
+    "main_lines": 0,
+    "stock_counts": {
+      "packaging_material_storage": 67,
+      "finished_goods_room": 324,
+      "raw_fruit_buffer": 45,
+      "secondary_fruit_buffer": 21,
+      "frozen_fruit_room": 36
+    },
+    "selected_route_failures": [
+      {
+        "id": "PRODUCT-REPAL-FINISHED",
+        "failure": "PORTAL_SWEEP_BLOCKED",
+        "source": "REPALLETIZE",
+        "target": "finished_goods_room-PAL-008",
+        "source_bbox_mm": [
+          99338,
+          28784,
+          100338,
+          29984
+        ],
+        "target_bbox_mm": [
+          94880,
+          61934,
+          96080,
+          62934
+        ],
+        "reserved_width_mm": 2500,
+        "turn_square_mm": 2222
+      },
+      {
+        "id": "PRODUCT-FINISHED-DISPATCH",
+        "failure": "ROOM_PATH:finished_goods_room",
+        "source": "finished_goods_room-PAL-008",
+        "target": "DISPATCH-01",
+        "source_bbox_mm": [
+          94880,
+          61934,
+          96080,
+          62934
+        ],
+        "target_bbox_mm": [
+          80487,
+          35134,
+          81487,
+          36334
+        ],
+        "reserved_width_mm": 2500,
+        "turn_square_mm": 2222
+      }
+    ],
+    "feedback_enqueued": {
+      "endpoint_rank": 1,
+      "storage_rank": 1,
+      "cause": [
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+          "id": "interior"
+        },
+        {
+          "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+          "id": "storage"
+        },
+        {
+          "code": "ORIGINAL_ENGINEERING_CONSTRAINT_REJECTED",
+          "id": "all_eleven_original_nontruck_access"
+        }
+      ]
+    }
+  },
+  {
+    "kind": "INTERFACE_FAILURE_FEEDBACK",
+    "room_geometry_hash": "sha256:669e435028be3788902dfff9a3301140a1cea577d318628469c238191428d0dc",
+    "endpoint_rank": 1,
+    "storage_rank": 1,
+    "feedback_depth": 1,
+    "feedback_from_node": 1,
+    "node": 2,
+    "room_coordinates": [
+      {
+        "zone_code": "changing_room",
+        "bbox_mm": [
+          87126,
+          14519,
+          99726,
+          24219
+        ],
+        "width_m": "12.6",
+        "depth_m": "9.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "coating_room",
+        "bbox_mm": [
+          86680,
+          25234,
+          102980,
+          33534
+        ],
+        "width_m": "16.3",
+        "depth_m": "8.3",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "finished_goods_room",
+        "bbox_mm": [
+          86680,
+          33534,
+          105280,
+          65934
+        ],
+        "width_m": "32.4",
+        "depth_m": "18.6",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "frozen_fruit_room",
+        "bbox_mm": [
+          58200,
+          12643,
+          69000,
+          20843
+        ],
+        "width_m": "10.8",
+        "depth_m": "8.2",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "office",
+        "bbox_mm": [
+          76880,
+          40034,
+          84626,
+          47780
+        ],
+        "width_m": "7.746",
+        "depth_m": "7.746",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "packaging_material_storage",
+        "bbox_mm": [
+          16620,
+          17143,
+          31120,
+          34443
+        ],
+        "width_m": "17.3",
+        "depth_m": "14.5",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "primary_precooling_room",
+        "bbox_mm": [
+          20070,
+          34443,
+          34770,
+          44493
+        ],
+        "width_m": "14.7",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "raw_fruit_buffer",
+        "bbox_mm": [
+          4870,
+          35793,
+          20070,
+          44493
+        ],
+        "width_m": "15.2",
+        "depth_m": "8.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_fruit_buffer",
+        "bbox_mm": [
+          49800,
+          13943,
+          58200,
+          20843
+        ],
+        "width_m": "8.4",
+        "depth_m": "6.9",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_precooling_room",
+        "bbox_mm": [
+          76880,
+          20843,
+          86680,
+          30893
+        ],
+        "width_m": "9.8",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "shipping_channel",
+        "bbox_mm": [
+          78987,
+          33534,
+          86680,
+          40034
+        ],
+        "width_m": "6.5",
+        "depth_m": "7.693",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "sorting_packaging_room",
+        "bbox_mm": [
+          31120,
+          20843,
+          76880,
+          34443
+        ],
+        "width_m": "45.76",
+        "depth_m": "13.6",
+        "rotation_deg": 0
+      }
+    ],
+    "finished_storage_trials": [
+      {
+        "layout": "STORE-T2-X100-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X100-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X100-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X100-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X100-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X100-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X200-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X200-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X200-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X200-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X100-Y0",
+        "positions": 321,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X100-Y100",
+        "positions": 321,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X200-Y0",
+        "positions": 321,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X200-Y100",
+        "positions": 321,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y0",
+        "positions": 318,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y0",
+        "positions": 317,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y0-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y100-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y0-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y100-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y0-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y100-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y0",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y0",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y0-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y100-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y0",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y0",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y0",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y100",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y0-LOAD90",
+        "positions": 303,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y100-LOAD90",
+        "positions": 303,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y0-LOAD90",
+        "positions": 303,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y100-LOAD90",
+        "positions": 303,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y0",
+        "positions": 299,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y100",
+        "positions": 299,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y100",
+        "positions": 291,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y100",
+        "positions": 291,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y0-LOAD90",
+        "positions": 290,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y100-LOAD90",
+        "positions": 290,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y0-LOAD90",
+        "positions": 290,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y100-LOAD90",
+        "positions": 290,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y100",
+        "positions": 280,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y100",
+        "positions": 280,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y100",
+        "positions": 280,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y100",
+        "positions": 280,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      }
+    ],
+    "operation_counts": {
+      "stock_motion_attempts": 493,
+      "stock_event_grid_nodes": 2748,
+      "process_route_grid_nodes": 7177
+    },
+    "status": "INTERRUPTED_PROCESS_CANDIDATE",
+    "failures": [
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-REPAL-FINISHED"
+      },
+      {
+        "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+        "id": "PRODUCT-FINISHED-DISPATCH"
+      },
+      {
+        "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+        "id": "interior"
+      },
+      {
+        "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+        "id": "storage"
+      },
+      {
+        "code": "ORIGINAL_ENGINEERING_CONSTRAINT_REJECTED",
+        "id": "all_eleven_original_nontruck_access"
+      }
+    ],
+    "main_lines": 0,
+    "stock_counts": {
+      "packaging_material_storage": 67,
+      "finished_goods_room": 324,
+      "raw_fruit_buffer": 45,
+      "secondary_fruit_buffer": 21,
+      "frozen_fruit_room": 36
+    },
+    "selected_route_failures": [
+      {
+        "id": "PRODUCT-REPAL-FINISHED",
+        "failure": "PORTAL_SWEEP_BLOCKED",
+        "source": "REPALLETIZE",
+        "target": "finished_goods_room-PAL-009",
+        "source_bbox_mm": [
+          99338,
+          28784,
+          100338,
+          29984
+        ],
+        "target_bbox_mm": [
+          93580,
+          61834,
+          94780,
+          62834
+        ],
+        "reserved_width_mm": 2500,
+        "turn_square_mm": 2222
+      },
+      {
+        "id": "PRODUCT-FINISHED-DISPATCH",
+        "failure": "ROOM_PATH:finished_goods_room",
+        "source": "finished_goods_room-PAL-009",
+        "target": "DISPATCH-01",
+        "source_bbox_mm": [
+          93580,
+          61834,
+          94780,
+          62834
+        ],
+        "target_bbox_mm": [
+          80487,
+          35134,
+          81487,
+          36334
+        ],
+        "reserved_width_mm": 2500,
+        "turn_square_mm": 2222
+      }
+    ]
+  },
+  {
+    "kind": "ALTERNATE_FIXED_ROTATION",
+    "room_geometry_hash": "sha256:ed85c243c40e3110c031e428993b4c95253b0b9a769079ff0dcae099621093bf",
+    "rotation_deg": 0,
+    "node": 3,
+    "room_coordinates": [
+      {
+        "zone_code": "changing_room",
+        "bbox_mm": [
+          87126,
+          14519,
+          99726,
+          24219
+        ],
+        "width_m": "12.6",
+        "depth_m": "9.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "coating_room",
+        "bbox_mm": [
+          86680,
+          25234,
+          102980,
+          33534
+        ],
+        "width_m": "16.3",
+        "depth_m": "8.3",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "finished_goods_room",
+        "bbox_mm": [
+          86680,
+          33534,
+          119080,
+          52134
+        ],
+        "width_m": "32.4",
+        "depth_m": "18.6",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "frozen_fruit_room",
+        "bbox_mm": [
+          58200,
+          12643,
+          69000,
+          20843
+        ],
+        "width_m": "10.8",
+        "depth_m": "8.2",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "office",
+        "bbox_mm": [
+          78987,
+          40034,
+          86733,
+          47780
+        ],
+        "width_m": "7.746",
+        "depth_m": "7.746",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "packaging_material_storage",
+        "bbox_mm": [
+          16620,
+          17143,
+          31120,
+          34443
+        ],
+        "width_m": "17.3",
+        "depth_m": "14.5",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "primary_precooling_room",
+        "bbox_mm": [
+          20070,
+          34443,
+          34770,
+          44493
+        ],
+        "width_m": "14.7",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "raw_fruit_buffer",
+        "bbox_mm": [
+          4870,
+          35793,
+          20070,
+          44493
+        ],
+        "width_m": "15.2",
+        "depth_m": "8.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_fruit_buffer",
+        "bbox_mm": [
+          49800,
+          13943,
+          58200,
+          20843
+        ],
+        "width_m": "8.4",
+        "depth_m": "6.9",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_precooling_room",
+        "bbox_mm": [
+          76880,
+          20843,
+          86680,
+          30893
+        ],
+        "width_m": "9.8",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "shipping_channel",
+        "bbox_mm": [
+          78987,
+          33534,
+          86680,
+          40034
+        ],
+        "width_m": "6.5",
+        "depth_m": "7.693",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "sorting_packaging_room",
+        "bbox_mm": [
+          31120,
+          20843,
+          76880,
+          34443
+        ],
+        "width_m": "45.76",
+        "depth_m": "13.6",
+        "rotation_deg": 0
+      }
+    ],
+    "status": "ORIGINAL_ROOM_CONSTRAINT_REJECTED",
+    "code": "PLACEMENT_HARD_CONSTRAINT_UNSATISFIED",
+    "details": {
+      "zone_code": "finished_goods_room",
+      "constraint": "INSIDE_BUILDABLE_BOUNDARY"
+    }
+  },
+  {
+    "kind": "ALTERNATE_FIXED_ROTATION",
+    "room_geometry_hash": "sha256:4b362d6af0f40b5d8de2849a6436221a4563305a807a3274359cac56e7b262a2",
+    "rotation_deg": 0,
+    "node": 4,
+    "room_coordinates": [
+      {
+        "zone_code": "changing_room",
+        "bbox_mm": [
+          87126,
+          14519,
+          99726,
+          24219
+        ],
+        "width_m": "12.6",
+        "depth_m": "9.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "coating_room",
+        "bbox_mm": [
+          86680,
+          25234,
+          102980,
+          33534
+        ],
+        "width_m": "16.3",
+        "depth_m": "8.3",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "finished_goods_room",
+        "bbox_mm": [
+          70580,
+          33534,
+          102980,
+          52134
+        ],
+        "width_m": "32.4",
+        "depth_m": "18.6",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "frozen_fruit_room",
+        "bbox_mm": [
+          58200,
+          12643,
+          69000,
+          20843
+        ],
+        "width_m": "10.8",
+        "depth_m": "8.2",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "office",
+        "bbox_mm": [
+          62887,
+          40034,
+          70633,
+          47780
+        ],
+        "width_m": "7.746",
+        "depth_m": "7.746",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "packaging_material_storage",
+        "bbox_mm": [
+          16620,
+          17143,
+          31120,
+          34443
+        ],
+        "width_m": "17.3",
+        "depth_m": "14.5",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "primary_precooling_room",
+        "bbox_mm": [
+          20070,
+          34443,
+          34770,
+          44493
+        ],
+        "width_m": "14.7",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "raw_fruit_buffer",
+        "bbox_mm": [
+          4870,
+          35793,
+          20070,
+          44493
+        ],
+        "width_m": "15.2",
+        "depth_m": "8.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_fruit_buffer",
+        "bbox_mm": [
+          49800,
+          13943,
+          58200,
+          20843
+        ],
+        "width_m": "8.4",
+        "depth_m": "6.9",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_precooling_room",
+        "bbox_mm": [
+          76880,
+          20843,
+          86680,
+          30893
+        ],
+        "width_m": "9.8",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "shipping_channel",
+        "bbox_mm": [
+          62887,
+          33534,
+          70580,
+          40034
+        ],
+        "width_m": "6.5",
+        "depth_m": "7.693",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "sorting_packaging_room",
+        "bbox_mm": [
+          31120,
+          20843,
+          76880,
+          34443
+        ],
+        "width_m": "45.76",
+        "depth_m": "13.6",
+        "rotation_deg": 0
+      }
+    ],
+    "status": "ORIGINAL_ROOM_CONSTRAINT_REJECTED",
+    "code": "PLACEMENT_HARD_CONSTRAINT_UNSATISFIED",
+    "details": {
+      "constraint": "NO_ZONE_OVERLAP"
+    }
+  },
+  {
+    "kind": "BLOCKER_EDGE_COUPLED_TRANSLATION",
+    "room_geometry_hash": "sha256:df59ba9dcb0ba90134e998e49f7b73b14f9db1f6e8121371e3b5c885715b72c3",
+    "delta_mm": [
+      0,
+      2316
+    ],
+    "blocker": "COLUMN-41485",
+    "positioning_margin_mm": 100,
+    "node": 5,
+    "room_coordinates": [
+      {
+        "zone_code": "changing_room",
+        "bbox_mm": [
+          87126,
+          14519,
+          99726,
+          24219
+        ],
+        "width_m": "12.6",
+        "depth_m": "9.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "coating_room",
+        "bbox_mm": [
+          86680,
+          27550,
+          102980,
+          35850
+        ],
+        "width_m": "16.3",
+        "depth_m": "8.3",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "finished_goods_room",
+        "bbox_mm": [
+          86680,
+          35850,
+          105280,
+          68250
+        ],
+        "width_m": "32.4",
+        "depth_m": "18.6",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "frozen_fruit_room",
+        "bbox_mm": [
+          58200,
+          12643,
+          69000,
+          20843
+        ],
+        "width_m": "10.8",
+        "depth_m": "8.2",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "office",
+        "bbox_mm": [
+          76880,
+          42350,
+          84626,
+          50096
+        ],
+        "width_m": "7.746",
+        "depth_m": "7.746",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "packaging_material_storage",
+        "bbox_mm": [
+          16620,
+          17143,
+          31120,
+          34443
+        ],
+        "width_m": "17.3",
+        "depth_m": "14.5",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "primary_precooling_room",
+        "bbox_mm": [
+          20070,
+          34443,
+          34770,
+          44493
+        ],
+        "width_m": "14.7",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "raw_fruit_buffer",
+        "bbox_mm": [
+          4870,
+          35793,
+          20070,
+          44493
+        ],
+        "width_m": "15.2",
+        "depth_m": "8.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_fruit_buffer",
+        "bbox_mm": [
+          49800,
+          13943,
+          58200,
+          20843
+        ],
+        "width_m": "8.4",
+        "depth_m": "6.9",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_precooling_room",
+        "bbox_mm": [
+          76880,
+          20843,
+          86680,
+          30893
+        ],
+        "width_m": "9.8",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "shipping_channel",
+        "bbox_mm": [
+          78987,
+          35850,
+          86680,
+          42350
+        ],
+        "width_m": "6.5",
+        "depth_m": "7.693",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "sorting_packaging_room",
+        "bbox_mm": [
+          31120,
+          20843,
+          76880,
+          34443
+        ],
+        "width_m": "45.76",
+        "depth_m": "13.6",
+        "rotation_deg": 0
+      }
+    ],
+    "finished_storage_trials": [
+      {
+        "layout": "STORE-T0-X100-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X100-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X100-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X100-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X200-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X200-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X200-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X200-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X100-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X100-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X100-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X100-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T1-X100-Y0",
+        "positions": 321,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y0",
+        "positions": 320,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y0-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y100-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y0-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y100-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y0",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y0",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y0-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y100-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y0-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y100-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y0",
+        "positions": 308,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y0",
+        "positions": 308,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y0-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y100-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y0-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y100-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y0",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y100",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y0",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y100",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y0-LOAD90",
+        "positions": 296,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y100-LOAD90",
+        "positions": 296,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y0-LOAD90",
+        "positions": 296,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y100-LOAD90",
+        "positions": 296,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y100",
+        "positions": 294,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y100",
+        "positions": 294,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y100",
+        "positions": 283,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y100",
+        "positions": 283,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y100",
+        "positions": 283,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y100",
+        "positions": 283,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      }
+    ],
+    "operation_counts": {
+      "stock_motion_attempts": 493,
+      "stock_event_grid_nodes": 752,
+      "process_route_grid_nodes": 7176
+    },
+    "status": "CONDITIONAL_PROCESS_CANDIDATE",
+    "failures": [],
+    "main_lines": 6,
+    "stock_counts": {
+      "packaging_material_storage": 67,
+      "finished_goods_room": 324,
+      "raw_fruit_buffer": 45,
+      "secondary_fruit_buffer": 21,
+      "frozen_fruit_room": 36
+    },
+    "selected_route_failures": []
+  },
+  {
+    "kind": "FLEXIBLE_CONNECTOR_EXTENSION",
+    "room_geometry_hash": "sha256:ca140b4d5da574503fcc72fb4abd4c9665a1f37f8ef26671363270ac55e57d9c",
+    "delta_mm": [
+      0,
+      2316
+    ],
+    "blocker": "COLUMN-41485",
+    "positioning_margin_mm": 100,
+    "node": 6,
+    "room_coordinates": [
+      {
+        "zone_code": "changing_room",
+        "bbox_mm": [
+          87126,
+          14519,
+          99726,
+          24219
+        ],
+        "width_m": "12.6",
+        "depth_m": "9.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "coating_room",
+        "bbox_mm": [
+          86680,
+          25234,
+          102980,
+          35850
+        ],
+        "width_m": "16.3",
+        "depth_m": "10.616",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "finished_goods_room",
+        "bbox_mm": [
+          86680,
+          35850,
+          105280,
+          68250
+        ],
+        "width_m": "32.4",
+        "depth_m": "18.6",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "frozen_fruit_room",
+        "bbox_mm": [
+          58200,
+          12643,
+          69000,
+          20843
+        ],
+        "width_m": "10.8",
+        "depth_m": "8.2",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "office",
+        "bbox_mm": [
+          76880,
+          42350,
+          84626,
+          50096
+        ],
+        "width_m": "7.746",
+        "depth_m": "7.746",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "packaging_material_storage",
+        "bbox_mm": [
+          16620,
+          17143,
+          31120,
+          34443
+        ],
+        "width_m": "17.3",
+        "depth_m": "14.5",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "primary_precooling_room",
+        "bbox_mm": [
+          20070,
+          34443,
+          34770,
+          44493
+        ],
+        "width_m": "14.7",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "raw_fruit_buffer",
+        "bbox_mm": [
+          4870,
+          35793,
+          20070,
+          44493
+        ],
+        "width_m": "15.2",
+        "depth_m": "8.7",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_fruit_buffer",
+        "bbox_mm": [
+          49800,
+          13943,
+          58200,
+          20843
+        ],
+        "width_m": "8.4",
+        "depth_m": "6.9",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "secondary_precooling_room",
+        "bbox_mm": [
+          76880,
+          20843,
+          86680,
+          30893
+        ],
+        "width_m": "9.8",
+        "depth_m": "10.05",
+        "rotation_deg": 0
+      },
+      {
+        "zone_code": "shipping_channel",
+        "bbox_mm": [
+          78987,
+          35850,
+          86680,
+          42350
+        ],
+        "width_m": "6.5",
+        "depth_m": "7.693",
+        "rotation_deg": 90
+      },
+      {
+        "zone_code": "sorting_packaging_room",
+        "bbox_mm": [
+          31120,
+          20843,
+          76880,
+          34443
+        ],
+        "width_m": "45.76",
+        "depth_m": "13.6",
+        "rotation_deg": 0
+      }
+    ],
+    "finished_storage_trials": [
+      {
+        "layout": "STORE-T0-X100-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X100-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X100-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X100-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X200-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X200-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X200-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T0-X200-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X100-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X100-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y0",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y100",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X100-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X100-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y0-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T2-X200-Y100-LOAD90",
+        "positions": 324,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": true
+      },
+      {
+        "layout": "STORE-T1-X100-Y0",
+        "positions": 321,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y0",
+        "positions": 320,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y0-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y100-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y0-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y100-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y0",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y0",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y0-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y100-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y0-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y100-LOAD90",
+        "positions": 309,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y0",
+        "positions": 308,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y0",
+        "positions": 308,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y0-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y100-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y0-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y100-LOAD90",
+        "positions": 306,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y0",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T0-X0-Y100",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y0",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T2-X0-Y100",
+        "positions": 305,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y0-LOAD90",
+        "positions": 296,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y100-LOAD90",
+        "positions": 296,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y0-LOAD90",
+        "positions": 296,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y100-LOAD90",
+        "positions": 296,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X100-Y100",
+        "positions": 294,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X100-Y100",
+        "positions": 294,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X0-Y100",
+        "positions": 283,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T1-X200-Y100",
+        "positions": 283,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X0-Y100",
+        "positions": 283,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      },
+      {
+        "layout": "STORE-T3-X200-Y100",
+        "positions": 283,
+        "required": 324,
+        "blocking_columns": [],
+        "static_pass": false
+      }
+    ],
+    "operation_counts": {
+      "stock_motion_attempts": 493,
+      "stock_event_grid_nodes": 752,
+      "process_route_grid_nodes": 7176
+    },
+    "status": "CONDITIONAL_PROCESS_CANDIDATE",
+    "failures": [],
+    "main_lines": 6,
+    "stock_counts": {
+      "packaging_material_storage": 67,
+      "finished_goods_room": 324,
+      "raw_fruit_buffer": 45,
+      "secondary_fruit_buffer": 21,
+      "frozen_fruit_room": 36
+    },
+    "selected_route_failures": []
+  }
+]

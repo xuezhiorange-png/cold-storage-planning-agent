@@ -1,0 +1,3948 @@
+{
+  "task_id": "V2_2_2_AUTONOMOUS_ADAPTIVE_LAYOUT_REGENERATION_R1",
+  "calculator_version": "autonomous-adaptive-process-layout@1.3.0",
+  "source_input_hash": "sha256:d9cd4110874625b5c6b92f5d32a2862de0c919d24dd2d0afae9e01fa2991380b",
+  "source_process_parameter_hash": "sha256:11dfd0a28365f416e5f29379f0934641bb850d9b38afbf4fc6378f8dbcd61640",
+  "source_search_config_hash": "sha256:0150d980272d363f3b586082a22d404fd584dfbd7d1c74a2fe1bf68a3b3284fd",
+  "search_configuration": {
+    "candidate_node_budget": 24,
+    "full_evaluation_budget": 8,
+    "candidate_limit": 2
+  },
+  "p1_handoff_hash": "sha256:469b89b0599b39f002cdcb1b6475d3d13c2a90db84babaec8b9e7eb1001834aa",
+  "zone_plan": {
+    "success": true,
+    "calculator_name": "cold_room_zone_plan",
+    "calculator_version": "1.0.0",
+    "input": {
+      "daily_inbound_mass_kg": 20000,
+      "working_time_h_per_day": 16,
+      "finished_storage_days": 7,
+      "packaging_storage_days": 3,
+      "precooling_required_ratio": 1,
+      "raw_holding_hours": 6.6666666667,
+      "storage_position_capacity_kg": 400,
+      "secondary_fruit_ratio": 0.08,
+      "frozen_fruit_ratio": 0.1,
+      "frozen_storage_days": 10,
+      "precooling_position_daily_capacity_kg": 1250,
+      "primary_precooling_pallet_weight_kg": 220,
+      "primary_precooling_hours_per_pallet": 1,
+      "primary_precooling_working_hours_per_day": 7,
+      "secondary_precooling_pallet_weight_kg": 400,
+      "secondary_precooling_hours_per_pallet": 2,
+      "secondary_precooling_working_hours_per_day": 14,
+      "raw_storage_ratio": 0.4,
+      "raw_fruit_pallet_weight_kg": 220,
+      "finished_goods_pallet_weight_kg": 400,
+      "frozen_goods_pallet_weight_kg": 600,
+      "secondary_fruit_area_ratio": 0.8,
+      "pallet_length_m": 1.2,
+      "pallet_width_m": 1.0,
+      "pallet_longitudinal_gap_m": 0.3,
+      "storage_area_factor": 1.2,
+      "precooling_position_area_m2": 5.6,
+      "packing_pieces_per_person_hour": 16,
+      "packing_weight_per_piece_kg": 1.5,
+      "packing_working_hours_per_day": 14,
+      "workers_per_packing_table": 3,
+      "packing_table_horizontal_spacing_m": 5.6,
+      "packing_table_vertical_spacing_m": 3.0,
+      "packing_area_factor": 1.5,
+      "main_packaging_storage_days": 4,
+      "auxiliary_packaging_storage_days": 12,
+      "packaging_area_factor": 1.5,
+      "office_fixed_area_m2": 60,
+      "changing_fixed_area_m2": 100,
+      "coating_fixed_area_m2": 120
+    },
+    "result": {
+      "daily_inbound_mass_kg": 20000,
+      "design_daily_mass_kg": 20000,
+      "total_required_area_m2": 2194.59,
+      "total_area_m2": 2194.59,
+      "total_area_m2_8_position_scheme": 2152.59,
+      "planning_parameters": {
+        "formula_authority": "POST-V2.1.1-charles-engineering-rule-adjustments",
+        "raw_storage_ratio": 0.4,
+        "finished_storage_days": 7,
+        "frozen_storage_days": 10,
+        "secondary_fruit_ratio_hardcoded": 0.1,
+        "secondary_fruit_storage_days_hardcoded": 2,
+        "frozen_fruit_ratio_hardcoded": 0.1,
+        "main_packaging_storage_days": 4,
+        "auxiliary_packaging_storage_days": 12,
+        "primary_precooling_q_d_kg_day": 1540.0,
+        "secondary_precooling_q_d_kg_day": 2800.0,
+        "packing_person_daily_capacity_kg": 336.0,
+        "sorting_packaging_area_factor": 1.1,
+        "sorting_packaging_raw_required_area_m2": 565.76,
+        "sorting_packaging_required_area_m2": 622.34,
+        "packaging_position_area_m2": 3.744,
+        "packaging_area_factor_k": 2.4,
+        "reporting_precool_scheme_id": "6_position",
+        "dataclass_override_note": "Non-default dataclass fields override §4 written-dead parameters when explicitly supplied; default path matches §4."
+      },
+      "zones": [
+        {
+          "zone_code": "office",
+          "zone_name": "办公室",
+          "temperature_band": "常温",
+          "function": "生产管理、品控记录、访客和日常办公",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 0,
+          "position_count": 0,
+          "required_area_m2": 60,
+          "requires_review": true
+        },
+        {
+          "zone_code": "changing_room",
+          "zone_name": "更衣室",
+          "temperature_band": "常温",
+          "function": "人员更衣、洗手消毒和进入洁净作业区缓冲",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 0,
+          "position_count": 0,
+          "required_area_m2": 40,
+          "requires_review": true
+        },
+        {
+          "zone_code": "primary_precooling_room",
+          "zone_name": "一级预冷间",
+          "temperature_band": "8~10℃",
+          "function": "田间热初步去除，承接原果入厂后第一段降温",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 0,
+          "pallet_weight_kg": 220,
+          "hours_per_pallet": 1,
+          "working_hours_per_day": 7,
+          "position_hourly_capacity_kg_h": 220.0,
+          "position_daily_capacity_kg_day": 1540.0,
+          "raw_position_count": 13,
+          "n_need": 13,
+          "reporting_scheme_id": "6_position",
+          "schemes": [
+            {
+              "scheme_id": "6_position",
+              "positions_per_room": 6,
+              "room_count": 3,
+              "position_count": 18,
+              "required_area_m2": 126
+            },
+            {
+              "scheme_id": "8_position",
+              "positions_per_room": 8,
+              "room_count": 2,
+              "position_count": 16,
+              "required_area_m2": 112
+            }
+          ],
+          "position_count": 18,
+          "required_area_m2": 126,
+          "requires_review": true,
+          "minimum_estimated_cooling_load_kw_r": 360,
+          "cooling_estimation_basis": {
+            "basis_type": "FINAL_POSITION_COUNT",
+            "source_field": "position_count",
+            "source_value": 18,
+            "source_unit": "position",
+            "reference_factor": 20,
+            "reference_factor_unit": "kW(r)/final position",
+            "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+            "requires_review": true
+          }
+        },
+        {
+          "zone_code": "secondary_precooling_room",
+          "zone_name": "二级预冷间",
+          "temperature_band": "1~3℃",
+          "function": "进入低温链前的二段降温和温度均衡",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 0,
+          "pallet_weight_kg": 400,
+          "hours_per_pallet": 2,
+          "working_hours_per_day": 14,
+          "position_hourly_capacity_kg_h": 200.0,
+          "position_daily_capacity_kg_day": 2800.0,
+          "raw_position_count": 8,
+          "n_need": 8,
+          "reporting_scheme_id": "6_position",
+          "schemes": [
+            {
+              "scheme_id": "6_position",
+              "positions_per_room": 6,
+              "room_count": 2,
+              "position_count": 12,
+              "required_area_m2": 84
+            },
+            {
+              "scheme_id": "8_position",
+              "positions_per_room": 8,
+              "room_count": 1,
+              "position_count": 8,
+              "required_area_m2": 56
+            }
+          ],
+          "position_count": 12,
+          "required_area_m2": 84,
+          "requires_review": true,
+          "minimum_estimated_cooling_load_kw_r": 180,
+          "cooling_estimation_basis": {
+            "basis_type": "FINAL_POSITION_COUNT",
+            "source_field": "position_count",
+            "source_value": 12,
+            "source_unit": "position",
+            "reference_factor": 15,
+            "reference_factor_unit": "kW(r)/final position",
+            "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+            "requires_review": true
+          }
+        },
+        {
+          "zone_code": "raw_fruit_buffer",
+          "zone_name": "原果暂存间",
+          "temperature_band": "8~10℃",
+          "function": "原果短时暂存，平衡收货与预冷节拍",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 8000.0,
+          "pallet_weight_kg": 220,
+          "aisle_layout": "three_side_2.2m",
+          "position_count": 45,
+          "required_area_m2": 132.24,
+          "requires_review": true,
+          "n_need": 37,
+          "n_long": 9,
+          "n_short": 5,
+          "n_actual": 45,
+          "unused_cells": 8,
+          "layout": {
+            "n_long": 9,
+            "n_short": 5,
+            "aspect_ratio": 1.8
+          },
+          "minimum_estimated_cooling_load_kw_r": 52.896,
+          "cooling_estimation_basis": {
+            "basis_type": "ZONE_AREA",
+            "source_field": "required_area_m2",
+            "source_value": 132.24,
+            "source_unit": "m2",
+            "reference_factor": 400,
+            "reference_factor_unit": "W/m2",
+            "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+            "requires_review": true
+          }
+        },
+        {
+          "zone_code": "sorting_packaging_room",
+          "zone_name": "分选包装间",
+          "temperature_band": "8~10℃",
+          "function": "分选、称重、包装和在线周转",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 0,
+          "worker_count": 60,
+          "table_count": 20,
+          "person_daily_capacity_kg_day": 336.0,
+          "packing_table_area_m2": 16.8,
+          "aisle_layout": "four_side_architectural",
+          "position_count": 21,
+          "requires_review": true,
+          "n_need": 20,
+          "n_long": 7,
+          "n_short": 3,
+          "n_actual": 21,
+          "unused_cells": 1,
+          "layout": {
+            "n_long": 7,
+            "n_short": 3,
+            "aspect_ratio": 2.3333
+          },
+          "required_area_m2": 622.34,
+          "raw_required_area_m2": 565.76,
+          "sorting_packaging_area_factor": 1.1,
+          "minimum_estimated_cooling_load_kw_r": 186.702,
+          "cooling_estimation_basis": {
+            "basis_type": "ZONE_AREA",
+            "source_field": "required_area_m2",
+            "source_value": 622.34,
+            "source_unit": "m2",
+            "reference_factor": 300,
+            "reference_factor_unit": "W/m2",
+            "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+            "requires_review": true
+          }
+        },
+        {
+          "zone_code": "coating_room",
+          "zone_name": "覆膜间",
+          "temperature_band": "1~3℃",
+          "function": "覆膜作业和覆膜后低温缓冲",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 0,
+          "position_count": 0,
+          "required_area_m2": 80,
+          "requires_review": true,
+          "minimum_estimated_cooling_load_kw_r": 24,
+          "cooling_estimation_basis": {
+            "basis_type": "ZONE_AREA",
+            "source_field": "required_area_m2",
+            "source_value": 80,
+            "source_unit": "m2",
+            "reference_factor": 300,
+            "reference_factor_unit": "W/m2",
+            "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+            "requires_review": true
+          }
+        },
+        {
+          "zone_code": "finished_goods_room",
+          "zone_name": "成品间",
+          "temperature_band": "1~3℃",
+          "function": "成品周转储存，按库存天数配置",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 126000.0,
+          "pallet_weight_kg": 400,
+          "aisle_layout": "one_long_side_3m",
+          "position_count": 324,
+          "required_area_m2": 602.64,
+          "requires_review": true,
+          "n_need": 315,
+          "n_long": 27,
+          "n_short": 12,
+          "n_actual": 324,
+          "unused_cells": 9,
+          "layout": {
+            "n_long": 27,
+            "n_short": 12,
+            "aspect_ratio": 2.25
+          },
+          "frozen_deduction_ratio": 0.1,
+          "minimum_estimated_cooling_load_kw_r": 180.792,
+          "cooling_estimation_basis": {
+            "basis_type": "ZONE_AREA",
+            "source_field": "required_area_m2",
+            "source_value": 602.64,
+            "source_unit": "m2",
+            "reference_factor": 300,
+            "reference_factor_unit": "W/m2",
+            "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+            "requires_review": true
+          }
+        },
+        {
+          "zone_code": "secondary_fruit_buffer",
+          "zone_name": "次果暂存间",
+          "temperature_band": "8~10℃",
+          "function": "次果临时存放和后续处置等待",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 4000.0,
+          "pallet_weight_kg": 220,
+          "aisle_layout": "one_long_side_3m",
+          "position_count": 21,
+          "required_area_m2": 57.96,
+          "requires_review": true,
+          "n_need": 19,
+          "n_long": 7,
+          "n_short": 3,
+          "n_actual": 21,
+          "unused_cells": 2,
+          "layout": {
+            "n_long": 7,
+            "n_short": 3,
+            "aspect_ratio": 2.3333
+          },
+          "secondary_fruit_ratio": 0.1,
+          "secondary_fruit_storage_days": 2,
+          "minimum_estimated_cooling_load_kw_r": 23.184,
+          "cooling_estimation_basis": {
+            "basis_type": "ZONE_AREA",
+            "source_field": "required_area_m2",
+            "source_value": 57.96,
+            "source_unit": "m2",
+            "reference_factor": 400,
+            "reference_factor_unit": "W/m2",
+            "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+            "requires_review": true
+          }
+        },
+        {
+          "zone_code": "frozen_fruit_room",
+          "zone_name": "冻果间",
+          "temperature_band": "-18℃",
+          "function": "冻果库存和冻结品低温储存",
+          "daily_throughput_kg_day": 2000.0,
+          "design_storage_mass_kg": 20000.0,
+          "pallet_weight_kg": 600,
+          "aisle_layout": "one_long_side_3m",
+          "position_count": 36,
+          "required_area_m2": 88.56,
+          "requires_review": true,
+          "n_need": 34,
+          "n_long": 9,
+          "n_short": 4,
+          "n_actual": 36,
+          "unused_cells": 2,
+          "layout": {
+            "n_long": 9,
+            "n_short": 4,
+            "aspect_ratio": 2.25
+          },
+          "frozen_fruit_ratio": 0.1,
+          "frozen_storage_days": 10,
+          "minimum_estimated_cooling_load_kw_r": 48.708,
+          "cooling_estimation_basis": {
+            "basis_type": "ZONE_AREA",
+            "source_field": "required_area_m2",
+            "source_value": 88.56,
+            "source_unit": "m2",
+            "reference_factor": 550,
+            "reference_factor_unit": "W/m2",
+            "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+            "requires_review": true
+          }
+        },
+        {
+          "zone_code": "packaging_material_storage",
+          "zone_name": "包材库",
+          "temperature_band": "常温",
+          "function": "包装材料、纸箱、托盘和辅料存放",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 0,
+          "position_count": 67,
+          "packaging_position_area_m2": 3.744,
+          "packaging_area_factor_k": 2.4,
+          "required_area_m2": 250.85,
+          "requires_review": true
+        },
+        {
+          "zone_code": "shipping_channel",
+          "zone_name": "出货通道",
+          "temperature_band": "1~3℃",
+          "function": "成品装车出货月台与通道",
+          "daily_throughput_kg_day": 20000,
+          "design_storage_mass_kg": 0,
+          "pallet_weight_kg": 400,
+          "pallet_count": 50,
+          "truck_count": 4,
+          "platform_count": 1,
+          "position_count": 1,
+          "required_area_m2": 50,
+          "requires_review": true,
+          "minimum_estimated_cooling_load_kw_r": 15,
+          "cooling_estimation_basis": {
+            "basis_type": "ZONE_AREA",
+            "source_field": "required_area_m2",
+            "source_value": 50,
+            "source_unit": "m2",
+            "reference_factor": 300,
+            "reference_factor_unit": "W/m2",
+            "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+            "requires_review": true
+          }
+        }
+      ]
+    },
+    "formula_references": [
+      {
+        "formula_id": "ZP-001",
+        "formula_version": "1.0.0",
+        "expression": "daily_mass",
+        "description": "日处理量"
+      },
+      {
+        "formula_id": "ZP-002",
+        "formula_version": "1.0.0",
+        "expression": "packed_rectangle_layout",
+        "description": "托盘/分选台矩形排布面积"
+      },
+      {
+        "formula_id": "ZP-003",
+        "formula_version": "1.0.0",
+        "expression": "dual_precooling_schemes",
+        "description": "一级/二级预冷双方案模块"
+      }
+    ],
+    "coefficients": [
+      {
+        "code": "raw_holding_hours",
+        "name": "原果暂存小时数",
+        "value": 6.6666666667,
+        "unit": "h",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "按日入库量折算的演示暂存时间"
+      },
+      {
+        "code": "raw_area_loading",
+        "name": "原果暂存单位面积承载量",
+        "value": 240,
+        "unit": "kg/m2",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据"
+      },
+      {
+        "code": "primary_precooling_area_loading",
+        "name": "一级预冷间单位面积日处理量",
+        "value": 620,
+        "unit": "kg/day/m2",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 已替代为双方案模块面积，不再作为面积依据"
+      },
+      {
+        "code": "secondary_precooling_area_loading",
+        "name": "二级预冷间单位面积日处理量",
+        "value": 550,
+        "unit": "kg/day/m2",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 已替代为双方案模块面积，不再作为面积依据"
+      },
+      {
+        "code": "sorting_area_loading",
+        "name": "分选包装间单位面积日处理量",
+        "value": 420,
+        "unit": "kg/day/m2",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 已替代为分选台矩形排布，不再作为面积依据"
+      },
+      {
+        "code": "coating_area_loading",
+        "name": "覆膜间单位面积日处理量",
+        "value": 500,
+        "unit": "kg/day/m2",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 为吨位分档固定面积，不再作为面积依据"
+      },
+      {
+        "code": "storage_area_loading",
+        "name": "成品间单位面积储量",
+        "value": 216,
+        "unit": "kg/m2",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据"
+      },
+      {
+        "code": "secondary_fruit_ratio",
+        "name": "次果比例",
+        "value": 0.08,
+        "unit": "ratio",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 面积使用硬编码 10%，此演示系数仅保留元数据"
+      },
+      {
+        "code": "secondary_fruit_area_loading",
+        "name": "次果暂存单位面积承载量",
+        "value": 220,
+        "unit": "kg/m2",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据"
+      },
+      {
+        "code": "frozen_fruit_ratio",
+        "name": "冻果比例",
+        "value": 0.05,
+        "unit": "ratio",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 面积使用硬编码 10%，此演示系数仅保留元数据"
+      },
+      {
+        "code": "frozen_storage_days",
+        "name": "冻果暂存天数",
+        "value": 14,
+        "unit": "day",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 面积使用 operator frozen_storage_days KEY"
+      },
+      {
+        "code": "frozen_area_loading",
+        "name": "冻果间单位面积储量",
+        "value": 320,
+        "unit": "kg/m2",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据"
+      },
+      {
+        "code": "office_area_per_t_day",
+        "name": "办公室单位日处理吨位面积",
+        "value": 1.2,
+        "unit": "m2/(t/day)",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 为吨位分档固定面积，不再作为面积依据"
+      },
+      {
+        "code": "changing_area_per_t_day",
+        "name": "更衣室单位日处理吨位面积",
+        "value": 0.8,
+        "unit": "m2/(t/day)",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 为吨位分档固定面积，不再作为面积依据"
+      },
+      {
+        "code": "packaging_area_per_t_day",
+        "name": "包材库单位吨日库存面积",
+        "value": 0.6685,
+        "unit": "m2/(t/day*day)",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 已替代为位面积 1.56×k(M_t)"
+      },
+      {
+        "code": "precooling_position_daily_capacity_kg",
+        "name": "预冷板位单位日处理量",
+        "value": 1250,
+        "unit": "kg/day/position",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 已替代为托盘日处理量公式"
+      },
+      {
+        "code": "storage_position_capacity_kg",
+        "name": "存储板位单位容量",
+        "value": 500,
+        "unit": "kg/position",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": true,
+        "notes": "POST-V0.9 P4 已替代为各区域托盘重量"
+      }
+    ],
+    "assumptions": [
+      "POST-V2.1.1-charles-engineering-rule-adjustments Charles 书面锁定当前工时与面积公式；operator KEY 仅提供 M、成品天数、冻果天数、包材天数。",
+      "所有区域面积为概念设计阶段估算值，需结合工艺、货架、通道、消防和建筑条件复核。"
+    ],
+    "warnings": [
+      {
+        "code": "DEMO_ASSUMPTIONS_REQUIRE_REVIEW",
+        "message": "冷间分区规划使用未审核演示系数，不能作为正式设计依据。",
+        "details": {
+          "requires_review": true
+        }
+      }
+    ],
+    "errors": [],
+    "source_references": [],
+    "requires_review": true
+  },
+  "current_storage_requirements": {
+    "packaging_material_storage": {
+      "p1_grid_positions": 67,
+      "minimum_positions": 67,
+      "required_positions": 67,
+      "source_zone_hash": "sha256:c238fdd6d413899b3120905e86ae74b8ac45e36881deb9986a1cb01107af4520",
+      "source": "CURRENT_CALCULATOR_P1_GRID_UNMODIFIED",
+      "formula": "max(current position_count, current n_need)",
+      "unit": "pallet_addresses",
+      "new_authority": false
+    },
+    "finished_goods_room": {
+      "p1_grid_positions": 324,
+      "minimum_positions": 315,
+      "required_positions": 324,
+      "source_zone_hash": "sha256:366379439d7572ce3b29ac0745cb0312ae157ccc19f3159c558dad305d965ecb",
+      "source": "CURRENT_CALCULATOR_P1_GRID_UNMODIFIED",
+      "formula": "max(current position_count, current n_need)",
+      "unit": "pallet_addresses",
+      "new_authority": false
+    },
+    "raw_fruit_buffer": {
+      "p1_grid_positions": 45,
+      "minimum_positions": 37,
+      "required_positions": 45,
+      "source_zone_hash": "sha256:c8773cc7eb743fb61bf98b2ba95aec505f5d40e16b288c3b18d62756ac7ee570",
+      "source": "CURRENT_CALCULATOR_P1_GRID_UNMODIFIED",
+      "formula": "max(current position_count, current n_need)",
+      "unit": "pallet_addresses",
+      "new_authority": false
+    },
+    "secondary_fruit_buffer": {
+      "p1_grid_positions": 21,
+      "minimum_positions": 19,
+      "required_positions": 21,
+      "source_zone_hash": "sha256:2cea8d1cc84786deabe62ed7004a90d337839c3f37b4aafd22de9530ab32d58a",
+      "source": "CURRENT_CALCULATOR_P1_GRID_UNMODIFIED",
+      "formula": "max(current position_count, current n_need)",
+      "unit": "pallet_addresses",
+      "new_authority": false
+    },
+    "frozen_fruit_room": {
+      "p1_grid_positions": 36,
+      "minimum_positions": 34,
+      "required_positions": 36,
+      "source_zone_hash": "sha256:3270492a1399b2c525a2c276af2b6e92bc3f83cce1706f05a1acdcfbb0d7c0a6",
+      "source": "CURRENT_CALCULATOR_P1_GRID_UNMODIFIED",
+      "formula": "max(current position_count, current n_need)",
+      "unit": "pallet_addresses",
+      "new_authority": false
+    }
+  },
+  "candidate_count": 2,
+  "status": "CONDITIONAL_ADAPTIVE_CANDIDATES",
+  "initial_status": "CONDITIONAL_JOINT_CANDIDATE_GENERATED",
+  "initial_admission": {
+    "accepted": false,
+    "status": "ROOM_SEED_ONLY_NOT_PROCESS_ADMITTED",
+    "stored_grid_counts": {
+      "packaging_material_storage": 67,
+      "finished_goods_room": 317,
+      "raw_fruit_buffer": 45,
+      "secondary_fruit_buffer": 21,
+      "frozen_fruit_room": 36
+    },
+    "requirements_only_no_prior_geometry_pass": true
+  },
+  "attempts": [
+    {
+      "kind": "CURRENT_INPUT_SEED",
+      "room_geometry_hash": "sha256:669e435028be3788902dfff9a3301140a1cea577d318628469c238191428d0dc",
+      "node": 1,
+      "room_coordinates": [
+        {
+          "zone_code": "changing_room",
+          "bbox_mm": [
+            87126,
+            14519,
+            99726,
+            24219
+          ],
+          "width_m": "12.6",
+          "depth_m": "9.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "coating_room",
+          "bbox_mm": [
+            86680,
+            25234,
+            102980,
+            33534
+          ],
+          "width_m": "16.3",
+          "depth_m": "8.3",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "finished_goods_room",
+          "bbox_mm": [
+            86680,
+            33534,
+            105280,
+            65934
+          ],
+          "width_m": "32.4",
+          "depth_m": "18.6",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "frozen_fruit_room",
+          "bbox_mm": [
+            58200,
+            12643,
+            69000,
+            20843
+          ],
+          "width_m": "10.8",
+          "depth_m": "8.2",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "office",
+          "bbox_mm": [
+            76880,
+            40034,
+            84626,
+            47780
+          ],
+          "width_m": "7.746",
+          "depth_m": "7.746",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "packaging_material_storage",
+          "bbox_mm": [
+            16620,
+            17143,
+            31120,
+            34443
+          ],
+          "width_m": "17.3",
+          "depth_m": "14.5",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "primary_precooling_room",
+          "bbox_mm": [
+            20070,
+            34443,
+            34770,
+            44493
+          ],
+          "width_m": "14.7",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "raw_fruit_buffer",
+          "bbox_mm": [
+            4870,
+            35793,
+            20070,
+            44493
+          ],
+          "width_m": "15.2",
+          "depth_m": "8.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_fruit_buffer",
+          "bbox_mm": [
+            49800,
+            13943,
+            58200,
+            20843
+          ],
+          "width_m": "8.4",
+          "depth_m": "6.9",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_precooling_room",
+          "bbox_mm": [
+            76880,
+            20843,
+            86680,
+            30893
+          ],
+          "width_m": "9.8",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "shipping_channel",
+          "bbox_mm": [
+            78987,
+            33534,
+            86680,
+            40034
+          ],
+          "width_m": "6.5",
+          "depth_m": "7.693",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "sorting_packaging_room",
+          "bbox_mm": [
+            31120,
+            20843,
+            76880,
+            34443
+          ],
+          "width_m": "45.76",
+          "depth_m": "13.6",
+          "rotation_deg": 0
+        }
+      ],
+      "finished_storage_trials": [
+        {
+          "layout": "STORE-T2-X100-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X100-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X100-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X100-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X100-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X100-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X200-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X200-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X200-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X200-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X100-Y0",
+          "positions": 321,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X100-Y100",
+          "positions": 321,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X200-Y0",
+          "positions": 321,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X200-Y100",
+          "positions": 321,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y0",
+          "positions": 318,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y0",
+          "positions": 317,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y0-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y100-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y0-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y100-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y0-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y100-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y0",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y0",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y0-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y100-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y0",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y0",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y0",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y100",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y0-LOAD90",
+          "positions": 303,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y100-LOAD90",
+          "positions": 303,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y0-LOAD90",
+          "positions": 303,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y100-LOAD90",
+          "positions": 303,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y0",
+          "positions": 299,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y100",
+          "positions": 299,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y100",
+          "positions": 291,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y100",
+          "positions": 291,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y0-LOAD90",
+          "positions": 290,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y100-LOAD90",
+          "positions": 290,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y0-LOAD90",
+          "positions": 290,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y100-LOAD90",
+          "positions": 290,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y100",
+          "positions": 280,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y100",
+          "positions": 280,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y100",
+          "positions": 280,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y100",
+          "positions": 280,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        }
+      ],
+      "operation_counts": {
+        "stock_motion_attempts": 493,
+        "stock_event_grid_nodes": 2745,
+        "process_route_grid_nodes": 7123
+      },
+      "status": "INTERRUPTED_PROCESS_CANDIDATE",
+      "failures": [
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+          "id": "interior"
+        },
+        {
+          "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+          "id": "storage"
+        },
+        {
+          "code": "ORIGINAL_ENGINEERING_CONSTRAINT_REJECTED",
+          "id": "all_eleven_original_nontruck_access"
+        }
+      ],
+      "main_lines": 0,
+      "stock_counts": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "selected_route_failures": [
+        {
+          "id": "PRODUCT-REPAL-FINISHED",
+          "failure": "PORTAL_SWEEP_BLOCKED",
+          "source": "REPALLETIZE",
+          "target": "finished_goods_room-PAL-008",
+          "source_bbox_mm": [
+            99338,
+            28784,
+            100338,
+            29984
+          ],
+          "target_bbox_mm": [
+            94880,
+            61934,
+            96080,
+            62934
+          ],
+          "reserved_width_mm": 2500,
+          "turn_square_mm": 2222
+        },
+        {
+          "id": "PRODUCT-FINISHED-DISPATCH",
+          "failure": "ROOM_PATH:finished_goods_room",
+          "source": "finished_goods_room-PAL-008",
+          "target": "DISPATCH-01",
+          "source_bbox_mm": [
+            94880,
+            61934,
+            96080,
+            62934
+          ],
+          "target_bbox_mm": [
+            80487,
+            35134,
+            81487,
+            36334
+          ],
+          "reserved_width_mm": 2500,
+          "turn_square_mm": 2222
+        }
+      ],
+      "feedback_enqueued": {
+        "endpoint_rank": 1,
+        "storage_rank": 1,
+        "cause": [
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+            "id": "interior"
+          },
+          {
+            "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+            "id": "storage"
+          },
+          {
+            "code": "ORIGINAL_ENGINEERING_CONSTRAINT_REJECTED",
+            "id": "all_eleven_original_nontruck_access"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "INTERFACE_FAILURE_FEEDBACK",
+      "room_geometry_hash": "sha256:669e435028be3788902dfff9a3301140a1cea577d318628469c238191428d0dc",
+      "endpoint_rank": 1,
+      "storage_rank": 1,
+      "feedback_depth": 1,
+      "feedback_from_node": 1,
+      "node": 2,
+      "room_coordinates": [
+        {
+          "zone_code": "changing_room",
+          "bbox_mm": [
+            87126,
+            14519,
+            99726,
+            24219
+          ],
+          "width_m": "12.6",
+          "depth_m": "9.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "coating_room",
+          "bbox_mm": [
+            86680,
+            25234,
+            102980,
+            33534
+          ],
+          "width_m": "16.3",
+          "depth_m": "8.3",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "finished_goods_room",
+          "bbox_mm": [
+            86680,
+            33534,
+            105280,
+            65934
+          ],
+          "width_m": "32.4",
+          "depth_m": "18.6",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "frozen_fruit_room",
+          "bbox_mm": [
+            58200,
+            12643,
+            69000,
+            20843
+          ],
+          "width_m": "10.8",
+          "depth_m": "8.2",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "office",
+          "bbox_mm": [
+            76880,
+            40034,
+            84626,
+            47780
+          ],
+          "width_m": "7.746",
+          "depth_m": "7.746",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "packaging_material_storage",
+          "bbox_mm": [
+            16620,
+            17143,
+            31120,
+            34443
+          ],
+          "width_m": "17.3",
+          "depth_m": "14.5",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "primary_precooling_room",
+          "bbox_mm": [
+            20070,
+            34443,
+            34770,
+            44493
+          ],
+          "width_m": "14.7",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "raw_fruit_buffer",
+          "bbox_mm": [
+            4870,
+            35793,
+            20070,
+            44493
+          ],
+          "width_m": "15.2",
+          "depth_m": "8.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_fruit_buffer",
+          "bbox_mm": [
+            49800,
+            13943,
+            58200,
+            20843
+          ],
+          "width_m": "8.4",
+          "depth_m": "6.9",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_precooling_room",
+          "bbox_mm": [
+            76880,
+            20843,
+            86680,
+            30893
+          ],
+          "width_m": "9.8",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "shipping_channel",
+          "bbox_mm": [
+            78987,
+            33534,
+            86680,
+            40034
+          ],
+          "width_m": "6.5",
+          "depth_m": "7.693",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "sorting_packaging_room",
+          "bbox_mm": [
+            31120,
+            20843,
+            76880,
+            34443
+          ],
+          "width_m": "45.76",
+          "depth_m": "13.6",
+          "rotation_deg": 0
+        }
+      ],
+      "finished_storage_trials": [
+        {
+          "layout": "STORE-T2-X100-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X100-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X100-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X100-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X100-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X100-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X200-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X200-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X200-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X200-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X100-Y0",
+          "positions": 321,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X100-Y100",
+          "positions": 321,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X200-Y0",
+          "positions": 321,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X200-Y100",
+          "positions": 321,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y0",
+          "positions": 318,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y0",
+          "positions": 317,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y0-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y100-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y0-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y100-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y0-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y100-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y0",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y0",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y0-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y100-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y0",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y0",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y0",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y100",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [
+            "COLUMN-41485",
+            "COLUMN-41486",
+            "COLUMN-41487"
+          ],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y0-LOAD90",
+          "positions": 303,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y100-LOAD90",
+          "positions": 303,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y0-LOAD90",
+          "positions": 303,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y100-LOAD90",
+          "positions": 303,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y0",
+          "positions": 299,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y100",
+          "positions": 299,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y100",
+          "positions": 291,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y100",
+          "positions": 291,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y0-LOAD90",
+          "positions": 290,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y100-LOAD90",
+          "positions": 290,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y0-LOAD90",
+          "positions": 290,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y100-LOAD90",
+          "positions": 290,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y100",
+          "positions": 280,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y100",
+          "positions": 280,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y100",
+          "positions": 280,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y100",
+          "positions": 280,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        }
+      ],
+      "operation_counts": {
+        "stock_motion_attempts": 493,
+        "stock_event_grid_nodes": 2748,
+        "process_route_grid_nodes": 7177
+      },
+      "status": "INTERRUPTED_PROCESS_CANDIDATE",
+      "failures": [
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-REPAL-FINISHED"
+        },
+        {
+          "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+          "id": "PRODUCT-FINISHED-DISPATCH"
+        },
+        {
+          "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+          "id": "interior"
+        },
+        {
+          "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+          "id": "storage"
+        },
+        {
+          "code": "ORIGINAL_ENGINEERING_CONSTRAINT_REJECTED",
+          "id": "all_eleven_original_nontruck_access"
+        }
+      ],
+      "main_lines": 0,
+      "stock_counts": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "selected_route_failures": [
+        {
+          "id": "PRODUCT-REPAL-FINISHED",
+          "failure": "PORTAL_SWEEP_BLOCKED",
+          "source": "REPALLETIZE",
+          "target": "finished_goods_room-PAL-009",
+          "source_bbox_mm": [
+            99338,
+            28784,
+            100338,
+            29984
+          ],
+          "target_bbox_mm": [
+            93580,
+            61834,
+            94780,
+            62834
+          ],
+          "reserved_width_mm": 2500,
+          "turn_square_mm": 2222
+        },
+        {
+          "id": "PRODUCT-FINISHED-DISPATCH",
+          "failure": "ROOM_PATH:finished_goods_room",
+          "source": "finished_goods_room-PAL-009",
+          "target": "DISPATCH-01",
+          "source_bbox_mm": [
+            93580,
+            61834,
+            94780,
+            62834
+          ],
+          "target_bbox_mm": [
+            80487,
+            35134,
+            81487,
+            36334
+          ],
+          "reserved_width_mm": 2500,
+          "turn_square_mm": 2222
+        }
+      ]
+    },
+    {
+      "kind": "ALTERNATE_FIXED_ROTATION",
+      "room_geometry_hash": "sha256:ed85c243c40e3110c031e428993b4c95253b0b9a769079ff0dcae099621093bf",
+      "rotation_deg": 0,
+      "node": 3,
+      "room_coordinates": [
+        {
+          "zone_code": "changing_room",
+          "bbox_mm": [
+            87126,
+            14519,
+            99726,
+            24219
+          ],
+          "width_m": "12.6",
+          "depth_m": "9.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "coating_room",
+          "bbox_mm": [
+            86680,
+            25234,
+            102980,
+            33534
+          ],
+          "width_m": "16.3",
+          "depth_m": "8.3",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "finished_goods_room",
+          "bbox_mm": [
+            86680,
+            33534,
+            119080,
+            52134
+          ],
+          "width_m": "32.4",
+          "depth_m": "18.6",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "frozen_fruit_room",
+          "bbox_mm": [
+            58200,
+            12643,
+            69000,
+            20843
+          ],
+          "width_m": "10.8",
+          "depth_m": "8.2",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "office",
+          "bbox_mm": [
+            78987,
+            40034,
+            86733,
+            47780
+          ],
+          "width_m": "7.746",
+          "depth_m": "7.746",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "packaging_material_storage",
+          "bbox_mm": [
+            16620,
+            17143,
+            31120,
+            34443
+          ],
+          "width_m": "17.3",
+          "depth_m": "14.5",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "primary_precooling_room",
+          "bbox_mm": [
+            20070,
+            34443,
+            34770,
+            44493
+          ],
+          "width_m": "14.7",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "raw_fruit_buffer",
+          "bbox_mm": [
+            4870,
+            35793,
+            20070,
+            44493
+          ],
+          "width_m": "15.2",
+          "depth_m": "8.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_fruit_buffer",
+          "bbox_mm": [
+            49800,
+            13943,
+            58200,
+            20843
+          ],
+          "width_m": "8.4",
+          "depth_m": "6.9",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_precooling_room",
+          "bbox_mm": [
+            76880,
+            20843,
+            86680,
+            30893
+          ],
+          "width_m": "9.8",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "shipping_channel",
+          "bbox_mm": [
+            78987,
+            33534,
+            86680,
+            40034
+          ],
+          "width_m": "6.5",
+          "depth_m": "7.693",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "sorting_packaging_room",
+          "bbox_mm": [
+            31120,
+            20843,
+            76880,
+            34443
+          ],
+          "width_m": "45.76",
+          "depth_m": "13.6",
+          "rotation_deg": 0
+        }
+      ],
+      "status": "ORIGINAL_ROOM_CONSTRAINT_REJECTED",
+      "code": "PLACEMENT_HARD_CONSTRAINT_UNSATISFIED",
+      "details": {
+        "zone_code": "finished_goods_room",
+        "constraint": "INSIDE_BUILDABLE_BOUNDARY"
+      }
+    },
+    {
+      "kind": "ALTERNATE_FIXED_ROTATION",
+      "room_geometry_hash": "sha256:4b362d6af0f40b5d8de2849a6436221a4563305a807a3274359cac56e7b262a2",
+      "rotation_deg": 0,
+      "node": 4,
+      "room_coordinates": [
+        {
+          "zone_code": "changing_room",
+          "bbox_mm": [
+            87126,
+            14519,
+            99726,
+            24219
+          ],
+          "width_m": "12.6",
+          "depth_m": "9.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "coating_room",
+          "bbox_mm": [
+            86680,
+            25234,
+            102980,
+            33534
+          ],
+          "width_m": "16.3",
+          "depth_m": "8.3",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "finished_goods_room",
+          "bbox_mm": [
+            70580,
+            33534,
+            102980,
+            52134
+          ],
+          "width_m": "32.4",
+          "depth_m": "18.6",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "frozen_fruit_room",
+          "bbox_mm": [
+            58200,
+            12643,
+            69000,
+            20843
+          ],
+          "width_m": "10.8",
+          "depth_m": "8.2",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "office",
+          "bbox_mm": [
+            62887,
+            40034,
+            70633,
+            47780
+          ],
+          "width_m": "7.746",
+          "depth_m": "7.746",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "packaging_material_storage",
+          "bbox_mm": [
+            16620,
+            17143,
+            31120,
+            34443
+          ],
+          "width_m": "17.3",
+          "depth_m": "14.5",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "primary_precooling_room",
+          "bbox_mm": [
+            20070,
+            34443,
+            34770,
+            44493
+          ],
+          "width_m": "14.7",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "raw_fruit_buffer",
+          "bbox_mm": [
+            4870,
+            35793,
+            20070,
+            44493
+          ],
+          "width_m": "15.2",
+          "depth_m": "8.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_fruit_buffer",
+          "bbox_mm": [
+            49800,
+            13943,
+            58200,
+            20843
+          ],
+          "width_m": "8.4",
+          "depth_m": "6.9",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_precooling_room",
+          "bbox_mm": [
+            76880,
+            20843,
+            86680,
+            30893
+          ],
+          "width_m": "9.8",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "shipping_channel",
+          "bbox_mm": [
+            62887,
+            33534,
+            70580,
+            40034
+          ],
+          "width_m": "6.5",
+          "depth_m": "7.693",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "sorting_packaging_room",
+          "bbox_mm": [
+            31120,
+            20843,
+            76880,
+            34443
+          ],
+          "width_m": "45.76",
+          "depth_m": "13.6",
+          "rotation_deg": 0
+        }
+      ],
+      "status": "ORIGINAL_ROOM_CONSTRAINT_REJECTED",
+      "code": "PLACEMENT_HARD_CONSTRAINT_UNSATISFIED",
+      "details": {
+        "constraint": "NO_ZONE_OVERLAP"
+      }
+    },
+    {
+      "kind": "BLOCKER_EDGE_COUPLED_TRANSLATION",
+      "room_geometry_hash": "sha256:df59ba9dcb0ba90134e998e49f7b73b14f9db1f6e8121371e3b5c885715b72c3",
+      "delta_mm": [
+        0,
+        2316
+      ],
+      "blocker": "COLUMN-41485",
+      "positioning_margin_mm": 100,
+      "node": 5,
+      "room_coordinates": [
+        {
+          "zone_code": "changing_room",
+          "bbox_mm": [
+            87126,
+            14519,
+            99726,
+            24219
+          ],
+          "width_m": "12.6",
+          "depth_m": "9.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "coating_room",
+          "bbox_mm": [
+            86680,
+            27550,
+            102980,
+            35850
+          ],
+          "width_m": "16.3",
+          "depth_m": "8.3",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "finished_goods_room",
+          "bbox_mm": [
+            86680,
+            35850,
+            105280,
+            68250
+          ],
+          "width_m": "32.4",
+          "depth_m": "18.6",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "frozen_fruit_room",
+          "bbox_mm": [
+            58200,
+            12643,
+            69000,
+            20843
+          ],
+          "width_m": "10.8",
+          "depth_m": "8.2",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "office",
+          "bbox_mm": [
+            76880,
+            42350,
+            84626,
+            50096
+          ],
+          "width_m": "7.746",
+          "depth_m": "7.746",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "packaging_material_storage",
+          "bbox_mm": [
+            16620,
+            17143,
+            31120,
+            34443
+          ],
+          "width_m": "17.3",
+          "depth_m": "14.5",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "primary_precooling_room",
+          "bbox_mm": [
+            20070,
+            34443,
+            34770,
+            44493
+          ],
+          "width_m": "14.7",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "raw_fruit_buffer",
+          "bbox_mm": [
+            4870,
+            35793,
+            20070,
+            44493
+          ],
+          "width_m": "15.2",
+          "depth_m": "8.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_fruit_buffer",
+          "bbox_mm": [
+            49800,
+            13943,
+            58200,
+            20843
+          ],
+          "width_m": "8.4",
+          "depth_m": "6.9",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_precooling_room",
+          "bbox_mm": [
+            76880,
+            20843,
+            86680,
+            30893
+          ],
+          "width_m": "9.8",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "shipping_channel",
+          "bbox_mm": [
+            78987,
+            35850,
+            86680,
+            42350
+          ],
+          "width_m": "6.5",
+          "depth_m": "7.693",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "sorting_packaging_room",
+          "bbox_mm": [
+            31120,
+            20843,
+            76880,
+            34443
+          ],
+          "width_m": "45.76",
+          "depth_m": "13.6",
+          "rotation_deg": 0
+        }
+      ],
+      "finished_storage_trials": [
+        {
+          "layout": "STORE-T0-X100-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X100-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X100-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X100-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X200-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X200-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X200-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X200-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X100-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X100-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X100-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X100-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T1-X100-Y0",
+          "positions": 321,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y0",
+          "positions": 320,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y0-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y100-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y0-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y100-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y0",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y0",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y0-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y100-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y0-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y100-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y0",
+          "positions": 308,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y0",
+          "positions": 308,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y0-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y100-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y0-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y100-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y0",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y100",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y0",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y100",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y0-LOAD90",
+          "positions": 296,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y100-LOAD90",
+          "positions": 296,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y0-LOAD90",
+          "positions": 296,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y100-LOAD90",
+          "positions": 296,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y100",
+          "positions": 294,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y100",
+          "positions": 294,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y100",
+          "positions": 283,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y100",
+          "positions": 283,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y100",
+          "positions": 283,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y100",
+          "positions": 283,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        }
+      ],
+      "operation_counts": {
+        "stock_motion_attempts": 493,
+        "stock_event_grid_nodes": 752,
+        "process_route_grid_nodes": 7176
+      },
+      "status": "CONDITIONAL_PROCESS_CANDIDATE",
+      "failures": [],
+      "main_lines": 6,
+      "stock_counts": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "selected_route_failures": []
+    },
+    {
+      "kind": "FLEXIBLE_CONNECTOR_EXTENSION",
+      "room_geometry_hash": "sha256:ca140b4d5da574503fcc72fb4abd4c9665a1f37f8ef26671363270ac55e57d9c",
+      "delta_mm": [
+        0,
+        2316
+      ],
+      "blocker": "COLUMN-41485",
+      "positioning_margin_mm": 100,
+      "node": 6,
+      "room_coordinates": [
+        {
+          "zone_code": "changing_room",
+          "bbox_mm": [
+            87126,
+            14519,
+            99726,
+            24219
+          ],
+          "width_m": "12.6",
+          "depth_m": "9.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "coating_room",
+          "bbox_mm": [
+            86680,
+            25234,
+            102980,
+            35850
+          ],
+          "width_m": "16.3",
+          "depth_m": "10.616",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "finished_goods_room",
+          "bbox_mm": [
+            86680,
+            35850,
+            105280,
+            68250
+          ],
+          "width_m": "32.4",
+          "depth_m": "18.6",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "frozen_fruit_room",
+          "bbox_mm": [
+            58200,
+            12643,
+            69000,
+            20843
+          ],
+          "width_m": "10.8",
+          "depth_m": "8.2",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "office",
+          "bbox_mm": [
+            76880,
+            42350,
+            84626,
+            50096
+          ],
+          "width_m": "7.746",
+          "depth_m": "7.746",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "packaging_material_storage",
+          "bbox_mm": [
+            16620,
+            17143,
+            31120,
+            34443
+          ],
+          "width_m": "17.3",
+          "depth_m": "14.5",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "primary_precooling_room",
+          "bbox_mm": [
+            20070,
+            34443,
+            34770,
+            44493
+          ],
+          "width_m": "14.7",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "raw_fruit_buffer",
+          "bbox_mm": [
+            4870,
+            35793,
+            20070,
+            44493
+          ],
+          "width_m": "15.2",
+          "depth_m": "8.7",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_fruit_buffer",
+          "bbox_mm": [
+            49800,
+            13943,
+            58200,
+            20843
+          ],
+          "width_m": "8.4",
+          "depth_m": "6.9",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "secondary_precooling_room",
+          "bbox_mm": [
+            76880,
+            20843,
+            86680,
+            30893
+          ],
+          "width_m": "9.8",
+          "depth_m": "10.05",
+          "rotation_deg": 0
+        },
+        {
+          "zone_code": "shipping_channel",
+          "bbox_mm": [
+            78987,
+            35850,
+            86680,
+            42350
+          ],
+          "width_m": "6.5",
+          "depth_m": "7.693",
+          "rotation_deg": 90
+        },
+        {
+          "zone_code": "sorting_packaging_room",
+          "bbox_mm": [
+            31120,
+            20843,
+            76880,
+            34443
+          ],
+          "width_m": "45.76",
+          "depth_m": "13.6",
+          "rotation_deg": 0
+        }
+      ],
+      "finished_storage_trials": [
+        {
+          "layout": "STORE-T0-X100-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X100-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X100-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X100-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X200-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X200-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X200-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T0-X200-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X100-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X100-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y0",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y100",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X100-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X100-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y0-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T2-X200-Y100-LOAD90",
+          "positions": 324,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": true
+        },
+        {
+          "layout": "STORE-T1-X100-Y0",
+          "positions": 321,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y0",
+          "positions": 320,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y0-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y100-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y0-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y100-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y0",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y0",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y0-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y100-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y0-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y100-LOAD90",
+          "positions": 309,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y0",
+          "positions": 308,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y0",
+          "positions": 308,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y0-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y100-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y0-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y100-LOAD90",
+          "positions": 306,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y0",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T0-X0-Y100",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y0",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T2-X0-Y100",
+          "positions": 305,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y0-LOAD90",
+          "positions": 296,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y100-LOAD90",
+          "positions": 296,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y0-LOAD90",
+          "positions": 296,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y100-LOAD90",
+          "positions": 296,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X100-Y100",
+          "positions": 294,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X100-Y100",
+          "positions": 294,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X0-Y100",
+          "positions": 283,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T1-X200-Y100",
+          "positions": 283,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X0-Y100",
+          "positions": 283,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        },
+        {
+          "layout": "STORE-T3-X200-Y100",
+          "positions": 283,
+          "required": 324,
+          "blocking_columns": [],
+          "static_pass": false
+        }
+      ],
+      "operation_counts": {
+        "stock_motion_attempts": 493,
+        "stock_event_grid_nodes": 752,
+        "process_route_grid_nodes": 7176
+      },
+      "status": "CONDITIONAL_PROCESS_CANDIDATE",
+      "failures": [],
+      "main_lines": 6,
+      "stock_counts": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "selected_route_failures": []
+    }
+  ],
+  "search_budget": {
+    "candidate_node_budget": 24,
+    "candidate_nodes_used": 6,
+    "full_evaluation_budget": 8,
+    "full_evaluations_used": 4,
+    "completed_full_admissions": 4,
+    "full_evaluation_scope": "Heavy pipeline attempts including early interface rejection",
+    "remaining_queue": 19,
+    "stop_reason": "CANDIDATE_LIMIT_REACHED",
+    "initial_room_search_runs": [
+      {
+        "iteration": 1,
+        "search": {
+          "version": "autonomous-process-attachment-search@1.0.0",
+          "profile": "LINEAR_BANDED",
+          "node_budget": 10000,
+          "nodes_used": 12,
+          "options_checked": 15074,
+          "max_roles": 12,
+          "global_infeasibility_proven": false,
+          "new_hard_constraints": false,
+          "root_count": 240,
+          "status": "CANDIDATE_FOUND",
+          "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+        },
+        "room_geometry_hash": "sha256:c5fa919234ee90492408c5447c9dd070f2ad309931861b8534466d42cf4d819e",
+        "equipment_failures": [
+          {
+            "code": "COATING_FUNCTIONAL_SIZE_REQUEST",
+            "room": "coating_room",
+            "requested_shape_mm": [
+              16300,
+              7100
+            ]
+          },
+          {
+            "code": "CHANGING_FUNCTIONAL_SIZE_REQUEST",
+            "room": "changing_room",
+            "requested_shape_mm": [
+              12600,
+              9700
+            ]
+          }
+        ],
+        "storage_trials": [
+          {
+            "room": "packaging_material_storage",
+            "candidate": "STORE-T0-X0-Y0",
+            "placed": 67,
+            "minimum": 67,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 67,
+            "returned": 67
+          },
+          {
+            "room": "finished_goods_room",
+            "candidate": "STORE-T0-X100-Y0",
+            "placed": 324,
+            "minimum": 315,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 324,
+            "returned": 324
+          },
+          {
+            "room": "raw_fruit_buffer",
+            "candidate": "STORE-T2-X100-Y0",
+            "placed": 45,
+            "minimum": 37,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 45,
+            "returned": 45
+          },
+          {
+            "room": "secondary_fruit_buffer",
+            "candidate": "STORE-T2-X100-Y0",
+            "placed": 21,
+            "minimum": 19,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 21,
+            "returned": 21
+          },
+          {
+            "room": "frozen_fruit_room",
+            "candidate": "STORE-T2-X100-Y0",
+            "placed": 36,
+            "minimum": 34,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 36,
+            "returned": 36
+          }
+        ],
+        "requested_flexible_shapes": [
+          {
+            "code": "COATING_FUNCTIONAL_SIZE_REQUEST",
+            "room": "coating_room",
+            "requested_shape_mm": [
+              16300,
+              7100
+            ]
+          },
+          {
+            "code": "CHANGING_FUNCTIONAL_SIZE_REQUEST",
+            "room": "changing_room",
+            "requested_shape_mm": [
+              12600,
+              9700
+            ]
+          }
+        ],
+        "status": "FEEDBACK_REQUESTED"
+      },
+      {
+        "iteration": 2,
+        "search": {
+          "version": "autonomous-process-attachment-search@1.0.0",
+          "profile": "LINEAR_BANDED",
+          "node_budget": 10000,
+          "nodes_used": 12,
+          "options_checked": 12577,
+          "max_roles": 12,
+          "global_infeasibility_proven": false,
+          "new_hard_constraints": false,
+          "root_count": 240,
+          "status": "CANDIDATE_FOUND",
+          "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+        },
+        "room_geometry_hash": "sha256:9b14697878de48823bfcee0cdefed1db6f0315023c8900c5ae01bb0f49a30f08",
+        "equipment_failures": [],
+        "storage_trials": [
+          {
+            "room": "packaging_material_storage",
+            "candidate": "STORE-T1-X0-Y0",
+            "placed": 67,
+            "minimum": 67,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 67,
+            "returned": 67
+          },
+          {
+            "room": "finished_goods_room",
+            "candidate": "STORE-T2-X100-Y0",
+            "placed": 320,
+            "minimum": 315,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 320,
+            "returned": 320
+          },
+          {
+            "room": "raw_fruit_buffer",
+            "candidate": "STORE-T1-X0-Y0",
+            "placed": 45,
+            "minimum": 37,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 45,
+            "returned": 45
+          },
+          {
+            "room": "secondary_fruit_buffer",
+            "candidate": "STORE-T2-X100-Y0",
+            "placed": 21,
+            "minimum": 19,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 21,
+            "returned": 21
+          },
+          {
+            "room": "frozen_fruit_room",
+            "candidate": "STORE-T2-X100-Y0",
+            "placed": 36,
+            "minimum": 34,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 36,
+            "returned": 36
+          }
+        ],
+        "requested_flexible_shapes": [],
+        "status": "TOPOLOGY_FEEDBACK_REQUESTED",
+        "topology_feedback": {
+          "status": "NOT_VERIFIED",
+          "code": "BUILDING_FOOTPRINT_DERIVATION_EXHAUSTED",
+          "details": {
+            "component_count": 2
+          }
+        }
+      },
+      {
+        "iteration": 3,
+        "search": {
+          "version": "autonomous-process-attachment-search@1.0.0",
+          "profile": "LINEAR_BANDED",
+          "node_budget": 10000,
+          "nodes_used": 12,
+          "options_checked": 12564,
+          "max_roles": 12,
+          "global_infeasibility_proven": false,
+          "new_hard_constraints": false,
+          "root_count": 240,
+          "status": "CANDIDATE_FOUND",
+          "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+        },
+        "room_geometry_hash": "sha256:17b2c304a79cf5317da5daf1aae8692755d102779328d72857d49dfd978d3c51",
+        "equipment_failures": [],
+        "storage_trials": [
+          {
+            "room": "packaging_material_storage",
+            "candidate": "STORE-T1-X0-Y0",
+            "placed": 67,
+            "minimum": 67,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 67,
+            "returned": 67
+          },
+          {
+            "room": "finished_goods_room",
+            "candidate": "STORE-T3-X100-Y0",
+            "placed": 317,
+            "minimum": 315,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 317,
+            "returned": 317
+          },
+          {
+            "room": "raw_fruit_buffer",
+            "candidate": "STORE-T1-X0-Y0",
+            "placed": 45,
+            "minimum": 37,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 45,
+            "returned": 45
+          },
+          {
+            "room": "secondary_fruit_buffer",
+            "candidate": "STORE-T2-X100-Y0",
+            "placed": 21,
+            "minimum": 19,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 21,
+            "returned": 21
+          },
+          {
+            "room": "frozen_fruit_room",
+            "candidate": "STORE-T2-X100-Y0",
+            "placed": 36,
+            "minimum": 34,
+            "main_aisle_column_conflicts": [],
+            "retrieved": 36,
+            "returned": 36
+          }
+        ],
+        "requested_flexible_shapes": [],
+        "status": "JOINT_CANDIDATE_GENERATED"
+      }
+    ]
+  },
+  "ranking": "QUALIFIED_ONLY_LEXICOGRAPHIC_CROSSINGS_LENGTH_TURNS_AREA_NOT_FORMAL_PARETO",
+  "operation_counts": {
+    "stock_motion_attempts": 1972,
+    "stock_event_grid_nodes": 6997,
+    "process_route_grid_nodes": 28652
+  },
+  "operation_scope": "Selected stock witness counters and recorded per-route segment nodes only; shared cached paths can recur. These are not total host operations and not Stage A/B Work credits or a preissued solve budget. Initial preparation is recorded separately.",
+  "search_assumptions": {
+    "source_type": "demo",
+    "validity_status": "unverified",
+    "requires_review": true,
+    "column_edge_positioning_margins_mm": [
+      100,
+      300,
+      600
+    ],
+    "maximum_event_displacement_mm": 5000,
+    "pallet_spacing_rotated_with_pallet": true,
+    "physical_constraints_relaxed": false
+  },
+  "source_layout_coordinates_loaded": false,
+  "native_calls": 0,
+  "MAIN": false,
+  "grant_claim_accessed": false,
+  "production_default_changed": false,
+  "global_infeasibility_proven": false,
+  "result_hash": "sha256:33123209d8dca1c29e973a8fb0d7316d72694065cb5d9623fa2da233e5b3d6fa",
+  "candidates": [
+    {
+      "label": "A13-A",
+      "file": "autonomous-layout-A13-A.json",
+      "hash": "sha256:ddfa4a7b0740b4d94149d53c8ebcbe87569bb53cd47f48701ed463af40a05de2",
+      "origin": "FLEXIBLE_CONNECTOR_EXTENSION",
+      "search_node": 6,
+      "status": "CONDITIONAL_PROCESS_CANDIDATE",
+      "metrics": {
+        "selected_transport_reference_length_mm": 1777134,
+        "selected_transport_turns": 284,
+        "gross_room_area_m2": "2406.076816",
+        "footprint_area_m2": "2460.580816",
+        "footprint_perimeter_mm": 483730,
+        "footprint_corners": 50,
+        "potential_route_crossings": 44,
+        "crossing_scope": "INTERIOR_CENTRELINE_INTERSECTIONS_NOT_SIMULTANEOUS_TRAFFIC_COLLISIONS",
+        "length_scope": "DISTINCT_SELECTED_TRANSPORT_REFERENCE_SEGMENTS_NOT_SINGLE_VEHICLE_MILEAGE",
+        "formal_nine_twelve_comparison": "NOT_EVALUATED_UNCHANGED_AUTHORITY_COMPARATORS"
+      },
+      "stock": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "total_stock": 493,
+      "non_truck_access": 11,
+      "main_lines": 6,
+      "auxiliary": [
+        {
+          "flow_kind": "SECONDARY",
+          "status": "CONDITIONAL_CONNECTED"
+        },
+        {
+          "flow_kind": "FROZEN",
+          "status": "CONDITIONAL_CONNECTED"
+        },
+        {
+          "flow_kind": "PACKAGING",
+          "status": "CONDITIONAL_CONNECTED"
+        }
+      ],
+      "transfer_count": 57,
+      "v11_coverage": [
+        {
+          "kind": "interior",
+          "required": 10,
+          "verified": 10,
+          "complete": true
+        },
+        {
+          "kind": "storage",
+          "required": 6,
+          "verified": 6,
+          "complete": true
+        }
+      ],
+      "equipment_counts": {
+        "PRI_pallet": 18,
+        "SEC_pallet": 12,
+        "case_erector": 5,
+        "case_film_component": 4,
+        "dispatch_pallet_workplace": 1,
+        "finished_goods_room_pallet": 324,
+        "forced_air_fan_allowance": 5,
+        "frozen_fruit_room_pallet": 36,
+        "packaging_material_storage_pallet": 67,
+        "packing_line": 6,
+        "packing_pallet_workplace": 6,
+        "pallet_handoff": 2,
+        "precooling_buffer": 14,
+        "raw_crate_handoff": 1,
+        "raw_fruit_buffer_pallet": 45,
+        "secondary_fruit_buffer_pallet": 21,
+        "ten_door_locker": 11
+      },
+      "changing_two_shifts_53": true
+    },
+    {
+      "label": "A13-B",
+      "file": "autonomous-layout-A13-B.json",
+      "hash": "sha256:baa83df0592913b35566bc44671d9235562b42327e783690eada869e70c6dc4c",
+      "origin": "BLOCKER_EDGE_COUPLED_TRANSLATION",
+      "search_node": 5,
+      "status": "CONDITIONAL_PROCESS_CANDIDATE",
+      "metrics": {
+        "selected_transport_reference_length_mm": 1777780,
+        "selected_transport_turns": 286,
+        "gross_room_area_m2": "2368.326016",
+        "footprint_area_m2": "2422.830016",
+        "footprint_perimeter_mm": 483730,
+        "footprint_corners": 50,
+        "potential_route_crossings": 44,
+        "crossing_scope": "INTERIOR_CENTRELINE_INTERSECTIONS_NOT_SIMULTANEOUS_TRAFFIC_COLLISIONS",
+        "length_scope": "DISTINCT_SELECTED_TRANSPORT_REFERENCE_SEGMENTS_NOT_SINGLE_VEHICLE_MILEAGE",
+        "formal_nine_twelve_comparison": "NOT_EVALUATED_UNCHANGED_AUTHORITY_COMPARATORS"
+      },
+      "stock": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "total_stock": 493,
+      "non_truck_access": 11,
+      "main_lines": 6,
+      "auxiliary": [
+        {
+          "flow_kind": "SECONDARY",
+          "status": "CONDITIONAL_CONNECTED"
+        },
+        {
+          "flow_kind": "FROZEN",
+          "status": "CONDITIONAL_CONNECTED"
+        },
+        {
+          "flow_kind": "PACKAGING",
+          "status": "CONDITIONAL_CONNECTED"
+        }
+      ],
+      "transfer_count": 57,
+      "v11_coverage": [
+        {
+          "kind": "interior",
+          "required": 10,
+          "verified": 10,
+          "complete": true
+        },
+        {
+          "kind": "storage",
+          "required": 6,
+          "verified": 6,
+          "complete": true
+        }
+      ],
+      "equipment_counts": {
+        "PRI_pallet": 18,
+        "SEC_pallet": 12,
+        "case_erector": 5,
+        "case_film_component": 4,
+        "dispatch_pallet_workplace": 1,
+        "finished_goods_room_pallet": 324,
+        "forced_air_fan_allowance": 5,
+        "frozen_fruit_room_pallet": 36,
+        "packaging_material_storage_pallet": 67,
+        "packing_line": 6,
+        "packing_pallet_workplace": 6,
+        "pallet_handoff": 2,
+        "precooling_buffer": 14,
+        "raw_crate_handoff": 1,
+        "raw_fruit_buffer_pallet": 45,
+        "secondary_fruit_buffer_pallet": 21,
+        "ten_door_locker": 11
+      },
+      "changing_two_shifts_53": true
+    }
+  ]
+}

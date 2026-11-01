@@ -32,6 +32,9 @@ def build_functional_equipment(
     zone_plan: Mapping[str, Any],
     columns: Sequence[Mapping[str, Any]],
     relationships: Sequence[Mapping[str, Any]],
+    *,
+    adaptive_storage: bool = False,
+    storage_choice_rank: Mapping[str, int] | None = None,
 ) -> dict[str, Any]:
     layouts: dict[str, Any] = {}
     items: list[dict[str, Any]] = []
@@ -233,6 +236,7 @@ def build_functional_equipment(
             upstream[code],
             columns,
             case_erector=erect if code == "packaging_material_storage" else None,
+            allow_pallet_rotation=adaptive_storage,
         )
         linked = [
             str(r["to_ref"] if r["from_ref"] == code else r["from_ref"])
@@ -279,9 +283,16 @@ def build_functional_equipment(
                 a["id"],
             )
         )
+        if adaptive_storage and storage_choice_rank and storage_choice_rank.get(code, 0):
+            rank = storage_choice_rank[code]
+            if not 0 <= rank <= 7:
+                raise ValueError("BOUNDED_STORAGE_CHOICE_REQUIRED")
+            valid = [q for q in ls if q["static_capacity_pass"]]
+            rest = [q for q in ls if not q["static_capacity_pass"]]
+            ls = valid[rank:] + valid[:rank] + rest
         selected = None
         movement = None
-        for layout in ls[:3]:
+        for layout in ls[: (8 if adaptive_storage else 3)]:
             movement = ordered_stock_movement(layout, q, columns)
             trials.append(
                 {

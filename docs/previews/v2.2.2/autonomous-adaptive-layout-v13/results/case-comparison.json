@@ -1,0 +1,967 @@
+[
+  {
+    "days": 7,
+    "result_hash": "sha256:33123209d8dca1c29e973a8fb0d7316d72694065cb5d9623fa2da233e5b3d6fa",
+    "status": "CONDITIONAL_ADAPTIVE_CANDIDATES",
+    "search_budget": {
+      "candidate_node_budget": 24,
+      "candidate_nodes_used": 6,
+      "full_evaluation_budget": 8,
+      "full_evaluations_used": 4,
+      "completed_full_admissions": 4,
+      "full_evaluation_scope": "Heavy pipeline attempts including early interface rejection",
+      "remaining_queue": 19,
+      "stop_reason": "CANDIDATE_LIMIT_REACHED",
+      "initial_room_search_runs": [
+        {
+          "iteration": 1,
+          "search": {
+            "version": "autonomous-process-attachment-search@1.0.0",
+            "profile": "LINEAR_BANDED",
+            "node_budget": 10000,
+            "nodes_used": 12,
+            "options_checked": 15074,
+            "max_roles": 12,
+            "global_infeasibility_proven": false,
+            "new_hard_constraints": false,
+            "root_count": 240,
+            "status": "CANDIDATE_FOUND",
+            "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+          },
+          "room_geometry_hash": "sha256:c5fa919234ee90492408c5447c9dd070f2ad309931861b8534466d42cf4d819e",
+          "equipment_failures": [
+            {
+              "code": "COATING_FUNCTIONAL_SIZE_REQUEST",
+              "room": "coating_room",
+              "requested_shape_mm": [
+                16300,
+                7100
+              ]
+            },
+            {
+              "code": "CHANGING_FUNCTIONAL_SIZE_REQUEST",
+              "room": "changing_room",
+              "requested_shape_mm": [
+                12600,
+                9700
+              ]
+            }
+          ],
+          "storage_trials": [
+            {
+              "room": "packaging_material_storage",
+              "candidate": "STORE-T0-X0-Y0",
+              "placed": 67,
+              "minimum": 67,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 67,
+              "returned": 67
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T0-X100-Y0",
+              "placed": 324,
+              "minimum": 315,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 324,
+              "returned": 324
+            },
+            {
+              "room": "raw_fruit_buffer",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 45,
+              "minimum": 37,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 45,
+              "returned": 45
+            },
+            {
+              "room": "secondary_fruit_buffer",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 21,
+              "minimum": 19,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 21,
+              "returned": 21
+            },
+            {
+              "room": "frozen_fruit_room",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 36,
+              "minimum": 34,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 36,
+              "returned": 36
+            }
+          ],
+          "requested_flexible_shapes": [
+            {
+              "code": "COATING_FUNCTIONAL_SIZE_REQUEST",
+              "room": "coating_room",
+              "requested_shape_mm": [
+                16300,
+                7100
+              ]
+            },
+            {
+              "code": "CHANGING_FUNCTIONAL_SIZE_REQUEST",
+              "room": "changing_room",
+              "requested_shape_mm": [
+                12600,
+                9700
+              ]
+            }
+          ],
+          "status": "FEEDBACK_REQUESTED"
+        },
+        {
+          "iteration": 2,
+          "search": {
+            "version": "autonomous-process-attachment-search@1.0.0",
+            "profile": "LINEAR_BANDED",
+            "node_budget": 10000,
+            "nodes_used": 12,
+            "options_checked": 12577,
+            "max_roles": 12,
+            "global_infeasibility_proven": false,
+            "new_hard_constraints": false,
+            "root_count": 240,
+            "status": "CANDIDATE_FOUND",
+            "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+          },
+          "room_geometry_hash": "sha256:9b14697878de48823bfcee0cdefed1db6f0315023c8900c5ae01bb0f49a30f08",
+          "equipment_failures": [],
+          "storage_trials": [
+            {
+              "room": "packaging_material_storage",
+              "candidate": "STORE-T1-X0-Y0",
+              "placed": 67,
+              "minimum": 67,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 67,
+              "returned": 67
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 320,
+              "minimum": 315,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 320,
+              "returned": 320
+            },
+            {
+              "room": "raw_fruit_buffer",
+              "candidate": "STORE-T1-X0-Y0",
+              "placed": 45,
+              "minimum": 37,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 45,
+              "returned": 45
+            },
+            {
+              "room": "secondary_fruit_buffer",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 21,
+              "minimum": 19,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 21,
+              "returned": 21
+            },
+            {
+              "room": "frozen_fruit_room",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 36,
+              "minimum": 34,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 36,
+              "returned": 36
+            }
+          ],
+          "requested_flexible_shapes": [],
+          "status": "TOPOLOGY_FEEDBACK_REQUESTED",
+          "topology_feedback": {
+            "status": "NOT_VERIFIED",
+            "code": "BUILDING_FOOTPRINT_DERIVATION_EXHAUSTED",
+            "details": {
+              "component_count": 2
+            }
+          }
+        },
+        {
+          "iteration": 3,
+          "search": {
+            "version": "autonomous-process-attachment-search@1.0.0",
+            "profile": "LINEAR_BANDED",
+            "node_budget": 10000,
+            "nodes_used": 12,
+            "options_checked": 12564,
+            "max_roles": 12,
+            "global_infeasibility_proven": false,
+            "new_hard_constraints": false,
+            "root_count": 240,
+            "status": "CANDIDATE_FOUND",
+            "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+          },
+          "room_geometry_hash": "sha256:17b2c304a79cf5317da5daf1aae8692755d102779328d72857d49dfd978d3c51",
+          "equipment_failures": [],
+          "storage_trials": [
+            {
+              "room": "packaging_material_storage",
+              "candidate": "STORE-T1-X0-Y0",
+              "placed": 67,
+              "minimum": 67,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 67,
+              "returned": 67
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T3-X100-Y0",
+              "placed": 317,
+              "minimum": 315,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 317,
+              "returned": 317
+            },
+            {
+              "room": "raw_fruit_buffer",
+              "candidate": "STORE-T1-X0-Y0",
+              "placed": 45,
+              "minimum": 37,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 45,
+              "returned": 45
+            },
+            {
+              "room": "secondary_fruit_buffer",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 21,
+              "minimum": 19,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 21,
+              "returned": 21
+            },
+            {
+              "room": "frozen_fruit_room",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 36,
+              "minimum": 34,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 36,
+              "returned": 36
+            }
+          ],
+          "requested_flexible_shapes": [],
+          "status": "JOINT_CANDIDATE_GENERATED"
+        }
+      ]
+    },
+    "operation_counts": {
+      "stock_motion_attempts": 1972,
+      "stock_event_grid_nodes": 6997,
+      "process_route_grid_nodes": 28652
+    },
+    "resource_usage": {
+      "elapsed_generation_seconds": 79.52093100000639,
+      "process_lifetime_peak_rss_mib": 156.703125,
+      "native_calls": 0,
+      "native_guard_active": true,
+      "stage_a_b_budget_issued": false,
+      "model_copies": 0
+    },
+    "candidates": [
+      {
+        "label": "A13-A",
+        "file": "autonomous-layout-A13-A.json",
+        "hash": "sha256:ddfa4a7b0740b4d94149d53c8ebcbe87569bb53cd47f48701ed463af40a05de2",
+        "origin": "FLEXIBLE_CONNECTOR_EXTENSION",
+        "search_node": 6,
+        "status": "CONDITIONAL_PROCESS_CANDIDATE",
+        "metrics": {
+          "selected_transport_reference_length_mm": 1777134,
+          "selected_transport_turns": 284,
+          "gross_room_area_m2": "2406.076816",
+          "footprint_area_m2": "2460.580816",
+          "footprint_perimeter_mm": 483730,
+          "footprint_corners": 50,
+          "potential_route_crossings": 44,
+          "crossing_scope": "INTERIOR_CENTRELINE_INTERSECTIONS_NOT_SIMULTANEOUS_TRAFFIC_COLLISIONS",
+          "length_scope": "DISTINCT_SELECTED_TRANSPORT_REFERENCE_SEGMENTS_NOT_SINGLE_VEHICLE_MILEAGE",
+          "formal_nine_twelve_comparison": "NOT_EVALUATED_UNCHANGED_AUTHORITY_COMPARATORS"
+        },
+        "stock": {
+          "packaging_material_storage": 67,
+          "finished_goods_room": 324,
+          "raw_fruit_buffer": 45,
+          "secondary_fruit_buffer": 21,
+          "frozen_fruit_room": 36
+        },
+        "total_stock": 493,
+        "non_truck_access": 11,
+        "main_lines": 6,
+        "auxiliary": [
+          {
+            "flow_kind": "SECONDARY",
+            "status": "CONDITIONAL_CONNECTED"
+          },
+          {
+            "flow_kind": "FROZEN",
+            "status": "CONDITIONAL_CONNECTED"
+          },
+          {
+            "flow_kind": "PACKAGING",
+            "status": "CONDITIONAL_CONNECTED"
+          }
+        ],
+        "transfer_count": 57,
+        "v11_coverage": [
+          {
+            "kind": "interior",
+            "required": 10,
+            "verified": 10,
+            "complete": true
+          },
+          {
+            "kind": "storage",
+            "required": 6,
+            "verified": 6,
+            "complete": true
+          }
+        ],
+        "equipment_counts": {
+          "PRI_pallet": 18,
+          "SEC_pallet": 12,
+          "case_erector": 5,
+          "case_film_component": 4,
+          "dispatch_pallet_workplace": 1,
+          "finished_goods_room_pallet": 324,
+          "forced_air_fan_allowance": 5,
+          "frozen_fruit_room_pallet": 36,
+          "packaging_material_storage_pallet": 67,
+          "packing_line": 6,
+          "packing_pallet_workplace": 6,
+          "pallet_handoff": 2,
+          "precooling_buffer": 14,
+          "raw_crate_handoff": 1,
+          "raw_fruit_buffer_pallet": 45,
+          "secondary_fruit_buffer_pallet": 21,
+          "ten_door_locker": 11
+        },
+        "changing_two_shifts_53": true
+      },
+      {
+        "label": "A13-B",
+        "file": "autonomous-layout-A13-B.json",
+        "hash": "sha256:baa83df0592913b35566bc44671d9235562b42327e783690eada869e70c6dc4c",
+        "origin": "BLOCKER_EDGE_COUPLED_TRANSLATION",
+        "search_node": 5,
+        "status": "CONDITIONAL_PROCESS_CANDIDATE",
+        "metrics": {
+          "selected_transport_reference_length_mm": 1777780,
+          "selected_transport_turns": 286,
+          "gross_room_area_m2": "2368.326016",
+          "footprint_area_m2": "2422.830016",
+          "footprint_perimeter_mm": 483730,
+          "footprint_corners": 50,
+          "potential_route_crossings": 44,
+          "crossing_scope": "INTERIOR_CENTRELINE_INTERSECTIONS_NOT_SIMULTANEOUS_TRAFFIC_COLLISIONS",
+          "length_scope": "DISTINCT_SELECTED_TRANSPORT_REFERENCE_SEGMENTS_NOT_SINGLE_VEHICLE_MILEAGE",
+          "formal_nine_twelve_comparison": "NOT_EVALUATED_UNCHANGED_AUTHORITY_COMPARATORS"
+        },
+        "stock": {
+          "packaging_material_storage": 67,
+          "finished_goods_room": 324,
+          "raw_fruit_buffer": 45,
+          "secondary_fruit_buffer": 21,
+          "frozen_fruit_room": 36
+        },
+        "total_stock": 493,
+        "non_truck_access": 11,
+        "main_lines": 6,
+        "auxiliary": [
+          {
+            "flow_kind": "SECONDARY",
+            "status": "CONDITIONAL_CONNECTED"
+          },
+          {
+            "flow_kind": "FROZEN",
+            "status": "CONDITIONAL_CONNECTED"
+          },
+          {
+            "flow_kind": "PACKAGING",
+            "status": "CONDITIONAL_CONNECTED"
+          }
+        ],
+        "transfer_count": 57,
+        "v11_coverage": [
+          {
+            "kind": "interior",
+            "required": 10,
+            "verified": 10,
+            "complete": true
+          },
+          {
+            "kind": "storage",
+            "required": 6,
+            "verified": 6,
+            "complete": true
+          }
+        ],
+        "equipment_counts": {
+          "PRI_pallet": 18,
+          "SEC_pallet": 12,
+          "case_erector": 5,
+          "case_film_component": 4,
+          "dispatch_pallet_workplace": 1,
+          "finished_goods_room_pallet": 324,
+          "forced_air_fan_allowance": 5,
+          "frozen_fruit_room_pallet": 36,
+          "packaging_material_storage_pallet": 67,
+          "packing_line": 6,
+          "packing_pallet_workplace": 6,
+          "pallet_handoff": 2,
+          "precooling_buffer": 14,
+          "raw_crate_handoff": 1,
+          "raw_fruit_buffer_pallet": 45,
+          "secondary_fruit_buffer_pallet": 21,
+          "ten_door_locker": 11
+        },
+        "changing_two_shifts_53": true
+      }
+    ]
+  },
+  {
+    "days": 8,
+    "result_hash": "sha256:318da723e7aa9e5c5923875e41045af446e21e38aefa89ab096cbebbffc337b0",
+    "status": "CONDITIONAL_ADAPTIVE_CANDIDATES",
+    "search_budget": {
+      "candidate_node_budget": 24,
+      "candidate_nodes_used": 5,
+      "full_evaluation_budget": 8,
+      "full_evaluations_used": 2,
+      "completed_full_admissions": 2,
+      "full_evaluation_scope": "Heavy pipeline attempts including early interface rejection",
+      "remaining_queue": 19,
+      "stop_reason": "CANDIDATE_LIMIT_REACHED",
+      "initial_room_search_runs": [
+        {
+          "iteration": 1,
+          "search": {
+            "version": "autonomous-process-attachment-search@1.0.0",
+            "profile": "LINEAR_BANDED",
+            "node_budget": 10000,
+            "nodes_used": 12,
+            "options_checked": 14788,
+            "max_roles": 12,
+            "global_infeasibility_proven": false,
+            "new_hard_constraints": false,
+            "root_count": 240,
+            "status": "CANDIDATE_FOUND",
+            "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+          },
+          "room_geometry_hash": "sha256:94d361813887b5393b8df5a2ec9d1330c3e1757d4d72c2c7a832810b6c5b1582",
+          "equipment_failures": [
+            {
+              "code": "COATING_FUNCTIONAL_SIZE_REQUEST",
+              "room": "coating_room",
+              "requested_shape_mm": [
+                16300,
+                7100
+              ]
+            },
+            {
+              "code": "STORAGE_PICK_PUT_NOT_COMPLETE",
+              "room": "finished_goods_room",
+              "placed": 351,
+              "minimum": 360
+            },
+            {
+              "code": "CHANGING_FUNCTIONAL_SIZE_REQUEST",
+              "room": "changing_room",
+              "requested_shape_mm": [
+                12600,
+                9700
+              ]
+            }
+          ],
+          "storage_trials": [
+            {
+              "room": "packaging_material_storage",
+              "candidate": "STORE-T0-X0-Y0",
+              "placed": 67,
+              "minimum": 67,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 67,
+              "returned": 67
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T1-X100-Y0",
+              "placed": 358,
+              "minimum": 360,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 358,
+              "returned": 358
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T3-X100-Y0",
+              "placed": 357,
+              "minimum": 360,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 357,
+              "returned": 357
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T0-X100-Y0",
+              "placed": 351,
+              "minimum": 360,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 351,
+              "returned": 351
+            },
+            {
+              "room": "raw_fruit_buffer",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 45,
+              "minimum": 37,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 45,
+              "returned": 45
+            },
+            {
+              "room": "secondary_fruit_buffer",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 21,
+              "minimum": 19,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 21,
+              "returned": 21
+            },
+            {
+              "room": "frozen_fruit_room",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 36,
+              "minimum": 34,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 36,
+              "returned": 36
+            }
+          ],
+          "requested_flexible_shapes": [
+            {
+              "code": "COATING_FUNCTIONAL_SIZE_REQUEST",
+              "room": "coating_room",
+              "requested_shape_mm": [
+                16300,
+                7100
+              ]
+            },
+            {
+              "code": "CHANGING_FUNCTIONAL_SIZE_REQUEST",
+              "room": "changing_room",
+              "requested_shape_mm": [
+                12600,
+                9700
+              ]
+            }
+          ],
+          "status": "FEEDBACK_REQUESTED"
+        },
+        {
+          "iteration": 2,
+          "search": {
+            "version": "autonomous-process-attachment-search@1.0.0",
+            "profile": "LINEAR_BANDED",
+            "node_budget": 10000,
+            "nodes_used": 12,
+            "options_checked": 12487,
+            "max_roles": 12,
+            "global_infeasibility_proven": false,
+            "new_hard_constraints": false,
+            "root_count": 240,
+            "status": "CANDIDATE_FOUND",
+            "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+          },
+          "room_geometry_hash": "sha256:83411ff453509509442c8acf4c1cb857a911b6b5fc12a0115fa5931da83a9b73",
+          "equipment_failures": [
+            {
+              "code": "STORAGE_PICK_PUT_NOT_COMPLETE",
+              "room": "finished_goods_room",
+              "placed": 353,
+              "minimum": 360
+            }
+          ],
+          "storage_trials": [
+            {
+              "room": "packaging_material_storage",
+              "candidate": "STORE-T1-X0-Y0",
+              "placed": 67,
+              "minimum": 67,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 67,
+              "returned": 67
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T0-X100-Y0",
+              "placed": 353,
+              "minimum": 360,
+              "main_aisle_column_conflicts": [
+                "COLUMN-41483",
+                "COLUMN-41484",
+                "COLUMN-41485",
+                "COLUMN-41486"
+              ],
+              "retrieved": 353,
+              "returned": 353
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T0-X100-Y100",
+              "placed": 353,
+              "minimum": 360,
+              "main_aisle_column_conflicts": [
+                "COLUMN-41483",
+                "COLUMN-41484",
+                "COLUMN-41485",
+                "COLUMN-41486"
+              ],
+              "retrieved": 353,
+              "returned": 353
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T0-X200-Y0",
+              "placed": 353,
+              "minimum": 360,
+              "main_aisle_column_conflicts": [
+                "COLUMN-41483",
+                "COLUMN-41484",
+                "COLUMN-41485",
+                "COLUMN-41486"
+              ],
+              "retrieved": 353,
+              "returned": 353
+            },
+            {
+              "room": "raw_fruit_buffer",
+              "candidate": "STORE-T1-X0-Y0",
+              "placed": 45,
+              "minimum": 37,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 45,
+              "returned": 45
+            },
+            {
+              "room": "secondary_fruit_buffer",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 21,
+              "minimum": 19,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 21,
+              "returned": 21
+            },
+            {
+              "room": "frozen_fruit_room",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 36,
+              "minimum": 34,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 36,
+              "returned": 36
+            }
+          ],
+          "requested_flexible_shapes": [],
+          "status": "TOPOLOGY_FEEDBACK_REQUESTED",
+          "topology_feedback": {
+            "status": "NOT_VERIFIED",
+            "code": "BUILDING_FOOTPRINT_DERIVATION_EXHAUSTED",
+            "details": {
+              "component_count": 2
+            }
+          }
+        },
+        {
+          "iteration": 3,
+          "search": {
+            "version": "autonomous-process-attachment-search@1.0.0",
+            "profile": "LINEAR_BANDED",
+            "node_budget": 10000,
+            "nodes_used": 12,
+            "options_checked": 12402,
+            "max_roles": 12,
+            "global_infeasibility_proven": false,
+            "new_hard_constraints": false,
+            "root_count": 240,
+            "status": "CANDIDATE_FOUND",
+            "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+          },
+          "room_geometry_hash": "sha256:9f72edc632a94f3c646a5f2859fff28492d55ce046f7badcdf8ce85f326e0776",
+          "equipment_failures": [
+            {
+              "code": "STORAGE_PICK_PUT_NOT_COMPLETE",
+              "room": "finished_goods_room",
+              "placed": 354,
+              "minimum": 360
+            }
+          ],
+          "storage_trials": [
+            {
+              "room": "packaging_material_storage",
+              "candidate": "STORE-T1-X0-Y0",
+              "placed": 67,
+              "minimum": 67,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 67,
+              "returned": 67
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T0-X100-Y0",
+              "placed": 354,
+              "minimum": 360,
+              "main_aisle_column_conflicts": [
+                "COLUMN-41485",
+                "COLUMN-41486",
+                "COLUMN-41487"
+              ],
+              "retrieved": 354,
+              "returned": 354
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T0-X100-Y100",
+              "placed": 354,
+              "minimum": 360,
+              "main_aisle_column_conflicts": [
+                "COLUMN-41485",
+                "COLUMN-41486",
+                "COLUMN-41487"
+              ],
+              "retrieved": 354,
+              "returned": 354
+            },
+            {
+              "room": "finished_goods_room",
+              "candidate": "STORE-T0-X200-Y0",
+              "placed": 354,
+              "minimum": 360,
+              "main_aisle_column_conflicts": [
+                "COLUMN-41485",
+                "COLUMN-41486",
+                "COLUMN-41487"
+              ],
+              "retrieved": 354,
+              "returned": 354
+            },
+            {
+              "room": "raw_fruit_buffer",
+              "candidate": "STORE-T1-X0-Y0",
+              "placed": 45,
+              "minimum": 37,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 45,
+              "returned": 45
+            },
+            {
+              "room": "secondary_fruit_buffer",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 21,
+              "minimum": 19,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 21,
+              "returned": 21
+            },
+            {
+              "room": "frozen_fruit_room",
+              "candidate": "STORE-T2-X100-Y0",
+              "placed": 36,
+              "minimum": 34,
+              "main_aisle_column_conflicts": [],
+              "retrieved": 36,
+              "returned": 36
+            }
+          ],
+          "requested_flexible_shapes": [],
+          "status": "JOINT_CANDIDATE_GENERATED"
+        }
+      ]
+    },
+    "operation_counts": {
+      "stock_motion_attempts": 1066,
+      "stock_event_grid_nodes": 1648,
+      "process_route_grid_nodes": 14352
+    },
+    "resource_usage": {
+      "elapsed_generation_seconds": 72.41427158299484,
+      "process_lifetime_peak_rss_mib": 156.703125,
+      "native_calls": 0,
+      "native_guard_active": true,
+      "stage_a_b_budget_issued": false,
+      "model_copies": 0
+    },
+    "candidates": [
+      {
+        "label": "A13-A",
+        "file": "autonomous-layout-A13-A.json",
+        "hash": "sha256:d29b9f99d9b9618d908e94d7c299c64aa4837cece2124ecd92866fc4915e222c",
+        "origin": "FLEXIBLE_CONNECTOR_EXTENSION",
+        "search_node": 5,
+        "status": "CONDITIONAL_PROCESS_CANDIDATE",
+        "metrics": {
+          "selected_transport_reference_length_mm": 1777134,
+          "selected_transport_turns": 284,
+          "gross_room_area_m2": "2464.876816",
+          "footprint_area_m2": "2519.380816",
+          "footprint_perimeter_mm": 486530,
+          "footprint_corners": 50,
+          "potential_route_crossings": 44,
+          "crossing_scope": "INTERIOR_CENTRELINE_INTERSECTIONS_NOT_SIMULTANEOUS_TRAFFIC_COLLISIONS",
+          "length_scope": "DISTINCT_SELECTED_TRANSPORT_REFERENCE_SEGMENTS_NOT_SINGLE_VEHICLE_MILEAGE",
+          "formal_nine_twelve_comparison": "NOT_EVALUATED_UNCHANGED_AUTHORITY_COMPARATORS"
+        },
+        "stock": {
+          "packaging_material_storage": 67,
+          "finished_goods_room": 364,
+          "raw_fruit_buffer": 45,
+          "secondary_fruit_buffer": 21,
+          "frozen_fruit_room": 36
+        },
+        "total_stock": 533,
+        "non_truck_access": 11,
+        "main_lines": 6,
+        "auxiliary": [
+          {
+            "flow_kind": "SECONDARY",
+            "status": "CONDITIONAL_CONNECTED"
+          },
+          {
+            "flow_kind": "FROZEN",
+            "status": "CONDITIONAL_CONNECTED"
+          },
+          {
+            "flow_kind": "PACKAGING",
+            "status": "CONDITIONAL_CONNECTED"
+          }
+        ],
+        "transfer_count": 57,
+        "v11_coverage": [
+          {
+            "kind": "interior",
+            "required": 10,
+            "verified": 10,
+            "complete": true
+          },
+          {
+            "kind": "storage",
+            "required": 6,
+            "verified": 6,
+            "complete": true
+          }
+        ],
+        "equipment_counts": {
+          "PRI_pallet": 18,
+          "SEC_pallet": 12,
+          "case_erector": 5,
+          "case_film_component": 4,
+          "dispatch_pallet_workplace": 1,
+          "finished_goods_room_pallet": 364,
+          "forced_air_fan_allowance": 5,
+          "frozen_fruit_room_pallet": 36,
+          "packaging_material_storage_pallet": 67,
+          "packing_line": 6,
+          "packing_pallet_workplace": 6,
+          "pallet_handoff": 2,
+          "precooling_buffer": 14,
+          "raw_crate_handoff": 1,
+          "raw_fruit_buffer_pallet": 45,
+          "secondary_fruit_buffer_pallet": 21,
+          "ten_door_locker": 11
+        },
+        "changing_two_shifts_53": true
+      },
+      {
+        "label": "A13-B",
+        "file": "autonomous-layout-A13-B.json",
+        "hash": "sha256:8417fbc6d927b30608012c11aec38232c477ccf8c3a8c1d7ee66ee335ddb8e86",
+        "origin": "BLOCKER_EDGE_COUPLED_TRANSLATION",
+        "search_node": 4,
+        "status": "CONDITIONAL_PROCESS_CANDIDATE",
+        "metrics": {
+          "selected_transport_reference_length_mm": 1777780,
+          "selected_transport_turns": 286,
+          "gross_room_area_m2": "2427.126016",
+          "footprint_area_m2": "2481.630016",
+          "footprint_perimeter_mm": 486530,
+          "footprint_corners": 50,
+          "potential_route_crossings": 44,
+          "crossing_scope": "INTERIOR_CENTRELINE_INTERSECTIONS_NOT_SIMULTANEOUS_TRAFFIC_COLLISIONS",
+          "length_scope": "DISTINCT_SELECTED_TRANSPORT_REFERENCE_SEGMENTS_NOT_SINGLE_VEHICLE_MILEAGE",
+          "formal_nine_twelve_comparison": "NOT_EVALUATED_UNCHANGED_AUTHORITY_COMPARATORS"
+        },
+        "stock": {
+          "packaging_material_storage": 67,
+          "finished_goods_room": 364,
+          "raw_fruit_buffer": 45,
+          "secondary_fruit_buffer": 21,
+          "frozen_fruit_room": 36
+        },
+        "total_stock": 533,
+        "non_truck_access": 11,
+        "main_lines": 6,
+        "auxiliary": [
+          {
+            "flow_kind": "SECONDARY",
+            "status": "CONDITIONAL_CONNECTED"
+          },
+          {
+            "flow_kind": "FROZEN",
+            "status": "CONDITIONAL_CONNECTED"
+          },
+          {
+            "flow_kind": "PACKAGING",
+            "status": "CONDITIONAL_CONNECTED"
+          }
+        ],
+        "transfer_count": 57,
+        "v11_coverage": [
+          {
+            "kind": "interior",
+            "required": 10,
+            "verified": 10,
+            "complete": true
+          },
+          {
+            "kind": "storage",
+            "required": 6,
+            "verified": 6,
+            "complete": true
+          }
+        ],
+        "equipment_counts": {
+          "PRI_pallet": 18,
+          "SEC_pallet": 12,
+          "case_erector": 5,
+          "case_film_component": 4,
+          "dispatch_pallet_workplace": 1,
+          "finished_goods_room_pallet": 364,
+          "forced_air_fan_allowance": 5,
+          "frozen_fruit_room_pallet": 36,
+          "packaging_material_storage_pallet": 67,
+          "packing_line": 6,
+          "packing_pallet_workplace": 6,
+          "pallet_handoff": 2,
+          "precooling_buffer": 14,
+          "raw_crate_handoff": 1,
+          "raw_fruit_buffer_pallet": 45,
+          "secondary_fruit_buffer_pallet": 21,
+          "ten_door_locker": 11
+        },
+        "changing_two_shifts_53": true
+      }
+    ]
+  }
+]

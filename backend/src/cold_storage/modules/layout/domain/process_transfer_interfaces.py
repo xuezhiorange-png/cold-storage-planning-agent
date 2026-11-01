@@ -118,7 +118,8 @@ def route_anchor(
         spec = parameters["carriers"][e["carrier"]]
         normal = e["normal"]
         load = [
-            reference[i] - normal[i] * (spec["normal_mm"] - spec["load_normal_mm"]) // 2
+            reference[i]
+            - normal[i] * (spec["normal_mm"] - e.get("load_normal_mm", spec["load_normal_mm"])) // 2
             for i in range(2)
         ]
     return {

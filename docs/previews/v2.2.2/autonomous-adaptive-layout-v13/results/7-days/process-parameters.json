@@ -1,0 +1,105 @@
+{
+  "schema_version": "autonomous-process-parameters@1.2.0",
+  "main_aisle_mm": 2500,
+  "pallet_mm": [
+    1200,
+    1000
+  ],
+  "carton_projection_mm": [
+    600,
+    400
+  ],
+  "station_operator_mm": [
+    600,
+    900
+  ],
+  "station_gap_mm": 100,
+  "station_boundary_margin_mm": 50,
+  "interpair_nonroute_gap_mm": 50,
+  "case_magazine_bay_mm": 1800,
+  "case_middle_extra_mm": 40,
+  "pallet_tangent_gap_mm": 200,
+  "line_workers": [
+    10,
+    10,
+    10,
+    8,
+    8,
+    7
+  ],
+  "buffer_slots_per_group": 7,
+  "carriers": {
+    "LOADED_PALLET": {
+      "tangent_mm": 1300,
+      "normal_mm": 1800,
+      "load_normal_mm": 1200,
+      "minimum_main_aisle_mm": 2500
+    },
+    "CARTON_CARRY": {
+      "tangent_mm": 600,
+      "normal_mm": 800,
+      "load_normal_mm": 600,
+      "minimum_main_aisle_mm": 1000
+    },
+    "FOOD_TOTE_CARRY": {
+      "tangent_mm": 600,
+      "normal_mm": 800,
+      "load_normal_mm": 600,
+      "minimum_main_aisle_mm": 1000
+    },
+    "BLANK_BUNDLE": {
+      "tangent_mm": 1000,
+      "normal_mm": 1400,
+      "load_normal_mm": 1200,
+      "minimum_main_aisle_mm": 2500
+    }
+  },
+  "routing_node_budget": 4000,
+  "source_type": "demo",
+  "validity_status": "unverified",
+  "requires_review": true,
+  "review_status": "CONDITIONAL_DESIGN_NOT_VEHICLE_KINEMATICS",
+  "source_conditions": {
+    "source_files": [
+      "V3-B3/b3-parameters.json",
+      "V3-B4/b4-parameters.json",
+      "V3-B4/V3-B4-设计说明.md"
+    ],
+    "coordinate_fields_imported": false,
+    "daily_packaged_mass_kg": 20000,
+    "outer_carton_mass_kg": [
+      4.8,
+      3.2
+    ],
+    "packing_hours": 16,
+    "cartons_per_pallet": 40,
+    "pallet_change_s_each_end": 60,
+    "pallet_change_overlap_s": 45,
+    "full_product_secondary_precool_then_carton_film": true,
+    "line_workers": [
+      10,
+      10,
+      10,
+      8,
+      8,
+      7
+    ],
+    "buffer_service_groups": {
+      "N": 7,
+      "S": 7
+    },
+    "capacity_recalculated": false,
+    "throughput_validation": "NOT_EVALUATED"
+  },
+  "assumptions": [
+    "40mm additional case-bank middle spacing leaves 30mm outer boundary gaps. This is an unapproved positioning assumption, not manufacturer installation clearance.",
+    "FOOD_TOTE_CARRY shares a 600x400mm assumed load projection and 600x800mm handling envelope; food-safe bin and loose-fruit transfer hardware remain INPUT_REQUIRED.",
+    "Carrier rectangles include a hypothetical load and handling space; no forklift steering or manufacturer turning circle is established.",
+    "90 degree turns reserve a circumscribed square, not an approved real vehicle kinematic model.",
+    "Machine input/output and magazine faces are explicit unverified design assumptions, not vendor-confirmed interfaces.",
+    "N/S are B4 line service groups re-mapped into this independently generated room; B1 hall coordinates are not input.",
+    "All non-carried pallet positions remain occupied during each individual route check. Shared routes require time separation; simultaneous traffic capacity is not established.",
+    "Storage front positions are batch interfaces; the inherited ordered pick/put model is not arbitrary-order warehouse access.",
+    "No thermal batch or daily production capacity is established by geometric route continuity."
+  ]
+}

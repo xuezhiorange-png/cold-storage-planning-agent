@@ -17,7 +17,14 @@ from cold_storage.modules.layout.domain.process_transfer_interfaces import (
 from cold_storage.modules.layout.infrastructure.autonomous_layout_export import COLORS, INK, _Sheet
 
 
-def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -> None:
+def draw_process_candidate(
+    c: dict[str, Any],
+    path: Path,
+    layer: str = "main",
+    *,
+    revision: str = "V1.2",
+    candidate_label: str = "",
+) -> None:
     s = _Sheet()
     flows = c["process_continuity"]
 
@@ -50,11 +57,11 @@ def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -
             break
 
     titles = {
-        "main": "自主布局 V1.2 · 工艺物流贯通",
+        "main": f"自主布局 {revision} · 工艺物流贯通",
         "process": "主产品 · 实际设备端点与门洞",
         "cartons": "五台折箱机 · 六线供箱与补料",
     }
-    s.text(17, 20, "蓝莓加工厂 / " + titles[layer], 6)
+    s.text(17, 20, "蓝莓加工厂 / " + titles[layer] + " " + candidate_label, 6)
     s.text(17, 29, "20t/天设计条件 · 非Native确定性生成 · 条件性概念设计，非施工图", 3.1, "#637c88")
     s.text(690, 20, "A1横版 / 1:200 / mm", 3.8)
     s.line([(17, 35), (824, 35)], lw=0.4)
@@ -242,13 +249,23 @@ def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -
         )
     s.text(609, 436, "交接载荷路径另存；不合并为单一车辆里程", 2.5, "#617c89")
     s.text(609, 452, "封膜机内部输送由声明接口连接，厂家能力待确认", 2.5, "#617c89")
+    if "current_storage_requirements" in c:
+        req = c["current_storage_requirements"]
+        total = sum(x["required_positions"] for x in req.values())
+        s.text(
+            609,
+            471,
+            f"当前P1成品网格 {req['finished_goods_room']['required_positions']}位 / 总储位 {total}",
+            3.0,
+        )
+        s.text(609, 481, "各方案保持当前容量；不同P1不作正式Pareto", 2.7, "#617c89")
     s.text(36, 532, "20m校尺段 = 100mm纸面长度 / 按100%打印", 2.8, "#617c89")
     for i in range(4):
         s.rect(36 + i * 25, 537, 25, 2, INK if i % 2 == 0 else "#ffffff", lw=0.12)
     s.text(36, 552, "数据源为同次计算坐标；未贯通路线不绘制完整箭头。所有结构柱保留。", 2.8)
     s.text(36, 561, "候选Hash：" + c["result_hash"], 2.15, "#617c89")
     s.line([(17, 570), (824, 570)], "#cbd8df", 0.2)
-    s.text(17, 580, "自主布局 V1.2 / 设备端点、实际门洞、载荷与条件转向包络 / 非施工图", 2.8)
+    s.text(17, 580, f"自主布局 {revision} / 设备端点、实际门洞、载荷与条件转向包络 / 非施工图", 2.8)
     s.save(path)
 
 
