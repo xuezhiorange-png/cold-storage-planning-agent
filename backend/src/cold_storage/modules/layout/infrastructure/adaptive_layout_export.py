@@ -115,7 +115,7 @@ def export_adaptive_package(
     dump("actual-room-coordinates.json", coordinate_rows)
     dump("actual-equipment-coordinates.json", item_rows)
     with (output / "equipment-placement.csv").open("w", newline="") as file:
-        writer = csv.writer(file)
+        writer = csv.writer(file, lineterminator="\n")
         writer.writerow(
             [
                 "candidate",
@@ -263,7 +263,7 @@ document.getElementById('drawing').src=b.dataset.file;document.getElementById('r
     if len(cases) > 1 and all(c["result"]["candidates"] for c in cases[:2]):
         a, b = (c["result"]["candidates"][0] for c in cases[:2])
         with (output / "input-change-room-equipment-diff.csv").open("w", newline="") as file:
-            writer = csv.writer(file)
+            writer = csv.writer(file, lineterminator="\n")
             writer.writerow(
                 ["object_type", "id", "before_bbox_mm", "after_bbox_mm", "same_position"]
             )

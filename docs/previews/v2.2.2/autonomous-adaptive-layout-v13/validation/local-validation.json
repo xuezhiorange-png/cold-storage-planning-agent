@@ -30,7 +30,7 @@
     "format": "PASS_1182_FILES",
     "mypy": "PASS_549_INCLUDING_ENTRY",
     "ci_scripts_ruff_format_mypy": "PASS",
-    "git_diff_check": "PASS"
+    "git_diff_check": "PASS_AFTER_PATH_SCOPED_BINARY_ATTRS_AND_CSV_LF"
   },
   "raw_artifact_reload": "FOUR_CANDIDATES_ORIGINAL_ADMISSION_PASS",
   "A1_print_scale": "841x594mm_1_TO_200; PNG6623x4678",
@@ -45,5 +45,7 @@
   "prior_PRs_or_historical_evidence_changed": false,
   "changed_paths_allowlist": "PASS",
   "first_test_failure_preserved": "first-test-attempt.txt; Python Decimal vs serialized text comparison corrected using canonical JSON, hash and reloaded admission",
-  "fast_ci": "PENDING_AFTER_PUSH; exact HEAD terminal receipt will be linked in PR body"
+  "fast_ci": "PENDING_AFTER_PUSH; exact HEAD terminal receipt will be linked in PR body",
+  "artifact_delivery_format_correction": "PDF and exact original pytest transcript marked binary; CSV LF only. No coordinate, geometry or original failure-byte changes.",
+  "original_failure_transcript_sha256": "a6c594b686709b99c29e0f7c73b9ab6555d6ad759cf9475548d05ceb434e3865"
 }
