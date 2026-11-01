@@ -3,7 +3,7 @@
   "review_round": "R1_CORRECTION_1",
   "review_baseline_head": "278fdaaf291eeb05900201977a623c4e2ddaacfe",
   "calculator_version": "autonomous-process-continuity@1.2.2",
-  "candidate_hash": "sha256:188083411deb269eeebf35458623134805acd37acbdae5fd67be543ad194eff0",
+  "candidate_hash": "sha256:72d1f947e9bf9a7cf174ee7c78d11bbc46349fc7feb5a12a4e291a91b37e5058",
   "same_run_candidate_and_drawings": true,
   "full_process_admission": {
     "accepted": true,
@@ -242,16 +242,11 @@
     "factory_applicability": "NOT_EVALUATED"
   },
   "local_process_test_observations": {
-    "unique_test_cases_passed": 80,
-    "main_run_passed": 77,
-    "strict_level_followup_passed": 4,
-    "repeated_positive_case": 1,
-    "source_junit": [
-      "r1-process-main-junit.xml",
-      "r1-strict-levels-junit.xml"
-    ],
-    "first_attempt": "76 passed, 1 failed: assertion confused physical 2540mm opening with reserved 2500mm width; corrected to check both, original closed predicate preserved",
-    "first_attempt_log": "r1-first-test-attempt.txt"
+    "complete_final_single_run_passed": 85,
+    "failed": 0,
+    "skipped": 0,
+    "source_junit": "r1-final-85-junit.xml",
+    "new_cases_over_original_39": 46
   },
   "retained_and_architecture_tests": {
     "passed": 849,
@@ -348,5 +343,34 @@
       }
     ],
     "phase": "POST_GENERATION_INDEPENDENT_COMPARISON_ONLY_NOT_GENERATION_INPUT"
-  }
+  },
+  "initial_local_process_test_observations": {
+    "unique_test_cases_passed": 80,
+    "main_run_passed": 77,
+    "strict_level_followup_passed": 4,
+    "repeated_positive_case": 1,
+    "source_junit": [
+      "r1-process-main-junit.xml",
+      "r1-strict-levels-junit.xml"
+    ],
+    "first_attempt": "76 passed, 1 failed: assertion confused physical 2540mm opening with reserved 2500mm width; corrected to check both, original closed predicate preserved",
+    "first_attempt_log": "r1-first-test-attempt.txt"
+  },
+  "oriented_projection_followup": {
+    "actual_directional_load_axes": true,
+    "vertical_projection_mm": [
+      400,
+      600
+    ],
+    "horizontal_projection_mm": [
+      600,
+      400
+    ],
+    "transfer_turn_envelope_mm": 722,
+    "machine_operation_or_vehicle_approval": "INPUT_REQUIRED",
+    "verified_interfaces": 57,
+    "additional_negative_cases": 5,
+    "earlier_evidence_retained": true
+  },
+  "last_corrected_at": "2026-11-01T14:37:39.382395+00:00"
 }

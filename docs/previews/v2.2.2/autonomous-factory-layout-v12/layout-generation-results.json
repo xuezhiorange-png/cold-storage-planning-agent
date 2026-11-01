@@ -7928,11 +7928,11 @@
   "grant_claim_accessed": false,
   "production_default_changed": false,
   "global_infeasibility_proven": false,
-  "result_hash": "sha256:66cae2c072548b0a0159f200f26abf649f43bfb5ef4a9430b257f9a45411cccf",
+  "result_hash": "sha256:8ff090ff4f74ecf0e812637df291b20ad8cca4d2fbff6a6b49e38882b533275c",
   "candidates": [
     {
       "file": "autonomous-layout-A12.json",
-      "result_hash": "sha256:188083411deb269eeebf35458623134805acd37acbdae5fd67be543ad194eff0"
+      "result_hash": "sha256:72d1f947e9bf9a7cf174ee7c78d11bbc46349fc7feb5a12a4e291a91b37e5058"
     }
   ]
 }

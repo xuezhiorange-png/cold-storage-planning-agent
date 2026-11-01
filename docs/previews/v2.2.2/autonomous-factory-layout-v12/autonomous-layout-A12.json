@@ -202279,6 +202279,35 @@
             41243
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                24370,
+                40643
+              ],
+              [
+                24370,
+                40643
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                23870,
+                40043,
+                24870,
+                41243
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "PRI-C1-P6"
         ],
@@ -202365,18 +202394,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            58020,
-            30599,
-            58620,
-            31599
+            58120,
+            30499,
+            58520,
+            31699
           ],
           [
-            58020,
-            31199,
-            58620,
-            31949
+            58120,
+            31099,
+            58520,
+            32049
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                58320,
+                30799
+              ],
+              [
+                58320,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                30499,
+                58520,
+                31699
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                58320,
+                31399
+              ],
+              [
+                58320,
+                31749
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                31099,
+                58520,
+                32049
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "RAW-UNLOAD"
         ],
@@ -202526,6 +202608,35 @@
             23893
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                33370,
+                23693
+              ],
+              [
+                33720,
+                23693
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                33070,
+                23493,
+                34020,
+                23893
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-01"
         ],
@@ -202641,6 +202752,35 @@
             23893
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                61722,
+                23693
+              ],
+              [
+                62072,
+                23693
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                61422,
+                23493,
+                62372,
+                23893
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-01"
         ],
@@ -202754,18 +202894,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            50820,
-            31199,
-            51420,
-            31949
+            50920,
+            31099,
+            51320,
+            32049
           ],
           [
-            50820,
-            30599,
-            51420,
-            31599
+            50920,
+            30499,
+            51320,
+            31699
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                51120,
+                31749
+              ],
+              [
+                51120,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                50920,
+                31099,
+                51320,
+                32049
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                51120,
+                31399
+              ],
+              [
+                51120,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                50920,
+                30499,
+                51320,
+                31699
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "WORK-PACK-01"
         ],
@@ -202881,6 +203074,35 @@
             31399
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                34320,
+                30799
+              ],
+              [
+                34320,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                33820,
+                30199,
+                34820,
+                31399
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "BUF-N-01"
         ],
@@ -202969,6 +203191,35 @@
             27643
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                81180,
+                27043
+              ],
+              [
+                81180,
+                27043
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                80680,
+                26443,
+                81680,
+                27643
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "SEC-C1-P6"
         ],
@@ -203059,10 +203310,10 @@
         ],
         "load_swept_bbox_mm": [
           [
-            89480,
-            31500,
-            90080,
-            32500
+            89580,
+            31400,
+            89980,
+            32600
           ],
           [
             89480,
@@ -203071,12 +203322,114 @@
             32500
           ],
           [
-            89980,
-            31500,
-            90580,
-            32500
+            90080,
+            31400,
+            90480,
+            32600
+          ],
+          [
+            89419,
+            31939,
+            90141,
+            32661
+          ],
+          [
+            89919,
+            31939,
+            90641,
+            32661
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                89780,
+                31700
+              ],
+              [
+                89780,
+                32300
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                89580,
+                31400,
+                89980,
+                32600
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                89780,
+                32300
+              ],
+              [
+                90280,
+                32300
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                89480,
+                32100,
+                90580,
+                32500
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                90280,
+                32300
+              ],
+              [
+                90280,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                90080,
+                31400,
+                90480,
+                32600
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [
+          [
+            89419,
+            31939,
+            90141,
+            32661
+          ],
+          [
+            89919,
+            31939,
+            90641,
+            32661
+          ]
+        ],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "DEPALLETIZE",
           "FILM-INFEED"
@@ -203186,6 +203539,35 @@
             31900
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                90480,
+                31700
+              ],
+              [
+                90480,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                90180,
+                31500,
+                90780,
+                31900
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "DEPALLETIZE",
           "FILM-INFEED"
@@ -203280,6 +203662,35 @@
             31900
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                92164,
+                31700
+              ],
+              [
+                92164,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                91864,
+                31500,
+                92464,
+                31900
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "FILM-INFEED",
           "FILM-SEALER"
@@ -203369,6 +203780,35 @@
             31900
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                92164,
+                31700
+              ],
+              [
+                92164,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                91864,
+                31500,
+                92464,
+                31900
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "FILM-INFEED",
           "FILM-SEALER"
@@ -203458,6 +203898,35 @@
             31900
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                94088,
+                31700
+              ],
+              [
+                94088,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                93788,
+                31500,
+                94388,
+                31900
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "FILM-FILM",
           "FILM-SEALER"
@@ -203547,6 +204016,35 @@
             31900
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                94088,
+                31700
+              ],
+              [
+                94088,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                93788,
+                31500,
+                94388,
+                31900
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "FILM-FILM",
           "FILM-SEALER"
@@ -203636,6 +204134,35 @@
             31900
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                97118,
+                31700
+              ],
+              [
+                97118,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                96818,
+                31500,
+                97418,
+                31900
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "FILM-FILM",
           "FILM-OUTFEED"
@@ -203725,6 +204252,35 @@
             31900
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                97118,
+                31700
+              ],
+              [
+                97118,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                96818,
+                31500,
+                97418,
+                31900
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "FILM-FILM",
           "FILM-OUTFEED"
@@ -203814,6 +204370,35 @@
             31900
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                99138,
+                31700
+              ],
+              [
+                99138,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                98838,
+                31500,
+                99438,
+                31900
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "FILM-OUTFEED",
           "REPALLETIZE"
@@ -203911,18 +204496,108 @@
             31900
           ],
           [
-            99538,
-            31500,
-            100138,
-            32500
+            99638,
+            31400,
+            100038,
+            32600
           ],
           [
-            99538,
-            31500,
-            100138,
-            32500
+            99638,
+            31400,
+            100038,
+            32600
+          ],
+          [
+            99477,
+            31339,
+            100199,
+            32061
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                99338,
+                31700
+              ],
+              [
+                99838,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                99038,
+                31500,
+                100138,
+                31900
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                99838,
+                31700
+              ],
+              [
+                99838,
+                32300
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                99638,
+                31400,
+                100038,
+                32600
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                99838,
+                32300
+              ],
+              [
+                99838,
+                31700
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                99638,
+                31400,
+                100038,
+                32600
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [
+          [
+            99477,
+            31339,
+            100199,
+            32061
+          ]
+        ],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "FILM-OUTFEED",
           "REPALLETIZE"
@@ -204032,6 +204707,35 @@
             40050
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                88480,
+                39450
+              ],
+              [
+                88480,
+                39450
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                87980,
+                38850,
+                88980,
+                40050
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "finished_goods_room-PAL-002"
         ],
@@ -204118,18 +204822,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            58020,
-            30599,
-            58620,
-            31599
+            58120,
+            30499,
+            58520,
+            31699
           ],
           [
-            58020,
-            31199,
-            58620,
-            31949
+            58120,
+            31099,
+            58520,
+            32049
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                58320,
+                30799
+              ],
+              [
+                58320,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                30499,
+                58520,
+                31699
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                58320,
+                31399
+              ],
+              [
+                58320,
+                31749
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                31099,
+                58520,
+                32049
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "RAW-UNLOAD"
         ],
@@ -204279,6 +205036,35 @@
             25494
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                33370,
+                25294
+              ],
+              [
+                33720,
+                25294
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                33070,
+                25094,
+                34020,
+                25494
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-02"
         ],
@@ -204394,6 +205180,35 @@
             25494
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                61722,
+                25294
+              ],
+              [
+                62072,
+                25294
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                61422,
+                25094,
+                62372,
+                25494
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-02"
         ],
@@ -204507,18 +205322,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            52020,
-            31199,
-            52620,
-            31949
+            52120,
+            31099,
+            52520,
+            32049
           ],
           [
-            52020,
-            30599,
-            52620,
-            31599
+            52120,
+            30499,
+            52520,
+            31699
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                52320,
+                31749
+              ],
+              [
+                52320,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                52120,
+                31099,
+                52520,
+                32049
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                52320,
+                31399
+              ],
+              [
+                52320,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                52120,
+                30499,
+                52520,
+                31699
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "WORK-PACK-02"
         ],
@@ -204634,6 +205502,35 @@
             31399
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                35520,
+                30799
+              ],
+              [
+                35520,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                35020,
+                30199,
+                36020,
+                31399
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "BUF-N-02"
         ],
@@ -204722,6 +205619,35 @@
             27643
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                81180,
+                27043
+              ],
+              [
+                81180,
+                27043
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                80680,
+                26443,
+                81680,
+                27643
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "SEC-C1-P6"
         ],
@@ -204808,18 +205734,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            58020,
-            30599,
-            58620,
-            31599
+            58120,
+            30499,
+            58520,
+            31699
           ],
           [
-            58020,
-            31199,
-            58620,
-            31949
+            58120,
+            31099,
+            58520,
+            32049
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                58320,
+                30799
+              ],
+              [
+                58320,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                30499,
+                58520,
+                31699
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                58320,
+                31399
+              ],
+              [
+                58320,
+                31749
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                31099,
+                58520,
+                32049
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "RAW-UNLOAD"
         ],
@@ -204969,6 +205948,35 @@
             26145
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                33370,
+                25945
+              ],
+              [
+                33720,
+                25945
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                33070,
+                25745,
+                34020,
+                26145
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-03"
         ],
@@ -205084,6 +206092,35 @@
             26145
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                61722,
+                25945
+              ],
+              [
+                62072,
+                25945
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                61422,
+                25745,
+                62372,
+                26145
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-03"
         ],
@@ -205197,18 +206234,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            53220,
-            31199,
-            53820,
-            31949
+            53320,
+            31099,
+            53720,
+            32049
           ],
           [
-            53220,
-            30599,
-            53820,
-            31599
+            53320,
+            30499,
+            53720,
+            31699
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                53520,
+                31749
+              ],
+              [
+                53520,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                53320,
+                31099,
+                53720,
+                32049
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                53520,
+                31399
+              ],
+              [
+                53520,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                53320,
+                30499,
+                53720,
+                31699
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "WORK-PACK-03"
         ],
@@ -205324,6 +206414,35 @@
             31399
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                36720,
+                30799
+              ],
+              [
+                36720,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                36220,
+                30199,
+                37220,
+                31399
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "BUF-N-03"
         ],
@@ -205412,6 +206531,35 @@
             27643
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                81180,
+                27043
+              ],
+              [
+                81180,
+                27043
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                80680,
+                26443,
+                81680,
+                27643
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "SEC-C1-P6"
         ],
@@ -205498,18 +206646,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            58020,
-            30599,
-            58620,
-            31599
+            58120,
+            30499,
+            58520,
+            31699
           ],
           [
-            58020,
-            31199,
-            58620,
-            31949
+            58120,
+            31099,
+            58520,
+            32049
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                58320,
+                30799
+              ],
+              [
+                58320,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                30499,
+                58520,
+                31699
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                58320,
+                31399
+              ],
+              [
+                58320,
+                31749
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                31099,
+                58520,
+                32049
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "RAW-UNLOAD"
         ],
@@ -205659,6 +206860,35 @@
             27746
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                33370,
+                27546
+              ],
+              [
+                33720,
+                27546
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                33070,
+                27346,
+                34020,
+                27746
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-04"
         ],
@@ -205774,6 +207004,35 @@
             27746
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                61722,
+                27546
+              ],
+              [
+                62072,
+                27546
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                61422,
+                27346,
+                62372,
+                27746
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-04"
         ],
@@ -205888,18 +207147,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            54420,
-            31199,
-            55020,
-            31949
+            54520,
+            31099,
+            54920,
+            32049
           ],
           [
-            54420,
-            30599,
-            55020,
-            31599
+            54520,
+            30499,
+            54920,
+            31699
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                54720,
+                31749
+              ],
+              [
+                54720,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                54520,
+                31099,
+                54920,
+                32049
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                54720,
+                31399
+              ],
+              [
+                54720,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                54520,
+                30499,
+                54920,
+                31699
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "WORK-PACK-04"
         ],
@@ -206015,6 +207327,35 @@
             31399
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                42720,
+                30799
+              ],
+              [
+                42720,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                42220,
+                30199,
+                43220,
+                31399
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "BUF-S-01"
         ],
@@ -206103,6 +207444,35 @@
             27643
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                81180,
+                27043
+              ],
+              [
+                81180,
+                27043
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                80680,
+                26443,
+                81680,
+                27643
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "SEC-C1-P6"
         ],
@@ -206189,18 +207559,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            58020,
-            30599,
-            58620,
-            31599
+            58120,
+            30499,
+            58520,
+            31699
           ],
           [
-            58020,
-            31199,
-            58620,
-            31949
+            58120,
+            31099,
+            58520,
+            32049
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                58320,
+                30799
+              ],
+              [
+                58320,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                30499,
+                58520,
+                31699
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                58320,
+                31399
+              ],
+              [
+                58320,
+                31749
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                31099,
+                58520,
+                32049
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "RAW-UNLOAD"
         ],
@@ -206350,6 +207773,35 @@
             28397
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                33370,
+                28197
+              ],
+              [
+                33720,
+                28197
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                33070,
+                27997,
+                34020,
+                28397
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-05"
         ],
@@ -206465,6 +207917,35 @@
             28397
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                61722,
+                28197
+              ],
+              [
+                62072,
+                28197
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                61422,
+                27997,
+                62372,
+                28397
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-05"
         ],
@@ -206579,18 +208060,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            55620,
-            31199,
-            56220,
-            31949
+            55720,
+            31099,
+            56120,
+            32049
           ],
           [
-            55620,
-            30599,
-            56220,
-            31599
+            55720,
+            30499,
+            56120,
+            31699
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                55920,
+                31749
+              ],
+              [
+                55920,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                55720,
+                31099,
+                56120,
+                32049
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                55920,
+                31399
+              ],
+              [
+                55920,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                55720,
+                30499,
+                56120,
+                31699
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "WORK-PACK-05"
         ],
@@ -206706,6 +208240,35 @@
             31399
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                43920,
+                30799
+              ],
+              [
+                43920,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                43420,
+                30199,
+                44420,
+                31399
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "BUF-S-02"
         ],
@@ -206794,6 +208357,35 @@
             27643
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                81180,
+                27043
+              ],
+              [
+                81180,
+                27043
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                80680,
+                26443,
+                81680,
+                27643
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "SEC-C1-P6"
         ],
@@ -206880,18 +208472,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            58020,
-            30599,
-            58620,
-            31599
+            58120,
+            30499,
+            58520,
+            31699
           ],
           [
-            58020,
-            31199,
-            58620,
-            31949
+            58120,
+            31099,
+            58520,
+            32049
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                58320,
+                30799
+              ],
+              [
+                58320,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                30499,
+                58520,
+                31699
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                58320,
+                31399
+              ],
+              [
+                58320,
+                31749
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                58120,
+                31099,
+                58520,
+                32049
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "RAW-UNLOAD"
         ],
@@ -207041,6 +208686,35 @@
             29998
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                33370,
+                29798
+              ],
+              [
+                33720,
+                29798
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                33070,
+                29598,
+                34020,
+                29998
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-06"
         ],
@@ -207156,6 +208830,35 @@
             29998
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                61722,
+                29798
+              ],
+              [
+                62072,
+                29798
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                61422,
+                29598,
+                62372,
+                29998
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-06"
         ],
@@ -207269,18 +208972,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            56820,
-            31199,
-            57420,
-            31949
+            56920,
+            31099,
+            57320,
+            32049
           ],
           [
-            56820,
-            30599,
-            57420,
-            31599
+            56920,
+            30499,
+            57320,
+            31699
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                57120,
+                31749
+              ],
+              [
+                57120,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                56920,
+                31099,
+                57320,
+                32049
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                57120,
+                31399
+              ],
+              [
+                57120,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                56920,
+                30499,
+                57320,
+                31699
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "WORK-PACK-06"
         ],
@@ -207396,6 +209152,35 @@
             31399
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                45120,
+                30799
+              ],
+              [
+                45120,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                44620,
+                30199,
+                45620,
+                31399
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "BUF-S-03"
         ],
@@ -207484,6 +209269,35 @@
             27643
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                81180,
+                27043
+              ],
+              [
+                81180,
+                27043
+              ]
+            ],
+            "load_xy_mm": [
+              1000,
+              1200
+            ],
+            "swept_bbox_mm": [
+              [
+                80680,
+                26443,
+                81680,
+                27643
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": null,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "ACTUAL_PALLET_XY",
         "owner_body_exceptions": [
           "SEC-C1-P6"
         ],
@@ -207570,18 +209384,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            50820,
-            31199,
-            51420,
-            31949
+            50920,
+            31099,
+            51320,
+            32049
           ],
           [
-            50820,
-            30599,
-            51420,
-            31599
+            50920,
+            30499,
+            51320,
+            31699
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                51120,
+                31749
+              ],
+              [
+                51120,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                50920,
+                31099,
+                51320,
+                32049
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                51120,
+                31399
+              ],
+              [
+                51120,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                50920,
+                30499,
+                51320,
+                31699
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "WORK-PACK-01"
         ],
@@ -207717,6 +209584,83 @@
             23893
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                33370,
+                23693
+              ],
+              [
+                33720,
+                23693
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                33070,
+                23493,
+                34020,
+                23893
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                33720,
+                23693
+              ],
+              [
+                61722,
+                23693
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                33420,
+                23493,
+                62022,
+                23893
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                61722,
+                23693
+              ],
+              [
+                62072,
+                23693
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                61422,
+                23493,
+                62372,
+                23893
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-01"
         ],
@@ -207830,18 +209774,71 @@
         ],
         "load_swept_bbox_mm": [
           [
-            52020,
-            31199,
-            52620,
-            31949
+            52120,
+            31099,
+            52520,
+            32049
           ],
           [
-            52020,
-            30599,
-            52620,
-            31599
+            52120,
+            30499,
+            52520,
+            31699
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                52320,
+                31749
+              ],
+              [
+                52320,
+                31399
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                52120,
+                31099,
+                52520,
+                32049
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                52320,
+                31399
+              ],
+              [
+                52320,
+                30799
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                52120,
+                30499,
+                52520,
+                31699
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "WORK-PACK-02"
         ],
@@ -207977,6 +209974,83 @@
             25494
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                33370,
+                25294
+              ],
+              [
+                33720,
+                25294
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                33070,
+                25094,
+                34020,
+                25494
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                33720,
+                25294
+              ],
+              [
+                61722,
+                25294
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                33420,
+                25094,
+                62022,
+                25494
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                61722,
+                25294
+              ],
+              [
+                62072,
+                25294
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                61422,
+                25094,
+                62372,
+                25494
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "PACK-02"
         ],
@@ -208110,18 +210184,132 @@
             23823
           ],
           [
-            66023,
-            23423,
-            66623,
-            26573
+            66123,
+            23323,
+            66523,
+            26673
           ],
           [
-            66023,
-            26173,
-            66623,
-            26923
+            66123,
+            26073,
+            66523,
+            27023
+          ],
+          [
+            65962,
+            23262,
+            66684,
+            23984
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                68875,
+                23623
+              ],
+              [
+                68225,
+                23623
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                67925,
+                23423,
+                69175,
+                23823
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                68225,
+                23623
+              ],
+              [
+                66323,
+                23623
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                66023,
+                23423,
+                68525,
+                23823
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                66323,
+                23623
+              ],
+              [
+                66323,
+                26373
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                66123,
+                23323,
+                66523,
+                26673
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                66323,
+                26373
+              ],
+              [
+                66323,
+                26723
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                66123,
+                26073,
+                66523,
+                27023
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [
+          [
+            65962,
+            23262,
+            66684,
+            23984
+          ]
+        ],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "ERECT-01"
         ],
@@ -208255,18 +210443,132 @@
             23823
           ],
           [
-            71626,
-            23423,
-            72226,
-            26573
+            71726,
+            23323,
+            72126,
+            26673
           ],
           [
-            71626,
-            26173,
-            72226,
-            26923
+            71726,
+            26073,
+            72126,
+            27023
+          ],
+          [
+            71565,
+            23262,
+            72287,
+            23984
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                69375,
+                23623
+              ],
+              [
+                70025,
+                23623
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                69075,
+                23423,
+                70325,
+                23823
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                70025,
+                23623
+              ],
+              [
+                71926,
+                23623
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                69725,
+                23423,
+                72226,
+                23823
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                71926,
+                23623
+              ],
+              [
+                71926,
+                26373
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                71726,
+                23323,
+                72126,
+                26673
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                71926,
+                26373
+              ],
+              [
+                71926,
+                26723
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                71726,
+                26073,
+                72126,
+                27023
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [
+          [
+            71565,
+            23262,
+            72287,
+            23984
+          ]
+        ],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "ERECT-02"
         ],
@@ -208400,18 +210702,132 @@
             31863
           ],
           [
-            66023,
-            28713,
-            66623,
-            31863
+            66123,
+            28613,
+            66523,
+            31963
           ],
           [
-            66023,
-            28363,
-            66623,
-            29113
+            66123,
+            28263,
+            66523,
+            29213
+          ],
+          [
+            65962,
+            31302,
+            66684,
+            32024
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                68875,
+                31663
+              ],
+              [
+                68225,
+                31663
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                67925,
+                31463,
+                69175,
+                31863
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                68225,
+                31663
+              ],
+              [
+                66323,
+                31663
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                66023,
+                31463,
+                68525,
+                31863
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                66323,
+                31663
+              ],
+              [
+                66323,
+                28913
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                66123,
+                28613,
+                66523,
+                31963
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                66323,
+                28913
+              ],
+              [
+                66323,
+                28563
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                66123,
+                28263,
+                66523,
+                29213
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [
+          [
+            65962,
+            31302,
+            66684,
+            32024
+          ]
+        ],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "ERECT-03"
         ],
@@ -208545,18 +210961,132 @@
             31863
           ],
           [
-            71626,
-            28713,
-            72226,
-            31863
+            71726,
+            28613,
+            72126,
+            31963
           ],
           [
-            71626,
-            28363,
-            72226,
-            29113
+            71726,
+            28263,
+            72126,
+            29213
+          ],
+          [
+            71565,
+            31302,
+            72287,
+            32024
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                69375,
+                31663
+              ],
+              [
+                70025,
+                31663
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                69075,
+                31463,
+                70325,
+                31863
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                70025,
+                31663
+              ],
+              [
+                71926,
+                31663
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                69725,
+                31463,
+                72226,
+                31863
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                71926,
+                31663
+              ],
+              [
+                71926,
+                28913
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                71726,
+                28613,
+                72126,
+                31963
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                71926,
+                28913
+              ],
+              [
+                71926,
+                28563
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                71726,
+                28263,
+                72126,
+                29213
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [
+          [
+            71565,
+            31302,
+            72287,
+            32024
+          ]
+        ],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "ERECT-04"
         ],
@@ -208680,18 +211210,120 @@
             31941
           ],
           [
-            25720,
-            31541,
-            26320,
-            33341
+            25820,
+            31441,
+            26220,
+            33441
           ],
           [
             25720,
             32941,
             26670,
             33341
+          ],
+          [
+            25659,
+            31380,
+            26381,
+            32102
+          ],
+          [
+            25659,
+            32780,
+            26381,
+            33502
           ]
         ],
+        "load_segments": [
+          {
+            "centerline_mm": [
+              [
+                26670,
+                31741
+              ],
+              [
+                26020,
+                31741
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                25720,
+                31541,
+                26970,
+                31941
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                26020,
+                31741
+              ],
+              [
+                26020,
+                33141
+              ]
+            ],
+            "load_xy_mm": [
+              400,
+              600
+            ],
+            "swept_bbox_mm": [
+              [
+                25820,
+                31441,
+                26220,
+                33441
+              ]
+            ]
+          },
+          {
+            "centerline_mm": [
+              [
+                26020,
+                33141
+              ],
+              [
+                26370,
+                33141
+              ]
+            ],
+            "load_xy_mm": [
+              600,
+              400
+            ],
+            "swept_bbox_mm": [
+              [
+                25720,
+                32941,
+                26670,
+                33341
+              ]
+            ]
+          }
+        ],
+        "load_turn_square_mm": 722,
+        "load_turn_envelopes_mm": [
+          [
+            25659,
+            31380,
+            26381,
+            32102
+          ],
+          [
+            25659,
+            32780,
+            26381,
+            33502
+          ]
+        ],
+        "load_projection_basis": "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": [
           "ERECT-05"
         ],
@@ -209204,5 +211836,5 @@
     "factory_applicability": "NOT_EVALUATED"
   },
   "status": "CONDITIONAL_PROCESS_CANDIDATE",
-  "result_hash": "sha256:188083411deb269eeebf35458623134805acd37acbdae5fd67be543ad194eff0"
+  "result_hash": "sha256:72d1f947e9bf9a7cf174ee7c78d11bbc46349fc7feb5a12a4e291a91b37e5058"
 }

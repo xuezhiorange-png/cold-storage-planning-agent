@@ -27,6 +27,7 @@ from cold_storage.modules.layout.domain.functional_material_geometry import (
     bounds_inside,
     motion_clear,
     rectilinear_path,
+    swept_boxes,
 )
 from cold_storage.modules.layout.domain.process_endpoint_routes import (
     ProcessRoutePlanner,
@@ -744,3 +745,51 @@ def test_verification_levels_and_all_required_distinct_connections(
     else:
         f["buffer_routes"][-1] = f["buffer_routes"][0]
     assert not assess_process_candidate(c, project, parameters)["accepted"]
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ([[1000, 1000], [1000, 1600]], [400, 600]),
+        ([[1000, 1000], [1600, 1000]], [600, 400]),
+    ],
+)
+def test_transfer_load_axes_follow_actual_motion(path, expected):
+    from cold_storage.modules.layout.domain.process_transfer_interfaces import transfer_sweeps
+
+    s = transfer_sweeps(path, 600, 400, face="N")
+    assert s["segments"][0]["load_xy_mm"] == expected
+
+
+def test_northbound_load_cannot_hide_conflict_using_horizontal_depth():
+    from cold_storage.modules.layout.domain.process_transfer_interfaces import transfer_sweeps
+
+    obstacle = [900, 1800, 1100, 1950]
+    path = [[1000, 1000], [1000, 1600]]
+    assert not any(
+        positive_intersection(b, obstacle)
+        for b in swept_boxes([(1000, 1000), (1000, 1600)], 600, 400)
+    )
+    assert any(
+        positive_intersection(b, obstacle)
+        for b in transfer_sweeps(path, 600, 400, face="N")["swept_bbox_mm"]
+    )
+
+
+def test_transfer_corner_cannot_be_waived_by_clear_straight_legs():
+    from cold_storage.modules.layout.domain.process_transfer_interfaces import transfer_sweeps
+
+    s = transfer_sweeps([[1500, 1500], [1500, 2000], [2000, 2000]], 600, 400, face="N")
+    obstacle = [1810, 2300, 1850, 2340]
+    assert s["turn_square_mm"] == 722
+    assert not any(
+        positive_intersection(b, obstacle) for seg in s["segments"] for b in seg["swept_bbox_mm"]
+    )
+    assert any(positive_intersection(b, obstacle) for b in s["turn_envelopes_mm"])
+
+
+def test_transfer_diagonal_cannot_be_silently_accepted():
+    from cold_storage.modules.layout.domain.process_transfer_interfaces import transfer_sweeps
+
+    with pytest.raises(ValueError, match="RECTILINEAR"):
+        transfer_sweeps([[1000, 1000], [1600, 1600]], 600, 400, face="E")

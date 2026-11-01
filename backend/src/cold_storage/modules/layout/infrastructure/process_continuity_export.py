@@ -232,7 +232,7 @@ def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -
     ]
     for i, n in enumerate(notes):
         s.text(609, 223 + i * 7.5, n, 2.7, "#526f7c")
-    s.text(609, 360, "六线完整链的几何中心线长度", 3.1)
+    s.text(609, 360, "六线运输/机内参考段长度", 3.1)
     for i, q in enumerate(flows["product_chains"]):
         s.text(
             609,
@@ -240,7 +240,7 @@ def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -
             f"{q['line']}  {q['length_mm'] / 1000:.3f}m / {q['status'][:10]}",
             2.7,
         )
-    s.text(609, 436, "长度含一次代表性缓冲与处理段；非吞吐指标", 2.5, "#617c89")
+    s.text(609, 436, "交接载荷路径另存；不合并为单一车辆里程", 2.5, "#617c89")
     s.text(609, 452, "封膜机内部输送由声明接口连接，厂家能力待确认", 2.5, "#617c89")
     s.text(36, 532, "20m校尺段 = 100mm纸面长度 / 按100%打印", 2.8, "#617c89")
     for i in range(4):
@@ -539,7 +539,8 @@ R1补正把四机中部间隔从2500扩至2540mm，各机沿Y向外移20mm；外
 
 V1.1只核验房间内部Portal接口，未建立完整设备端点链；
 其端到端长度与冲突数为NOT_EVALUATED，不能伪称本次缩短了某个旧总长度。
-当前完整长度如下，包含代表性缓冲路径、人工短交接及机内声明输送；
+当前各段参考线合计如下，包含代表性缓冲路径及机内声明输送；
+跨载具交接的载荷锚点路径另存process-interfaces.json，不含在此合计中；
 不是车辆行驶距离或产能指标。
 每条链真正经过6条原合法物料门洞。
 
@@ -646,7 +647,7 @@ border-bottom:1px solid #d2dfe3}}p{{max-width:1120px}}</style>
 原87条：选用{len(original_ids & chosen_ids)}、备用{len(original_ids - chosen_ids)}；
 新增次果/冻果4条。
 机内投影与实际操作尚未确认，完整P2D与工厂适用性NOT_EVALUATED。</p>
-<h2>各线端到端条件路径</h2>
+<h2>各线运输与机内参考段（跨载具交接另列）</h2>
 <table>
 <tr>
 <th>包装线</th>

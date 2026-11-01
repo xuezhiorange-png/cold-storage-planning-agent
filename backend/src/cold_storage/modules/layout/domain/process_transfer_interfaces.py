@@ -7,6 +7,7 @@ INPUT_REQUIRED. No authorization, database or Native solver is involved.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -166,6 +167,57 @@ def _physical_boxes(path: Sequence[Sequence[int]], w: int, d: int) -> list[list[
     return boxes or ([_box(path[0], w, d)] if path else [])
 
 
+def transfer_sweeps(
+    path: Sequence[Sequence[int]], normal: int, tangent: int, *, face: str
+) -> dict[str, Any]:
+    """Orient the declared load on every leg and reserve a full corner square.
+
+    The square is a conservative projection, not vehicle or human kinematics.
+    A longitudinal 600mm load cannot silently become 400mm on a northbound leg.
+    """
+    segments: list[dict[str, Any]] = []
+    directions: list[bool] = []
+    for a, b in zip(path, path[1:], strict=False):
+        if a == b:
+            continue
+        if a[0] != b[0] and a[1] != b[1]:
+            raise ValueError("TRANSFER_RECTILINEAR_PATH_REQUIRED")
+        horizontal = a[1] == b[1]
+        w, d = (normal, tangent) if horizontal else (tangent, normal)
+        segments.append(
+            {
+                "centerline_mm": [list(a), list(b)],
+                "load_xy_mm": [w, d],
+                "swept_bbox_mm": _physical_boxes([a, b], w, d),
+            }
+        )
+        directions.append(horizontal)
+    if not segments:
+        w, d = (normal, tangent) if face in ("E", "W") else (tangent, normal)
+        segments = [
+            {
+                "centerline_mm": [list(path[0]), list(path[0])],
+                "load_xy_mm": [w, d],
+                "swept_bbox_mm": _physical_boxes(path, w, d),
+            }
+        ]
+    diameter = math.isqrt(normal * normal + tangent * tangent)
+    if diameter * diameter < normal * normal + tangent * tangent:
+        diameter += 1
+    turn = 2 * ((diameter + 1) // 2)
+    turns = [
+        _box(segments[i]["centerline_mm"][-1], turn, turn)
+        for i in range(len(directions) - 1)
+        if directions[i] != directions[i + 1]
+    ]
+    return {
+        "segments": segments,
+        "turn_square_mm": turn,
+        "turn_envelopes_mm": turns,
+        "swept_bbox_mm": [b for s in segments for b in s["swept_bbox_mm"]] + turns,
+    }
+
+
 def connect_transfer(
     c: Mapping[str, Any],
     parameters: Mapping[str, Any],
@@ -227,7 +279,22 @@ def connect_transfer(
         if a[0] != p[0] and a[1] != p[1]:
             joined.append([p[0], a[1]])
         joined.append(p)
-    boxes = _physical_boxes(joined, *projection)
+    if same and endpoints[left["endpoint"]].get("carried_pallet"):
+        sweep: dict[str, Any] = {
+            "segments": [
+                {
+                    "centerline_mm": joined,
+                    "load_xy_mm": projection,
+                    "swept_bbox_mm": _physical_boxes(joined, *projection),
+                }
+            ],
+            "turn_square_mm": None,
+            "turn_envelopes_mm": [],
+            "swept_bbox_mm": _physical_boxes(joined, *projection),
+        }
+    else:
+        sweep = transfer_sweeps(joined, *projection, face=endpoints[left["endpoint"]]["face"])
+    boxes = sweep["swept_bbox_mm"]
     collisions = [
         {
             "bbox_mm": b,
@@ -354,6 +421,12 @@ def connect_transfer(
         "load_path_mm": joined,
         "load_projection_mm": projection,
         "load_swept_bbox_mm": boxes,
+        "load_segments": sweep["segments"],
+        "load_turn_square_mm": sweep["turn_square_mm"],
+        "load_turn_envelopes_mm": sweep["turn_envelopes_mm"],
+        "load_projection_basis": "ACTUAL_PALLET_XY"
+        if same and endpoints[left["endpoint"]].get("carried_pallet")
+        else "NORMAL_TANGENT_ORIENTED_PER_LEG_WITH_CORNER_ENVELOPE",
         "owner_body_exceptions": sorted(exceptions),
         "operation_spaces": workspaces,
         "actor_paths": actor_paths,
