@@ -184,6 +184,7 @@ def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -
             "#617c89",
         )
     notes = [
+        "候选状态：" + c["status"],
         f"主产品完整条件链 {flows['continuous_main_product_chain_count']}/6",
         f"设备路线 {flows['verified_route_count']}通过 / {flows['failed_route_count']}未贯通",
         "绿色：所示包装线完整产品路径",
@@ -296,7 +297,14 @@ def export_process_package(
         (
             "a1-a12-room-changes.csv",
             result["room_changes"],
-            ["zone_code", "original_bbox_mm", "new_bbox_mm", "added_area_m2"],
+            [
+                "zone_code",
+                "original_bbox_mm",
+                "new_bbox_mm",
+                "translation_x_mm",
+                "translation_y_mm",
+                "added_area_m2",
+            ],
         ),
         (
             "room-coordinates.csv",
@@ -366,6 +374,17 @@ def export_process_package(
     before_coat = next(q for q in result["baseline"]["rooms"] if q["zone_code"] == "coating_room")
     after_coat = next(q for q in c["rooms"] if q["zone_code"] == "coating_room")
     coat_change = next(q for q in result["room_changes"] if q["zone_code"] == "coating_room")
+    capacity_trials = [q for q in result["attempts"] if "required_existing_positions" in q]
+    capacity_feedback = "；".join(
+        f"{q['variant']}：成品{q.get('placed_positions', {}).get('finished_goods_room', '未评估')}"
+        f"/原{q['required_existing_positions']['finished_goods_room']}，{q['status']}"
+        + (
+            f"，关联组北移{q['group_translation_north_mm']}mm"
+            if "group_translation_north_mm" in q
+            else ""
+        )
+        for q in capacity_trials
+    )
     comparison = f"""# 自主布局 V1.2 / 设备工艺物流贯通
 
 本次从结构输入重新计算A1，再由实际设备、托盘工作位和人员操作带冲突触发新候选。
@@ -393,6 +412,10 @@ def export_process_package(
 增加{coat_change["added_area_m2"]}㎡，不改变P1最低面积。
 反馈导致成品库、办公室、出货区位置变化；
 详见坐标差异CSV。
+货位保留反馈：{capacity_feedback}。
+封膜通道状态：{c["coating_actual_aisle_feedback"]["status"]}。
+被柱体占据的矩形提案不被判为通过；若采用实际路线替换，保留同宽2500mm，
+另对全部固定设备、托位和柱体复核。
 首次7100深度操作带冲突记录保留。
 
 
@@ -473,6 +496,7 @@ text-align:left;
 border-bottom:1px solid #d2dfe3}}p{{max-width:1120px}}</style>
 <h1>自主布局V1.2 · 设备到设备物流</h1>
 <p>实际生成12区、设备端点、14待冷缓冲与6线托位。
+整体候选状态：{result["status"]}。
 {flows["continuous_main_product_chain_count"]}条完整条件产品链；
 {flows["case_supply"]["status"]}。
 图中仅显示已验证路径。

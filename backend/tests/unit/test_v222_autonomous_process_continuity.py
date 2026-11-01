@@ -32,7 +32,10 @@ from cold_storage.modules.layout.domain.process_endpoint_routes import (
     path_length,
     shared_sweep_inside,
 )
-from cold_storage.modules.layout.domain.process_flow_arrangement import coating_service_depth
+from cold_storage.modules.layout.domain.process_flow_arrangement import (
+    coating_service_depth,
+    realize_coating_aisles,
+)
 from cold_storage.modules.layout.infrastructure.process_continuity_export import (
     draw_process_candidate,
     export_process_package,
@@ -206,6 +209,8 @@ def test_crossings_are_real_p1_portals_and_do_not_turn_in_doors(candidate: dict[
 def test_no_capacity_deletion(role: str, minimum: int, candidate: dict[str, Any]) -> None:
     s = next(s for s in candidate["equipment"]["storage"] if s["layout"]["room"] == role)
     assert s["layout"]["placed_positions"] >= minimum
+    assert s["layout"]["placed_positions"] == s["layout"]["original_grid_positions"]
+    assert len(s["layout"]["items"]) == s["layout"]["placed_positions"]
     assert s["movement"]["conditional_pick_put_geometry_pass"]
 
 
@@ -240,6 +245,44 @@ def test_only_flexible_room_feedback_not_authority_rewrite(
     assert old["coating_room"]["required_area_m2"] == now["coating_room"]["required_area_m2"]
     assert candidate["changing_internal_model_unchanged"]
     assert candidate["changing_function"]["conditional_complete_sequence_verified"]
+
+
+def test_column_feedback_preserves_original_324_positions(
+    result: dict[str, Any], candidate: dict[str, Any]
+) -> None:
+    trials = [q for q in result["attempts"] if "required_existing_positions" in q]
+    assert trials[0]["placed_positions"]["finished_goods_room"] == 317
+    assert trials[0]["status"] == "EXISTING_CAPACITY_REJECTED"
+    assert trials[1]["placed_positions"]["finished_goods_room"] == 324
+    assert trials[1]["group_translation_north_mm"] == 2316
+    assert all(not q["conflicts"] for q in candidate["equipment"]["operating_spaces"])
+    feedback = candidate["coating_actual_aisle_feedback"]
+    assert feedback["status"] == "EQUAL_WIDTH_ACTUAL_ROUTES_REALIZED"
+    assert not feedback["geometry_exceptions_used"] and feedback["stationary_pallets_retained"]
+    assert all(q["clear_width_mm"] == 2500 for q in feedback["realized_reserved_aisles"])
+
+
+def test_actual_aisle_rejects_occupied_stationary_pallet(candidate: dict[str, Any]) -> None:
+    c = copy.deepcopy(candidate)
+    eq = c["equipment"]
+    old = c["coating_actual_aisle_feedback"]["rejected_proposals"]
+    eq["operating_spaces"] = [
+        q for q in eq["operating_spaces"] if q["room"] != "coating_room"
+    ] + old
+    body = next(q["bbox_mm"] for q in eq["items"] if q["id"] == "DEPALLETIZE")
+    centre = [(body[0] + body[2]) // 2, (body[1] + body[3]) // 2]
+    for row in c["process_continuity"]["routes"]:
+        for seg in row.get("segments", []):
+            if seg["kind"] == "ROOM_MAIN_AISLE" and seg["room"] == "coating_room":
+                seg["centerline_mm"] = [centre, centre]
+                break
+        else:
+            continue
+        break
+    conflicts = [{"code": "RESERVED_AISLE_OCCUPIED", "room": "coating_room"}]
+    checked = realize_coating_aisles(c, c["process_continuity"], conflicts)
+    assert checked["status"] == "ACTUAL_AISLE_REJECTED"
+    assert conflicts and any("DEPALLETIZE" in q["conflicts"] for q in checked["failures"])
 
 
 def test_preserved_person_count_and_unapproved_inputs(candidate: dict[str, Any]) -> None:

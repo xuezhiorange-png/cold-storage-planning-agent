@@ -11,6 +11,10 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from cold_storage.modules.layout.domain.autonomous_equipment import positive_intersection
+from cold_storage.modules.layout.domain.functional_material_geometry import (
+    bounds_inside,
+    swept_boxes,
+)
 from cold_storage.modules.layout.domain.functional_storage_layout import storage_layouts
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 
@@ -35,6 +39,82 @@ def coating_service_depth(parameters: Mapping[str, Any]) -> dict[str, Any]:
         "source_type": "demo",
         "validity_status": "unverified",
         "requires_review": True,
+    }
+
+
+def realize_coating_aisles(
+    candidate: dict[str, Any], flows: Mapping[str, Any], static_conflicts: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Replace blocked rectangular proposals with the ACTUAL equal-width route.
+
+    No occupied rectangle is silently accepted. Every replacement is rechecked
+    against all bodies (including both stationary handoff pallets), operators,
+    columns and the original room. Source/destination exceptions are NOT used.
+    """
+    code = "coating_room"
+    eq = candidate["equipment"]
+    layout = eq["layouts"][code]
+    rejected = [a for a in eq["operating_spaces"] if a["room"] == code and a["conflicts"]]
+    if not rejected:
+        return {"status": "ORIGINAL_RESERVED_AISLES_CLEAR", "rejected_proposals": []}
+    clear = next(q["bbox_mm"] for q in candidate["rooms"] if q["zone_code"] == code)
+    fixed = [
+        *eq["items"],
+        *eq.get("process_operator_zones", []),
+        *candidate["original_building"]["columns"],
+    ]
+    replacements = {}
+    failures = []
+    for row in flows["routes"]:
+        if row["status"] != "CONDITIONAL_DEVICE_ROUTE_VERIFIED":
+            continue
+        for seg in row.get("segments", []):
+            if seg["kind"] != "ROOM_MAIN_AISLE" or seg["room"] != code:
+                continue
+            width = seg["reserved_width_mm"]
+            boxes = swept_boxes(seg["centerline_mm"], width, width)
+            if not boxes and seg["centerline_mm"]:
+                x, y = seg["centerline_mm"][0]
+                boxes = [
+                    (x - width // 2, y - width // 2, x + width - width // 2, y + width - width // 2)
+                ]
+            for b in boxes:
+                collisions = [q["id"] for q in fixed if positive_intersection(b, q["bbox_mm"])]
+                if not bounds_inside(b, clear) or collisions:
+                    failures.append(
+                        {"route": row["id"], "bbox_mm": list(b), "conflicts": collisions}
+                    )
+                replacements[b] = {
+                    "bbox_mm": list(b),
+                    "clear_width_mm": width,
+                    "source_route": row["id"],
+                }
+    if failures or not replacements:
+        return {
+            "status": "ACTUAL_AISLE_REJECTED",
+            "rejected_proposals": rejected,
+            "failures": failures,
+        }
+    proposals = [a for a in eq["operating_spaces"] if a["room"] == code and not a["conflicts"]]
+    realized = [
+        {"id": f"FILM-ACTUAL-{i + 1}", **a, "conflicts": []}
+        for i, a in enumerate(replacements.values())
+    ]
+    layout["service_corridors"] = [*proposals, *realized]
+    eq["operating_spaces"] = [a for a in eq["operating_spaces"] if a["room"] != code] + [
+        {"room": code, **a} for a in layout["service_corridors"]
+    ]
+    static_conflicts[:] = [
+        x
+        for x in static_conflicts
+        if not (x["code"] == "RESERVED_AISLE_OCCUPIED" and x.get("room") == code)
+    ]
+    return {
+        "status": "EQUAL_WIDTH_ACTUAL_ROUTES_REALIZED",
+        "rejected_proposals": rejected,
+        "realized_reserved_aisles": realized,
+        "stationary_pallets_retained": True,
+        "geometry_exceptions_used": False,
     }
 
 

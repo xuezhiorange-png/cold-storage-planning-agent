@@ -1,6 +1,6 @@
 {
-  "elapsed_generation_seconds": 16.128569542008336,
-  "rss_peak_mib": 135.75,
+  "elapsed_generation_seconds": 16.497249042004114,
+  "rss_peak_mib": 150.265625,
   "native_calls": 0,
   "guard_inherited": true,
   "resource_scope": "Standalone deterministic preview; no Stage A/B budget issued or reused",

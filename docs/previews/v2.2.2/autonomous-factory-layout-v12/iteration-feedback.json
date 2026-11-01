@@ -103,6 +103,61 @@
     "coating_depth_mm": 7100
   },
   {
+    "variant": "NORTH_GROWTH",
+    "required_existing_positions": {
+      "packaging_material_storage": 67,
+      "finished_goods_room": 324,
+      "raw_fruit_buffer": 45,
+      "secondary_fruit_buffer": 21,
+      "frozen_fruit_room": 36
+    },
+    "placed_positions": {
+      "packaging_material_storage": 67,
+      "finished_goods_room": 317,
+      "raw_fruit_buffer": 45,
+      "secondary_fruit_buffer": 21,
+      "frozen_fruit_room": 36
+    },
+    "status": "EXISTING_CAPACITY_REJECTED"
+  },
+  {
+    "variant": "COUPLED_GROUP_NORTH_OF_RETAINED_COLUMN_ROW",
+    "coating_depth_increment_mm": 1200,
+    "group_translation_north_mm": 2316,
+    "triggering_columns": [
+      "COLUMN-41485",
+      "COLUMN-41486",
+      "COLUMN-41487"
+    ],
+    "separation_assumption_mm": 100,
+    "formula": "max(trigger_column_top_mm) + separation_assumption_mm - finished_room_south_mm",
+    "finished_room_south_mm_before_translation": 33534,
+    "trigger_column_top_mm": [
+      35750,
+      35750,
+      35750
+    ],
+    "source_type": "demo",
+    "validity_status": "unverified",
+    "requires_review": true,
+    "required_existing_positions": {
+      "packaging_material_storage": 67,
+      "finished_goods_room": 324,
+      "raw_fruit_buffer": 45,
+      "secondary_fruit_buffer": 21,
+      "frozen_fruit_room": 36
+    },
+    "source": "FRESH_IN_MEMORY_ROOM_CANDIDATES",
+    "placed_positions": {
+      "packaging_material_storage": 67,
+      "finished_goods_room": 324,
+      "raw_fruit_buffer": 45,
+      "secondary_fruit_buffer": 21,
+      "frozen_fruit_room": 36
+    },
+    "status": "EXISTING_CAPACITY_PRESERVED"
+  },
+  {
     "variant": "ROTATE_FOUR_ERECTORS_PLUS_DISTINCT_BUFFER_AND_WORK_POSITIONS",
     "coating_service_depth": {
       "depth_mm": 8300,

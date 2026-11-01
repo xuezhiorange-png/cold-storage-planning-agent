@@ -1,5 +1,5 @@
 {
-  "source_candidate_hash": "sha256:9bad1a80516b2916bfd4452177d8377e6ea699d733fa0d00777ede3dd5879d3e",
+  "source_candidate_hash": "sha256:4a6ed0f1ca6094f9fc6177bc807a96e221b7a416b4a88b11370c1d6b3eba10b2",
   "endpoints": [
     {
       "id": "raw_fruit_buffer-PAL-005:PALLET-TRANSFER",
@@ -173,11 +173,11 @@
       ],
       "contact_mm": [
         89780,
-        29984
+        32300
       ],
       "dock_reference_mm": [
         89780,
-        29684
+        32000
       ],
       "carrier": "LOADED_PALLET",
       "carried_pallet": true,
@@ -185,9 +185,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         89280,
-        28784,
+        31100,
         90280,
-        29984
+        32300
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -205,11 +205,11 @@
       ],
       "contact_mm": [
         99838,
-        29984
+        32300
       ],
       "dock_reference_mm": [
         99838,
-        29684
+        32000
       ],
       "carrier": "LOADED_PALLET",
       "carried_pallet": true,
@@ -217,9 +217,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         99338,
-        28784,
+        31100,
         100338,
-        29984
+        32300
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -237,13 +237,13 @@
       ],
       "contact_mm": [
         90280,
-        29384
+        31700
       ],
       "object_bbox_mm": [
         89280,
-        28784,
+        31100,
         90280,
-        29984
+        32300
       ],
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "manufacturer_mouth_clearance_mm": null,
@@ -263,13 +263,13 @@
       ],
       "contact_mm": [
         90480,
-        29384
+        31700
       ],
       "object_bbox_mm": [
         90480,
-        28566,
+        30882,
         92164,
-        30202
+        32518
       ],
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "manufacturer_mouth_clearance_mm": null,
@@ -289,13 +289,13 @@
       ],
       "contact_mm": [
         92164,
-        29384
+        31700
       ],
       "object_bbox_mm": [
         90480,
-        28566,
+        30882,
         92164,
-        30202
+        32518
       ],
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "manufacturer_mouth_clearance_mm": null,
@@ -315,13 +315,13 @@
       ],
       "contact_mm": [
         92164,
-        29384
+        31700
       ],
       "object_bbox_mm": [
         92164,
-        28374,
+        30690,
         94088,
-        30394
+        32710
       ],
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "manufacturer_mouth_clearance_mm": null,
@@ -341,13 +341,13 @@
       ],
       "contact_mm": [
         94088,
-        29384
+        31700
       ],
       "object_bbox_mm": [
         92164,
-        28374,
+        30690,
         94088,
-        30394
+        32710
       ],
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "manufacturer_mouth_clearance_mm": null,
@@ -367,13 +367,13 @@
       ],
       "contact_mm": [
         94088,
-        29384
+        31700
       ],
       "object_bbox_mm": [
         94088,
-        28374,
+        30690,
         97118,
-        30394
+        32710
       ],
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "manufacturer_mouth_clearance_mm": null,
@@ -393,13 +393,13 @@
       ],
       "contact_mm": [
         97118,
-        29384
+        31700
       ],
       "object_bbox_mm": [
         94088,
-        28374,
+        30690,
         97118,
-        30394
+        32710
       ],
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "manufacturer_mouth_clearance_mm": null,
@@ -419,13 +419,13 @@
       ],
       "contact_mm": [
         97118,
-        29384
+        31700
       ],
       "object_bbox_mm": [
         97118,
-        28566,
+        30882,
         99138,
-        30202
+        32518
       ],
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "manufacturer_mouth_clearance_mm": null,
@@ -445,13 +445,13 @@
       ],
       "contact_mm": [
         99138,
-        29384
+        31700
       ],
       "object_bbox_mm": [
         97118,
-        28566,
+        30882,
         99138,
-        30202
+        32518
       ],
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "manufacturer_mouth_clearance_mm": null,
@@ -471,13 +471,13 @@
       ],
       "contact_mm": [
         99338,
-        29384
+        31700
       ],
       "object_bbox_mm": [
         99338,
-        28784,
+        31100,
         100338,
-        29984
+        32300
       ],
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "manufacturer_mouth_clearance_mm": null,
@@ -486,32 +486,32 @@
       "requires_review": true
     },
     {
-      "id": "finished_goods_room-PAL-024:PALLET-TRANSFER",
-      "object_id": "finished_goods_room-PAL-024",
+      "id": "finished_goods_room-PAL-002:PALLET-TRANSFER",
+      "object_id": "finished_goods_room-PAL-002",
       "room": "finished_goods_room",
       "role": "PALLET-TRANSFER",
-      "face": "W",
+      "face": "S",
       "normal": [
-        -1,
-        0
+        0,
+        -1
       ],
       "contact_mm": [
-        89680,
-        36534
+        88480,
+        38850
       ],
       "dock_reference_mm": [
-        89980,
-        36534
+        88480,
+        39150
       ],
       "carrier": "LOADED_PALLET",
       "carried_pallet": true,
       "load_dimensions_compatible": true,
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
-        89680,
-        36034,
-        90880,
-        37034
+        87980,
+        38850,
+        88980,
+        40050
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -529,11 +529,11 @@
       ],
       "contact_mm": [
         80987,
-        36334
+        38650
       ],
       "dock_reference_mm": [
         80987,
-        36034
+        38350
       ],
       "carrier": "LOADED_PALLET",
       "carried_pallet": true,
@@ -541,9 +541,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         80487,
-        35134,
+        37450,
         81487,
-        36334
+        38650
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -2733,19 +2733,19 @@
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
-          "target_object": "finished_goods_room-PAL-024",
+          "target_object": "finished_goods_room-PAL-002",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
-          "source_object": "finished_goods_room-PAL-024",
+          "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         }
       ],
       "failed_segments": [],
       "continuous_object_chain": true,
-      "length_mm": 278246,
+      "length_mm": 279872,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
       "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
     },
@@ -2859,19 +2859,19 @@
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
-          "target_object": "finished_goods_room-PAL-024",
+          "target_object": "finished_goods_room-PAL-002",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
-          "source_object": "finished_goods_room-PAL-024",
+          "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         }
       ],
       "failed_segments": [],
       "continuous_object_chain": true,
-      "length_mm": 272644,
+      "length_mm": 274270,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
       "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
     },
@@ -2985,19 +2985,19 @@
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
-          "target_object": "finished_goods_room-PAL-024",
+          "target_object": "finished_goods_room-PAL-002",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
-          "source_object": "finished_goods_room-PAL-024",
+          "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         }
       ],
       "failed_segments": [],
       "continuous_object_chain": true,
-      "length_mm": 268942,
+      "length_mm": 270568,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
       "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
     },
@@ -3111,19 +3111,19 @@
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
-          "target_object": "finished_goods_room-PAL-024",
+          "target_object": "finished_goods_room-PAL-002",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
-          "source_object": "finished_goods_room-PAL-024",
+          "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         }
       ],
       "failed_segments": [],
       "continuous_object_chain": true,
-      "length_mm": 253740,
+      "length_mm": 255366,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
       "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
     },
@@ -3237,19 +3237,19 @@
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
-          "target_object": "finished_goods_room-PAL-024",
+          "target_object": "finished_goods_room-PAL-002",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
-          "source_object": "finished_goods_room-PAL-024",
+          "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         }
       ],
       "failed_segments": [],
       "continuous_object_chain": true,
-      "length_mm": 250038,
+      "length_mm": 251664,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
       "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
     },
@@ -3363,19 +3363,19 @@
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
-          "target_object": "finished_goods_room-PAL-024",
+          "target_object": "finished_goods_room-PAL-002",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
-          "source_object": "finished_goods_room-PAL-024",
+          "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
           "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
         }
       ],
       "failed_segments": [],
       "continuous_object_chain": true,
-      "length_mm": 244436,
+      "length_mm": 246062,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
       "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
     }
@@ -3537,31 +3537,31 @@
           29543
         ],
         [
-          81180,
-          29643
+          85430,
+          29543
         ],
         [
           85430,
-          29643
+          29221
         ],
         [
           87930,
-          29643
+          29221
         ],
         [
           87930,
-          31452
+          33768
         ],
         [
           89780,
-          31452
+          33768
         ],
         [
           89780,
-          29684
+          32000
         ]
       ],
-      "length_mm": 14477,
+      "length_mm": 17437,
       "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
     },
     {
@@ -3572,11 +3572,11 @@
       "centerline_mm": [
         [
           90280,
-          29384
+          31700
         ],
         [
           90480,
-          29384
+          31700
         ]
       ],
       "length_mm": 200,
@@ -3590,11 +3590,11 @@
       "centerline_mm": [
         [
           90480,
-          29384
+          31700
         ],
         [
           92164,
-          29384
+          31700
         ]
       ],
       "length_mm": 1684,
@@ -3608,11 +3608,11 @@
       "centerline_mm": [
         [
           92164,
-          29384
+          31700
         ],
         [
           92164,
-          29384
+          31700
         ]
       ],
       "length_mm": 0,
@@ -3626,11 +3626,11 @@
       "centerline_mm": [
         [
           92164,
-          29384
+          31700
         ],
         [
           94088,
-          29384
+          31700
         ]
       ],
       "length_mm": 1924,
@@ -3644,11 +3644,11 @@
       "centerline_mm": [
         [
           94088,
-          29384
+          31700
         ],
         [
           94088,
-          29384
+          31700
         ]
       ],
       "length_mm": 0,
@@ -3662,11 +3662,11 @@
       "centerline_mm": [
         [
           94088,
-          29384
+          31700
         ],
         [
           97118,
-          29384
+          31700
         ]
       ],
       "length_mm": 3030,
@@ -3680,11 +3680,11 @@
       "centerline_mm": [
         [
           97118,
-          29384
+          31700
         ],
         [
           97118,
-          29384
+          31700
         ]
       ],
       "length_mm": 0,
@@ -3698,11 +3698,11 @@
       "centerline_mm": [
         [
           97118,
-          29384
+          31700
         ],
         [
           99138,
-          29384
+          31700
         ]
       ],
       "length_mm": 2020,
@@ -3716,11 +3716,11 @@
       "centerline_mm": [
         [
           99138,
-          29384
+          31700
         ],
         [
           99338,
-          29384
+          31700
         ]
       ],
       "length_mm": 200,
@@ -3729,93 +3729,85 @@
     {
       "id": "PRODUCT-REPAL-FINISHED",
       "source_endpoint": "REPALLETIZE:PALLET-TRANSFER",
-      "target_endpoint": "finished_goods_room-PAL-024:PALLET-TRANSFER",
+      "target_endpoint": "finished_goods_room-PAL-002:PALLET-TRANSFER",
       "purpose": "FILMED_PALLET_TO_FINISHED_STORE",
       "centerline_mm": [
         [
           99838,
-          29684
+          32000
         ],
         [
           99838,
-          31452
+          33768
         ],
         [
           99838,
-          32284
+          33961
         ],
         [
           87930,
-          32284
+          33961
         ],
         [
           87930,
-          34784
+          34600
         ],
         [
           87930,
-          36534
+          37100
         ],
         [
-          88430,
-          36534
+          87930,
+          37600
         ],
         [
-          89980,
-          36534
+          88480,
+          37600
+        ],
+        [
+          88480,
+          39150
         ]
       ],
-      "length_mm": 20808,
+      "length_mm": 19608,
       "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
     },
     {
       "id": "PRODUCT-FINISHED-DISPATCH",
-      "source_endpoint": "finished_goods_room-PAL-024:PALLET-TRANSFER",
+      "source_endpoint": "finished_goods_room-PAL-002:PALLET-TRANSFER",
       "target_endpoint": "DISPATCH-01:PALLET-TRANSFER",
       "purpose": "FINISHED_STORE_TO_DISPATCH",
       "centerline_mm": [
         [
-          89980,
-          36534
+          88480,
+          39150
         ],
         [
-          88430,
-          36534
+          88480,
+          37600
         ],
         [
-          88430,
-          36784
+          88480,
+          37350
         ],
         [
           87930,
-          36784
+          37350
         ],
         [
           85430,
-          36784
+          37350
         ],
         [
-          85352,
-          36784
-        ],
-        [
-          85352,
-          37001
-        ],
-        [
-          82648,
-          37001
-        ],
-        [
-          82648,
-          36034
+          85430,
+          38350
         ],
         [
           80987,
-          36034
+          38350
         ]
       ],
-      "length_mm": 10427,
+      "length_mm": 10293,
       "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
     },
     {

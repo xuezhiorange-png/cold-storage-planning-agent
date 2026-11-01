@@ -1,6 +1,6 @@
 {
   "task_id": "V2_2_2_AUTONOMOUS_PROCESS_FLOW_CONTINUITY_R1",
-  "calculator_version": "autonomous-process-continuity@1.2.0",
+  "calculator_version": "autonomous-process-continuity@1.2.1",
   "source_input_hash": "sha256:d9cd4110874625b5c6b92f5d32a2862de0c919d24dd2d0afae9e01fa2991380b",
   "process_parameter_hash": "sha256:ea075227ebef342b6fa7a28c13525f10ecddf37f95ce123eeabbab193f32f62e",
   "p1_handoff_hash": "sha256:469b89b0599b39f002cdcb1b6475d3d13c2a90db84babaec8b9e7eb1001834aa",
@@ -1228,6 +1228,61 @@
       "coating_depth_mm": 7100
     },
     {
+      "variant": "NORTH_GROWTH",
+      "required_existing_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "placed_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 317,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "status": "EXISTING_CAPACITY_REJECTED"
+    },
+    {
+      "variant": "COUPLED_GROUP_NORTH_OF_RETAINED_COLUMN_ROW",
+      "coating_depth_increment_mm": 1200,
+      "group_translation_north_mm": 2316,
+      "triggering_columns": [
+        "COLUMN-41485",
+        "COLUMN-41486",
+        "COLUMN-41487"
+      ],
+      "separation_assumption_mm": 100,
+      "formula": "max(trigger_column_top_mm) + separation_assumption_mm - finished_room_south_mm",
+      "finished_room_south_mm_before_translation": 33534,
+      "trigger_column_top_mm": [
+        35750,
+        35750,
+        35750
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true,
+      "required_existing_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "source": "FRESH_IN_MEMORY_ROOM_CANDIDATES",
+      "placed_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "status": "EXISTING_CAPACITY_PRESERVED"
+    },
+    {
       "variant": "ROTATE_FOUR_ERECTORS_PLUS_DISTINCT_BUFFER_AND_WORK_POSITIONS",
       "coating_service_depth": {
         "depth_mm": 8300,
@@ -1432,9 +1487,9 @@
       ],
       "new_bbox_mm": [
         90480,
-        28566,
+        30882,
         92164,
-        30202
+        32518
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1449,9 +1504,9 @@
       ],
       "new_bbox_mm": [
         92164,
-        28374,
+        30690,
         94088,
-        30394
+        32710
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1466,9 +1521,9 @@
       ],
       "new_bbox_mm": [
         94088,
-        28374,
+        30690,
         97118,
-        30394
+        32710
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1483,9 +1538,9 @@
       ],
       "new_bbox_mm": [
         97118,
-        28566,
+        30882,
         99138,
-        30202
+        32518
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1500,9 +1555,9 @@
       ],
       "new_bbox_mm": [
         89280,
-        28784,
+        31100,
         90280,
-        29984
+        32300
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1517,9 +1572,9 @@
       ],
       "new_bbox_mm": [
         99338,
-        28784,
+        31100,
         100338,
-        29984
+        32300
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1533,10 +1588,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        64834,
-        90880,
-        65834
+        86780,
+        38850,
+        87780,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1550,10 +1605,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        63634,
-        90880,
-        64634
+        87980,
+        38850,
+        88980,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1567,10 +1622,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        62434,
-        90880,
-        63434
+        89180,
+        38850,
+        90180,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1584,10 +1639,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        61234,
-        90880,
-        62234
+        90380,
+        38850,
+        91380,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1601,10 +1656,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        60034,
-        90880,
-        61034
+        91580,
+        38850,
+        92580,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1618,10 +1673,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        58834,
-        90880,
-        59834
+        92780,
+        38850,
+        93780,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1635,10 +1690,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        57634,
-        90880,
-        58634
+        93980,
+        38850,
+        94980,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1652,10 +1707,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        56434,
-        90880,
-        57434
+        95180,
+        38850,
+        96180,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1669,10 +1724,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        55234,
-        90880,
-        56234
+        96380,
+        38850,
+        97380,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1686,10 +1741,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        52834,
-        90880,
-        53834
+        97580,
+        38850,
+        98580,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1703,10 +1758,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        51634,
-        90880,
-        52634
+        98780,
+        38850,
+        99780,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1720,10 +1775,10 @@
         36534
       ],
       "new_bbox_mm": [
-        89680,
-        50434,
-        90880,
-        51434
+        99980,
+        38850,
+        100980,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1737,10 +1792,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        49234,
-        90880,
-        50234
+        101180,
+        38850,
+        102180,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1754,10 +1809,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        48034,
-        90880,
-        49034
+        102380,
+        38850,
+        103380,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1771,10 +1826,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        46834,
-        90880,
-        47834
+        103580,
+        38850,
+        104580,
+        40050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1788,10 +1843,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        45634,
-        90880,
-        46634
+        86780,
+        40150,
+        87780,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1805,10 +1860,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        44434,
-        90880,
-        45434
+        87980,
+        40150,
+        88980,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1822,10 +1877,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        43234,
-        90880,
-        44234
+        89180,
+        40150,
+        90180,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1839,10 +1894,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        42034,
-        90880,
-        43034
+        90380,
+        40150,
+        91380,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1856,10 +1911,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        40834,
-        90880,
-        41834
+        91580,
+        40150,
+        92580,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1873,10 +1928,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        39634,
-        90880,
-        40634
+        92780,
+        40150,
+        93780,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1890,10 +1945,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        38434,
-        90880,
-        39434
+        93980,
+        40150,
+        94980,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1907,10 +1962,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        37234,
-        90880,
-        38234
+        95180,
+        40150,
+        96180,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1924,10 +1979,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        36034,
-        90880,
-        37034
+        96380,
+        40150,
+        97380,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1941,10 +1996,10 @@
         37834
       ],
       "new_bbox_mm": [
-        89680,
-        33634,
-        90880,
-        34634
+        97580,
+        40150,
+        98580,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1958,10 +2013,10 @@
         37834
       ],
       "new_bbox_mm": [
-        90980,
-        64834,
-        92180,
-        65834
+        98780,
+        40150,
+        99780,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1975,10 +2030,10 @@
         37834
       ],
       "new_bbox_mm": [
-        90980,
-        63634,
-        92180,
-        64634
+        99980,
+        40150,
+        100980,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1992,10 +2047,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        62434,
-        92180,
-        63434
+        101180,
+        40150,
+        102180,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2009,10 +2064,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        61234,
-        92180,
-        62234
+        102380,
+        40150,
+        103380,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2026,10 +2081,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        60034,
-        92180,
-        61034
+        103580,
+        40150,
+        104580,
+        41350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2043,10 +2098,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        58834,
-        92180,
-        59834
+        86780,
+        41450,
+        87780,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2060,10 +2115,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        57634,
-        92180,
-        58634
+        87980,
+        41450,
+        88980,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2077,10 +2132,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        56434,
-        92180,
-        57434
+        89180,
+        41450,
+        90180,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2094,10 +2149,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        55234,
-        92180,
-        56234
+        90380,
+        41450,
+        91380,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2111,10 +2166,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        54034,
-        92180,
-        55034
+        91580,
+        41450,
+        92580,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2128,10 +2183,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        52834,
-        92180,
-        53834
+        92780,
+        41450,
+        93780,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2145,10 +2200,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        51634,
-        92180,
-        52634
+        93980,
+        41450,
+        94980,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2162,10 +2217,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        50434,
-        92180,
-        51434
+        95180,
+        41450,
+        96180,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2179,10 +2234,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        49234,
-        92180,
-        50234
+        96380,
+        41450,
+        97380,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2196,10 +2251,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        48034,
-        92180,
-        49034
+        97580,
+        41450,
+        98580,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2213,10 +2268,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        46834,
-        92180,
-        47834
+        98780,
+        41450,
+        99780,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2230,10 +2285,10 @@
         39134
       ],
       "new_bbox_mm": [
-        90980,
-        45634,
-        92180,
-        46634
+        99980,
+        41450,
+        100980,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2247,10 +2302,10 @@
         40434
       ],
       "new_bbox_mm": [
-        90980,
-        44434,
-        92180,
-        45434
+        101180,
+        41450,
+        102180,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2264,10 +2319,10 @@
         40434
       ],
       "new_bbox_mm": [
-        90980,
-        43234,
-        92180,
-        44234
+        102380,
+        41450,
+        103380,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2281,10 +2336,10 @@
         40434
       ],
       "new_bbox_mm": [
-        90980,
-        42034,
-        92180,
-        43034
+        103580,
+        41450,
+        104580,
+        42650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2298,10 +2353,10 @@
         40434
       ],
       "new_bbox_mm": [
-        90980,
-        40834,
-        92180,
-        41834
+        86780,
+        42750,
+        87780,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2315,10 +2370,10 @@
         40434
       ],
       "new_bbox_mm": [
-        90980,
-        39634,
-        92180,
-        40634
+        87980,
+        42750,
+        88980,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2332,10 +2387,10 @@
         40434
       ],
       "new_bbox_mm": [
-        90980,
-        38434,
-        92180,
-        39434
+        89180,
+        42750,
+        90180,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2349,10 +2404,10 @@
         40434
       ],
       "new_bbox_mm": [
-        90980,
-        37234,
-        92180,
-        38234
+        90380,
+        42750,
+        91380,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2366,10 +2421,10 @@
         40434
       ],
       "new_bbox_mm": [
-        90980,
-        36034,
-        92180,
-        37034
+        91580,
+        42750,
+        92580,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2383,10 +2438,10 @@
         40434
       ],
       "new_bbox_mm": [
-        90980,
-        34834,
-        92180,
-        35834
+        92780,
+        42750,
+        93780,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2400,10 +2455,10 @@
         40434
       ],
       "new_bbox_mm": [
-        90980,
-        33634,
-        92180,
-        34634
+        93980,
+        42750,
+        94980,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2417,10 +2472,10 @@
         40434
       ],
       "new_bbox_mm": [
-        92280,
-        64834,
-        93480,
-        65834
+        95180,
+        42750,
+        96180,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2434,10 +2489,10 @@
         40434
       ],
       "new_bbox_mm": [
-        92280,
-        63634,
-        93480,
-        64634
+        96380,
+        42750,
+        97380,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2451,10 +2506,10 @@
         40434
       ],
       "new_bbox_mm": [
-        92280,
-        62434,
-        93480,
-        63434
+        97580,
+        42750,
+        98580,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2468,10 +2523,10 @@
         40434
       ],
       "new_bbox_mm": [
-        92280,
-        61234,
-        93480,
-        62234
+        98780,
+        42750,
+        99780,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2485,10 +2540,10 @@
         40434
       ],
       "new_bbox_mm": [
-        92280,
-        60034,
-        93480,
-        61034
+        99980,
+        42750,
+        100980,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2502,10 +2557,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        58834,
-        93480,
-        59834
+        101180,
+        42750,
+        102180,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2519,10 +2574,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        57634,
-        93480,
-        58634
+        102380,
+        42750,
+        103380,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2536,10 +2591,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        56434,
-        93480,
-        57434
+        103580,
+        42750,
+        104580,
+        43950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2553,10 +2608,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        55234,
-        93480,
-        56234
+        86780,
+        44050,
+        87780,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2570,10 +2625,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        54034,
-        93480,
-        55034
+        87980,
+        44050,
+        88980,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2587,10 +2642,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        52834,
-        93480,
-        53834
+        89180,
+        44050,
+        90180,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2604,10 +2659,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        51634,
-        93480,
-        52634
+        90380,
+        44050,
+        91380,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2621,10 +2676,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        50434,
-        93480,
-        51434
+        91580,
+        44050,
+        92580,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2638,10 +2693,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        49234,
-        93480,
-        50234
+        92780,
+        44050,
+        93780,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2655,10 +2710,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        48034,
-        93480,
-        49034
+        93980,
+        44050,
+        94980,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2672,10 +2727,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        46834,
-        93480,
-        47834
+        95180,
+        44050,
+        96180,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2689,10 +2744,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        45634,
-        93480,
-        46634
+        96380,
+        44050,
+        97380,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2706,10 +2761,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        44434,
-        93480,
-        45434
+        97580,
+        44050,
+        98580,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2723,10 +2778,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        43234,
-        93480,
-        44234
+        98780,
+        44050,
+        99780,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2740,10 +2795,10 @@
         41734
       ],
       "new_bbox_mm": [
-        92280,
-        42034,
-        93480,
-        43034
+        99980,
+        44050,
+        100980,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2757,10 +2812,10 @@
         43034
       ],
       "new_bbox_mm": [
-        92280,
-        40834,
-        93480,
-        41834
+        101180,
+        44050,
+        102180,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2774,10 +2829,10 @@
         43034
       ],
       "new_bbox_mm": [
-        92280,
-        39634,
-        93480,
-        40634
+        102380,
+        44050,
+        103380,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2791,10 +2846,10 @@
         43034
       ],
       "new_bbox_mm": [
-        92280,
-        38434,
-        93480,
-        39434
+        103580,
+        44050,
+        104580,
+        45250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2808,10 +2863,10 @@
         43034
       ],
       "new_bbox_mm": [
-        92280,
-        37234,
-        93480,
-        38234
+        86780,
+        45350,
+        87780,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2825,10 +2880,10 @@
         43034
       ],
       "new_bbox_mm": [
-        92280,
-        36034,
-        93480,
-        37034
+        87980,
+        45350,
+        88980,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2842,10 +2897,10 @@
         43034
       ],
       "new_bbox_mm": [
-        92280,
-        34834,
-        93480,
-        35834
+        89180,
+        45350,
+        90180,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2859,10 +2914,10 @@
         43034
       ],
       "new_bbox_mm": [
-        92280,
-        33634,
-        93480,
-        34634
+        90380,
+        45350,
+        91380,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2876,10 +2931,10 @@
         43034
       ],
       "new_bbox_mm": [
-        93580,
-        64834,
-        94780,
-        65834
+        91580,
+        45350,
+        92580,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2893,10 +2948,10 @@
         43034
       ],
       "new_bbox_mm": [
-        93580,
-        63634,
-        94780,
-        64634
+        92780,
+        45350,
+        93780,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2910,10 +2965,10 @@
         43034
       ],
       "new_bbox_mm": [
-        93580,
-        62434,
-        94780,
-        63434
+        93980,
+        45350,
+        94980,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2927,10 +2982,10 @@
         43034
       ],
       "new_bbox_mm": [
-        93580,
-        61234,
-        94780,
-        62234
+        95180,
+        45350,
+        96180,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2944,10 +2999,10 @@
         43034
       ],
       "new_bbox_mm": [
-        93580,
-        60034,
-        94780,
-        61034
+        96380,
+        45350,
+        97380,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2961,10 +3016,10 @@
         43034
       ],
       "new_bbox_mm": [
-        93580,
-        58834,
-        94780,
-        59834
+        97580,
+        45350,
+        98580,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2978,10 +3033,10 @@
         43034
       ],
       "new_bbox_mm": [
-        93580,
-        57634,
-        94780,
-        58634
+        98780,
+        45350,
+        99780,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -2995,10 +3050,10 @@
         43034
       ],
       "new_bbox_mm": [
-        93580,
-        56434,
-        94780,
-        57434
+        99980,
+        45350,
+        100980,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3012,10 +3067,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        55234,
-        94780,
-        56234
+        101180,
+        45350,
+        102180,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3029,10 +3084,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        54034,
-        94780,
-        55034
+        102380,
+        45350,
+        103380,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3046,10 +3101,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        52834,
-        94780,
-        53834
+        103580,
+        45350,
+        104580,
+        46550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3063,10 +3118,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        51634,
-        94780,
-        52634
+        86780,
+        46650,
+        87780,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3080,10 +3135,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        50434,
-        94780,
-        51434
+        87980,
+        46650,
+        88980,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3097,10 +3152,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        49234,
-        94780,
-        50234
+        89180,
+        46650,
+        90180,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3114,10 +3169,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        48034,
-        94780,
-        49034
+        90380,
+        46650,
+        91380,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3131,10 +3186,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        46834,
-        94780,
-        47834
+        91580,
+        46650,
+        92580,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3148,10 +3203,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        45634,
-        94780,
-        46634
+        92780,
+        46650,
+        93780,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3165,10 +3220,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        44434,
-        94780,
-        45434
+        93980,
+        46650,
+        94980,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3182,10 +3237,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        43234,
-        94780,
-        44234
+        95180,
+        46650,
+        96180,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3199,10 +3254,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        42034,
-        94780,
-        43034
+        96380,
+        46650,
+        97380,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3216,10 +3271,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        40834,
-        94780,
-        41834
+        97580,
+        46650,
+        98580,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3233,10 +3288,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        39634,
-        94780,
-        40634
+        98780,
+        46650,
+        99780,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3250,10 +3305,10 @@
         44334
       ],
       "new_bbox_mm": [
-        93580,
-        38434,
-        94780,
-        39434
+        99980,
+        46650,
+        100980,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3267,10 +3322,10 @@
         45634
       ],
       "new_bbox_mm": [
-        93580,
-        37234,
-        94780,
-        38234
+        101180,
+        46650,
+        102180,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3284,10 +3339,10 @@
         45634
       ],
       "new_bbox_mm": [
-        93580,
-        36034,
-        94780,
-        37034
+        102380,
+        46650,
+        103380,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3301,10 +3356,10 @@
         45634
       ],
       "new_bbox_mm": [
-        93580,
-        34834,
-        94780,
-        35834
+        103580,
+        46650,
+        104580,
+        47850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3318,10 +3373,10 @@
         45634
       ],
       "new_bbox_mm": [
-        93580,
-        33634,
-        94780,
-        34634
+        86780,
+        47950,
+        87780,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3335,10 +3390,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        64834,
-        96080,
-        65834
+        87980,
+        47950,
+        88980,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3352,10 +3407,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        63634,
-        96080,
-        64634
+        89180,
+        47950,
+        90180,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3369,10 +3424,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        62434,
-        96080,
-        63434
+        90380,
+        47950,
+        91380,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3386,10 +3441,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        61234,
-        96080,
-        62234
+        91580,
+        47950,
+        92580,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3403,10 +3458,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        60034,
-        96080,
-        61034
+        92780,
+        47950,
+        93780,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3420,10 +3475,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        58834,
-        96080,
-        59834
+        93980,
+        47950,
+        94980,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3437,10 +3492,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        57634,
-        96080,
-        58634
+        95180,
+        47950,
+        96180,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3454,10 +3509,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        56434,
-        96080,
-        57434
+        96380,
+        47950,
+        97380,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3471,10 +3526,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        55234,
-        96080,
-        56234
+        97580,
+        47950,
+        98580,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3488,10 +3543,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        52834,
-        96080,
-        53834
+        98780,
+        47950,
+        99780,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3505,10 +3560,10 @@
         45634
       ],
       "new_bbox_mm": [
-        94880,
-        51634,
-        96080,
-        52634
+        99980,
+        47950,
+        100980,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3522,10 +3577,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        50434,
-        96080,
-        51434
+        101180,
+        47950,
+        102180,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3539,10 +3594,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        49234,
-        96080,
-        50234
+        102380,
+        47950,
+        103380,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3556,10 +3611,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        48034,
-        96080,
-        49034
+        103580,
+        47950,
+        104580,
+        49150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3573,10 +3628,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        46834,
-        96080,
-        47834
+        86780,
+        49250,
+        87780,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3590,10 +3645,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        45634,
-        96080,
-        46634
+        87980,
+        49250,
+        88980,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3607,10 +3662,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        44434,
-        96080,
-        45434
+        89180,
+        49250,
+        90180,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3624,10 +3679,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        43234,
-        96080,
-        44234
+        90380,
+        49250,
+        91380,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3641,10 +3696,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        42034,
-        96080,
-        43034
+        91580,
+        49250,
+        92580,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3658,10 +3713,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        40834,
-        96080,
-        41834
+        92780,
+        49250,
+        93780,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3675,10 +3730,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        39634,
-        96080,
-        40634
+        93980,
+        49250,
+        94980,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3692,10 +3747,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        38434,
-        96080,
-        39434
+        95180,
+        49250,
+        96180,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3709,10 +3764,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        37234,
-        96080,
-        38234
+        96380,
+        49250,
+        97380,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3726,10 +3781,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        36034,
-        96080,
-        37034
+        97580,
+        49250,
+        98580,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3743,10 +3798,10 @@
         46934
       ],
       "new_bbox_mm": [
-        94880,
-        33634,
-        96080,
-        34634
+        98780,
+        49250,
+        99780,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3760,10 +3815,10 @@
         46934
       ],
       "new_bbox_mm": [
-        96180,
-        64834,
-        97380,
-        65834
+        99980,
+        49250,
+        100980,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3777,10 +3832,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        63634,
-        97380,
-        64634
+        101180,
+        49250,
+        102180,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3794,10 +3849,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        62434,
-        97380,
-        63434
+        102380,
+        49250,
+        103380,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3811,10 +3866,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        61234,
-        97380,
-        62234
+        103580,
+        49250,
+        104580,
+        50450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3828,10 +3883,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        60034,
-        97380,
-        61034
+        86780,
+        50550,
+        87780,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3845,10 +3900,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        58834,
-        97380,
-        59834
+        87980,
+        50550,
+        88980,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3862,10 +3917,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        57634,
-        97380,
-        58634
+        89180,
+        50550,
+        90180,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3879,10 +3934,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        56434,
-        97380,
-        57434
+        90380,
+        50550,
+        91380,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3896,10 +3951,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        55234,
-        97380,
-        56234
+        91580,
+        50550,
+        92580,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3913,10 +3968,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        54034,
-        97380,
-        55034
+        92780,
+        50550,
+        93780,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3930,10 +3985,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        52834,
-        97380,
-        53834
+        93980,
+        50550,
+        94980,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3947,10 +4002,10 @@
         48234
       ],
       "new_bbox_mm": [
+        95180,
+        50550,
         96180,
-        51634,
-        97380,
-        52634
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3964,10 +4019,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        50434,
+        96380,
+        50550,
         97380,
-        51434
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3981,10 +4036,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        49234,
-        97380,
-        50234
+        97580,
+        50550,
+        98580,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -3998,10 +4053,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        48034,
-        97380,
-        49034
+        98780,
+        50550,
+        99780,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4015,10 +4070,10 @@
         48234
       ],
       "new_bbox_mm": [
-        96180,
-        46834,
-        97380,
-        47834
+        99980,
+        50550,
+        100980,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4032,10 +4087,10 @@
         49534
       ],
       "new_bbox_mm": [
-        96180,
-        45634,
-        97380,
-        46634
+        101180,
+        50550,
+        102180,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4049,10 +4104,10 @@
         49534
       ],
       "new_bbox_mm": [
-        96180,
-        44434,
-        97380,
-        45434
+        102380,
+        50550,
+        103380,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4066,10 +4121,10 @@
         49534
       ],
       "new_bbox_mm": [
-        96180,
-        43234,
-        97380,
-        44234
+        103580,
+        50550,
+        104580,
+        51750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4083,10 +4138,10 @@
         49534
       ],
       "new_bbox_mm": [
-        96180,
-        42034,
-        97380,
-        43034
+        86780,
+        51850,
+        87780,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4100,10 +4155,10 @@
         49534
       ],
       "new_bbox_mm": [
-        96180,
-        40834,
-        97380,
-        41834
+        87980,
+        51850,
+        88980,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4117,10 +4172,10 @@
         49534
       ],
       "new_bbox_mm": [
-        96180,
-        39634,
-        97380,
-        40634
+        89180,
+        51850,
+        90180,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4134,10 +4189,10 @@
         49534
       ],
       "new_bbox_mm": [
-        96180,
-        38434,
-        97380,
-        39434
+        90380,
+        51850,
+        91380,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4151,10 +4206,10 @@
         49534
       ],
       "new_bbox_mm": [
-        96180,
-        37234,
-        97380,
-        38234
+        91580,
+        51850,
+        92580,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4168,10 +4223,10 @@
         49534
       ],
       "new_bbox_mm": [
-        96180,
-        36034,
-        97380,
-        37034
+        92780,
+        51850,
+        93780,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4185,10 +4240,10 @@
         49534
       ],
       "new_bbox_mm": [
-        96180,
-        34834,
-        97380,
-        35834
+        93980,
+        51850,
+        94980,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4202,10 +4257,10 @@
         49534
       ],
       "new_bbox_mm": [
+        95180,
+        51850,
         96180,
-        33634,
-        97380,
-        34634
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4219,10 +4274,10 @@
         49534
       ],
       "new_bbox_mm": [
-        97480,
-        64834,
-        98680,
-        65834
+        96380,
+        51850,
+        97380,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4236,10 +4291,10 @@
         49534
       ],
       "new_bbox_mm": [
-        97480,
-        63634,
-        98680,
-        64634
+        97580,
+        51850,
+        98580,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4253,10 +4308,10 @@
         49534
       ],
       "new_bbox_mm": [
-        97480,
-        62434,
-        98680,
-        63434
+        98780,
+        51850,
+        99780,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4270,10 +4325,10 @@
         49534
       ],
       "new_bbox_mm": [
-        97480,
-        61234,
-        98680,
-        62234
+        99980,
+        51850,
+        100980,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4287,10 +4342,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        60034,
-        98680,
-        61034
+        101180,
+        51850,
+        102180,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4304,10 +4359,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        58834,
-        98680,
-        59834
+        102380,
+        51850,
+        103380,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4321,10 +4376,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        57634,
-        98680,
-        58634
+        103580,
+        51850,
+        104580,
+        53050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4338,10 +4393,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        56434,
-        98680,
-        57434
+        86780,
+        53150,
+        87780,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4355,10 +4410,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        55234,
-        98680,
-        56234
+        87980,
+        53150,
+        88980,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4372,10 +4427,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        54034,
-        98680,
-        55034
+        90380,
+        53150,
+        91380,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4389,10 +4444,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        52834,
-        98680,
-        53834
+        91580,
+        53150,
+        92580,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4406,10 +4461,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        51634,
-        98680,
-        52634
+        92780,
+        53150,
+        93780,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4423,10 +4478,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        50434,
-        98680,
-        51434
+        93980,
+        53150,
+        94980,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4440,10 +4495,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        49234,
-        98680,
-        50234
+        96380,
+        53150,
+        97380,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4457,10 +4512,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        48034,
-        98680,
-        49034
+        97580,
+        53150,
+        98580,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4474,10 +4529,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        46834,
-        98680,
-        47834
+        98780,
+        53150,
+        99780,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4491,10 +4546,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        45634,
-        98680,
-        46634
+        99980,
+        53150,
+        100980,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4508,10 +4563,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        44434,
-        98680,
-        45434
+        102380,
+        53150,
+        103380,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4525,10 +4580,10 @@
         50834
       ],
       "new_bbox_mm": [
-        97480,
-        43234,
-        98680,
-        44234
+        103580,
+        53150,
+        104580,
+        54350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4542,10 +4597,10 @@
         52134
       ],
       "new_bbox_mm": [
-        97480,
-        42034,
-        98680,
-        43034
+        86780,
+        54450,
+        87780,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4559,10 +4614,10 @@
         52134
       ],
       "new_bbox_mm": [
-        97480,
-        40834,
-        98680,
-        41834
+        87980,
+        54450,
+        88980,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4576,10 +4631,10 @@
         52134
       ],
       "new_bbox_mm": [
-        97480,
-        39634,
-        98680,
-        40634
+        89180,
+        54450,
+        90180,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4593,10 +4648,10 @@
         52134
       ],
       "new_bbox_mm": [
-        97480,
-        38434,
-        98680,
-        39434
+        90380,
+        54450,
+        91380,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4610,10 +4665,10 @@
         52134
       ],
       "new_bbox_mm": [
-        97480,
-        37234,
-        98680,
-        38234
+        91580,
+        54450,
+        92580,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4627,10 +4682,10 @@
         52134
       ],
       "new_bbox_mm": [
-        97480,
-        36034,
-        98680,
-        37034
+        92780,
+        54450,
+        93780,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4644,10 +4699,10 @@
         52134
       ],
       "new_bbox_mm": [
-        97480,
-        34834,
-        98680,
-        35834
+        93980,
+        54450,
+        94980,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4661,10 +4716,10 @@
         52134
       ],
       "new_bbox_mm": [
-        97480,
-        33634,
-        98680,
-        34634
+        95180,
+        54450,
+        96180,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4678,10 +4733,10 @@
         52134
       ],
       "new_bbox_mm": [
-        98780,
-        64834,
-        99980,
-        65834
+        96380,
+        54450,
+        97380,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4695,10 +4750,10 @@
         52134
       ],
       "new_bbox_mm": [
-        98780,
-        63634,
-        99980,
-        64634
+        97580,
+        54450,
+        98580,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4713,9 +4768,9 @@
       ],
       "new_bbox_mm": [
         98780,
-        62434,
-        99980,
-        63434
+        54450,
+        99780,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4729,10 +4784,10 @@
         52134
       ],
       "new_bbox_mm": [
-        98780,
-        61234,
         99980,
-        62234
+        54450,
+        100980,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4746,10 +4801,10 @@
         52134
       ],
       "new_bbox_mm": [
-        98780,
-        60034,
-        99980,
-        61034
+        101180,
+        54450,
+        102180,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4763,10 +4818,10 @@
         52134
       ],
       "new_bbox_mm": [
-        98780,
-        58834,
-        99980,
-        59834
+        102380,
+        54450,
+        103380,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4780,10 +4835,10 @@
         52134
       ],
       "new_bbox_mm": [
-        98780,
-        57634,
-        99980,
-        58634
+        103580,
+        54450,
+        104580,
+        55650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4797,10 +4852,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        56434,
-        99980,
-        57434
+        86780,
+        55750,
+        87780,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4814,10 +4869,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        55234,
-        99980,
-        56234
+        87980,
+        55750,
+        88980,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4831,10 +4886,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        54034,
-        99980,
-        55034
+        89180,
+        55750,
+        90180,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4848,10 +4903,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        52834,
-        99980,
-        53834
+        90380,
+        55750,
+        91380,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4865,10 +4920,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        51634,
-        99980,
-        52634
+        91580,
+        55750,
+        92580,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4882,10 +4937,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        50434,
-        99980,
-        51434
+        92780,
+        55750,
+        93780,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4899,10 +4954,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        49234,
-        99980,
-        50234
+        93980,
+        55750,
+        94980,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4916,10 +4971,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        48034,
-        99980,
-        49034
+        95180,
+        55750,
+        96180,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4933,10 +4988,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        46834,
-        99980,
-        47834
+        96380,
+        55750,
+        97380,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4950,10 +5005,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        45634,
-        99980,
-        46634
+        97580,
+        55750,
+        98580,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4968,9 +5023,9 @@
       ],
       "new_bbox_mm": [
         98780,
-        44434,
-        99980,
-        45434
+        55750,
+        99780,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -4984,10 +5039,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        43234,
         99980,
-        44234
+        55750,
+        100980,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5001,10 +5056,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        42034,
-        99980,
-        43034
+        101180,
+        55750,
+        102180,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5018,10 +5073,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        40834,
-        99980,
-        41834
+        102380,
+        55750,
+        103380,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5035,10 +5090,10 @@
         53434
       ],
       "new_bbox_mm": [
-        98780,
-        39634,
-        99980,
-        40634
+        103580,
+        55750,
+        104580,
+        56950
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5052,10 +5107,10 @@
         54734
       ],
       "new_bbox_mm": [
-        98780,
-        38434,
-        99980,
-        39434
+        86780,
+        57050,
+        87780,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5069,10 +5124,10 @@
         54734
       ],
       "new_bbox_mm": [
-        98780,
-        37234,
-        99980,
-        38234
+        87980,
+        57050,
+        88980,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5086,10 +5141,10 @@
         54734
       ],
       "new_bbox_mm": [
-        98780,
-        36034,
-        99980,
-        37034
+        89180,
+        57050,
+        90180,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5103,10 +5158,10 @@
         54734
       ],
       "new_bbox_mm": [
-        98780,
-        34834,
-        99980,
-        35834
+        90380,
+        57050,
+        91380,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5120,10 +5175,10 @@
         54734
       ],
       "new_bbox_mm": [
-        98780,
-        33634,
-        99980,
-        34634
+        91580,
+        57050,
+        92580,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5137,10 +5192,10 @@
         54734
       ],
       "new_bbox_mm": [
-        100080,
-        64834,
-        101280,
-        65834
+        92780,
+        57050,
+        93780,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5154,10 +5209,10 @@
         54734
       ],
       "new_bbox_mm": [
-        100080,
-        63634,
-        101280,
-        64634
+        93980,
+        57050,
+        94980,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5171,10 +5226,10 @@
         54734
       ],
       "new_bbox_mm": [
-        100080,
-        62434,
-        101280,
-        63434
+        95180,
+        57050,
+        96180,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5188,10 +5243,10 @@
         54734
       ],
       "new_bbox_mm": [
-        100080,
-        61234,
-        101280,
-        62234
+        96380,
+        57050,
+        97380,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5205,10 +5260,10 @@
         54734
       ],
       "new_bbox_mm": [
-        100080,
-        60034,
-        101280,
-        61034
+        97580,
+        57050,
+        98580,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5222,10 +5277,10 @@
         54734
       ],
       "new_bbox_mm": [
-        100080,
-        58834,
-        101280,
-        59834
+        98780,
+        57050,
+        99780,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5239,10 +5294,10 @@
         54734
       ],
       "new_bbox_mm": [
-        100080,
-        57634,
-        101280,
-        58634
+        99980,
+        57050,
+        100980,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5256,10 +5311,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        56434,
-        101280,
-        57434
+        101180,
+        57050,
+        102180,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5273,10 +5328,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        55234,
-        101280,
-        56234
+        102380,
+        57050,
+        103380,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5290,10 +5345,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        52834,
-        101280,
-        53834
+        103580,
+        57050,
+        104580,
+        58250
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5307,10 +5362,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        51634,
-        101280,
-        52634
+        86780,
+        58350,
+        87780,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5324,10 +5379,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        50434,
-        101280,
-        51434
+        87980,
+        58350,
+        88980,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5341,10 +5396,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        49234,
-        101280,
-        50234
+        89180,
+        58350,
+        90180,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5358,10 +5413,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        48034,
-        101280,
-        49034
+        90380,
+        58350,
+        91380,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5375,10 +5430,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        46834,
-        101280,
-        47834
+        91580,
+        58350,
+        92580,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5392,10 +5447,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        45634,
-        101280,
-        46634
+        92780,
+        58350,
+        93780,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5409,10 +5464,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        44434,
-        101280,
-        45434
+        93980,
+        58350,
+        94980,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5426,10 +5481,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        43234,
-        101280,
-        44234
+        95180,
+        58350,
+        96180,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5443,10 +5498,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        42034,
-        101280,
-        43034
+        96380,
+        58350,
+        97380,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5460,10 +5515,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        40834,
-        101280,
-        41834
+        97580,
+        58350,
+        98580,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5477,10 +5532,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        39634,
-        101280,
-        40634
+        98780,
+        58350,
+        99780,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5494,10 +5549,10 @@
         56034
       ],
       "new_bbox_mm": [
-        100080,
-        38434,
-        101280,
-        39434
+        99980,
+        58350,
+        100980,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5511,10 +5566,10 @@
         57334
       ],
       "new_bbox_mm": [
-        100080,
-        37234,
-        101280,
-        38234
+        101180,
+        58350,
+        102180,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5528,10 +5583,10 @@
         57334
       ],
       "new_bbox_mm": [
-        100080,
-        36034,
-        101280,
-        37034
+        102380,
+        58350,
+        103380,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5545,10 +5600,10 @@
         57334
       ],
       "new_bbox_mm": [
-        100080,
-        34834,
-        101280,
-        35834
+        103580,
+        58350,
+        104580,
+        59550
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5562,10 +5617,10 @@
         57334
       ],
       "new_bbox_mm": [
-        100080,
-        33634,
-        101280,
-        34634
+        86780,
+        59650,
+        87780,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5579,10 +5634,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        64834,
-        102580,
-        65834
+        87980,
+        59650,
+        88980,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5596,10 +5651,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        63634,
-        102580,
-        64634
+        89180,
+        59650,
+        90180,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5613,10 +5668,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        62434,
-        102580,
-        63434
+        90380,
+        59650,
+        91380,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5630,10 +5685,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        61234,
-        102580,
-        62234
+        91580,
+        59650,
+        92580,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5647,10 +5702,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        60034,
-        102580,
-        61034
+        92780,
+        59650,
+        93780,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5664,10 +5719,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        58834,
-        102580,
-        59834
+        93980,
+        59650,
+        94980,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5681,10 +5736,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        57634,
-        102580,
-        58634
+        95180,
+        59650,
+        96180,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5698,10 +5753,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        56434,
-        102580,
-        57434
+        96380,
+        59650,
+        97380,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5715,10 +5770,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        55234,
-        102580,
-        56234
+        97580,
+        59650,
+        98580,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5732,10 +5787,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        52834,
-        102580,
-        53834
+        98780,
+        59650,
+        99780,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5749,10 +5804,10 @@
         57334
       ],
       "new_bbox_mm": [
-        101380,
-        51634,
-        102580,
-        52634
+        99980,
+        59650,
+        100980,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5766,10 +5821,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        50434,
-        102580,
-        51434
+        101180,
+        59650,
+        102180,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5783,10 +5838,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        49234,
-        102580,
-        50234
+        102380,
+        59650,
+        103380,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5800,10 +5855,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        48034,
-        102580,
-        49034
+        103580,
+        59650,
+        104580,
+        60850
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5817,10 +5872,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        46834,
-        102580,
-        47834
+        86780,
+        60950,
+        87780,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5834,10 +5889,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        45634,
-        102580,
-        46634
+        87980,
+        60950,
+        88980,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5851,10 +5906,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        44434,
-        102580,
-        45434
+        89180,
+        60950,
+        90180,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5868,10 +5923,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        43234,
-        102580,
-        44234
+        90380,
+        60950,
+        91380,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5885,10 +5940,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        42034,
-        102580,
-        43034
+        91580,
+        60950,
+        92580,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5902,10 +5957,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        40834,
-        102580,
-        41834
+        92780,
+        60950,
+        93780,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5919,10 +5974,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        39634,
-        102580,
-        40634
+        93980,
+        60950,
+        94980,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5936,10 +5991,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        38434,
-        102580,
-        39434
+        95180,
+        60950,
+        96180,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5953,10 +6008,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        37234,
-        102580,
-        38234
+        96380,
+        60950,
+        97380,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5970,10 +6025,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        36034,
-        102580,
-        37034
+        97580,
+        60950,
+        98580,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -5987,10 +6042,10 @@
         58634
       ],
       "new_bbox_mm": [
-        101380,
-        33634,
-        102580,
-        34634
+        98780,
+        60950,
+        99780,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6004,10 +6059,10 @@
         58634
       ],
       "new_bbox_mm": [
-        102680,
-        64834,
-        103880,
-        65834
+        99980,
+        60950,
+        100980,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6021,10 +6076,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        63634,
-        103880,
-        64634
+        101180,
+        60950,
+        102180,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6038,10 +6093,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        62434,
-        103880,
-        63434
+        102380,
+        60950,
+        103380,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6055,10 +6110,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        61234,
-        103880,
-        62234
+        103580,
+        60950,
+        104580,
+        62150
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6072,10 +6127,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        60034,
-        103880,
-        61034
+        86780,
+        62250,
+        87780,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6089,10 +6144,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        58834,
-        103880,
-        59834
+        87980,
+        62250,
+        88980,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6106,10 +6161,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        57634,
-        103880,
-        58634
+        89180,
+        62250,
+        90180,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6123,10 +6178,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        56434,
-        103880,
-        57434
+        90380,
+        62250,
+        91380,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6140,10 +6195,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        55234,
-        103880,
-        56234
+        91580,
+        62250,
+        92580,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6157,10 +6212,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        54034,
-        103880,
-        55034
+        92780,
+        62250,
+        93780,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6174,10 +6229,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        52834,
-        103880,
-        53834
+        93980,
+        62250,
+        94980,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6191,10 +6246,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        51634,
-        103880,
-        52634
+        95180,
+        62250,
+        96180,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6208,10 +6263,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        50434,
-        103880,
-        51434
+        96380,
+        62250,
+        97380,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6225,10 +6280,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        49234,
-        103880,
-        50234
+        97580,
+        62250,
+        98580,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6242,10 +6297,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        48034,
-        103880,
-        49034
+        98780,
+        62250,
+        99780,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6259,10 +6314,10 @@
         59934
       ],
       "new_bbox_mm": [
-        102680,
-        46834,
-        103880,
-        47834
+        99980,
+        62250,
+        100980,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6276,10 +6331,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        45634,
-        103880,
-        46634
+        101180,
+        62250,
+        102180,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6293,10 +6348,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        44434,
-        103880,
-        45434
+        102380,
+        62250,
+        103380,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6310,10 +6365,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        43234,
-        103880,
-        44234
+        103580,
+        62250,
+        104580,
+        63450
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6327,10 +6382,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        42034,
-        103880,
-        43034
+        86780,
+        63550,
+        87780,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6344,10 +6399,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        40834,
-        103880,
-        41834
+        87980,
+        63550,
+        88980,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6361,10 +6416,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        39634,
-        103880,
-        40634
+        89180,
+        63550,
+        90180,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6378,10 +6433,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        38434,
-        103880,
-        39434
+        90380,
+        63550,
+        91380,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6395,10 +6450,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        37234,
-        103880,
-        38234
+        91580,
+        63550,
+        92580,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6412,10 +6467,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        36034,
-        103880,
-        37034
+        92780,
+        63550,
+        93780,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6429,10 +6484,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        34834,
-        103880,
-        35834
+        93980,
+        63550,
+        94980,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6446,10 +6501,10 @@
         61234
       ],
       "new_bbox_mm": [
-        102680,
-        33634,
-        103880,
-        34634
+        95180,
+        63550,
+        96180,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6463,10 +6518,10 @@
         61234
       ],
       "new_bbox_mm": [
-        103980,
-        64834,
-        105180,
-        65834
+        96380,
+        63550,
+        97380,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6480,10 +6535,10 @@
         61234
       ],
       "new_bbox_mm": [
-        103980,
-        63634,
-        105180,
-        64634
+        97580,
+        63550,
+        98580,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6497,10 +6552,10 @@
         61234
       ],
       "new_bbox_mm": [
-        103980,
-        62434,
-        105180,
-        63434
+        98780,
+        63550,
+        99780,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6514,10 +6569,10 @@
         61234
       ],
       "new_bbox_mm": [
-        103980,
-        61234,
-        105180,
-        62234
+        99980,
+        63550,
+        100980,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6531,10 +6586,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        60034,
-        105180,
-        61034
+        101180,
+        63550,
+        102180,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6548,10 +6603,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        58834,
-        105180,
-        59834
+        102380,
+        63550,
+        103380,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6565,10 +6620,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        57634,
-        105180,
-        58634
+        103580,
+        63550,
+        104580,
+        64750
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6582,10 +6637,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        56434,
-        105180,
-        57434
+        86780,
+        64850,
+        87780,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6599,10 +6654,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        55234,
-        105180,
-        56234
+        87980,
+        64850,
+        88980,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6616,10 +6671,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        54034,
-        105180,
-        55034
+        89180,
+        64850,
+        90180,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6633,10 +6688,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        52834,
-        105180,
-        53834
+        90380,
+        64850,
+        91380,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6650,10 +6705,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        51634,
-        105180,
-        52634
+        91580,
+        64850,
+        92580,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6667,10 +6722,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        50434,
-        105180,
-        51434
+        92780,
+        64850,
+        93780,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6684,10 +6739,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        49234,
-        105180,
-        50234
+        93980,
+        64850,
+        94980,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6701,10 +6756,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        48034,
-        105180,
-        49034
+        95180,
+        64850,
+        96180,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6718,10 +6773,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        46834,
-        105180,
-        47834
+        96380,
+        64850,
+        97380,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6735,10 +6790,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        45634,
-        105180,
-        46634
+        97580,
+        64850,
+        98580,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6752,10 +6807,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        44434,
-        105180,
-        45434
+        98780,
+        64850,
+        99780,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6769,10 +6824,10 @@
         62534
       ],
       "new_bbox_mm": [
-        103980,
-        43234,
-        105180,
-        44234
+        99980,
+        64850,
+        100980,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6786,10 +6841,10 @@
         63834
       ],
       "new_bbox_mm": [
-        103980,
-        42034,
-        105180,
-        43034
+        101180,
+        64850,
+        102180,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6803,10 +6858,10 @@
         63834
       ],
       "new_bbox_mm": [
-        103980,
-        40834,
-        105180,
-        41834
+        102380,
+        64850,
+        103380,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6820,10 +6875,10 @@
         63834
       ],
       "new_bbox_mm": [
-        103980,
-        39634,
-        105180,
-        40634
+        103580,
+        64850,
+        104580,
+        66050
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6837,10 +6892,10 @@
         63834
       ],
       "new_bbox_mm": [
-        103980,
-        38434,
-        105180,
-        39434
+        86780,
+        66150,
+        87780,
+        67350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6854,10 +6909,10 @@
         63834
       ],
       "new_bbox_mm": [
-        103980,
-        37234,
-        105180,
-        38234
+        87980,
+        66150,
+        88980,
+        67350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6871,10 +6926,10 @@
         63834
       ],
       "new_bbox_mm": [
-        103980,
-        36034,
-        105180,
-        37034
+        89180,
+        66150,
+        90180,
+        67350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6888,10 +6943,10 @@
         63834
       ],
       "new_bbox_mm": [
-        103980,
-        34834,
-        105180,
-        35834
+        90380,
+        66150,
+        91380,
+        67350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -6905,10 +6960,129 @@
         63834
       ],
       "new_bbox_mm": [
-        103980,
-        33634,
-        105180,
-        34634
+        91580,
+        66150,
+        92580,
+        67350
+      ],
+      "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
+    },
+    {
+      "id": "finished_goods_room-PAL-318",
+      "kind": "finished_goods_room_pallet",
+      "old_bbox_mm": [
+        96380,
+        62634,
+        97380,
+        63834
+      ],
+      "new_bbox_mm": [
+        92780,
+        66150,
+        93780,
+        67350
+      ],
+      "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
+    },
+    {
+      "id": "finished_goods_room-PAL-319",
+      "kind": "finished_goods_room_pallet",
+      "old_bbox_mm": [
+        97580,
+        62634,
+        98580,
+        63834
+      ],
+      "new_bbox_mm": [
+        93980,
+        66150,
+        94980,
+        67350
+      ],
+      "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
+    },
+    {
+      "id": "finished_goods_room-PAL-320",
+      "kind": "finished_goods_room_pallet",
+      "old_bbox_mm": [
+        98780,
+        62634,
+        99780,
+        63834
+      ],
+      "new_bbox_mm": [
+        95180,
+        66150,
+        96180,
+        67350
+      ],
+      "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
+    },
+    {
+      "id": "finished_goods_room-PAL-321",
+      "kind": "finished_goods_room_pallet",
+      "old_bbox_mm": [
+        99980,
+        62634,
+        100980,
+        63834
+      ],
+      "new_bbox_mm": [
+        96380,
+        66150,
+        97380,
+        67350
+      ],
+      "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
+    },
+    {
+      "id": "finished_goods_room-PAL-322",
+      "kind": "finished_goods_room_pallet",
+      "old_bbox_mm": [
+        101180,
+        62634,
+        102180,
+        63834
+      ],
+      "new_bbox_mm": [
+        97580,
+        66150,
+        98580,
+        67350
+      ],
+      "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
+    },
+    {
+      "id": "finished_goods_room-PAL-323",
+      "kind": "finished_goods_room_pallet",
+      "old_bbox_mm": [
+        102380,
+        62634,
+        103380,
+        63834
+      ],
+      "new_bbox_mm": [
+        98780,
+        66150,
+        99780,
+        67350
+      ],
+      "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
+    },
+    {
+      "id": "finished_goods_room-PAL-324",
+      "kind": "finished_goods_room_pallet",
+      "old_bbox_mm": [
+        103580,
+        62634,
+        104580,
+        63834
+      ],
+      "new_bbox_mm": [
+        99980,
+        66150,
+        100980,
+        67350
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -7170,9 +7344,9 @@
       "old_bbox_mm": null,
       "new_bbox_mm": [
         80487,
-        35134,
+        37450,
         81487,
-        36334
+        38650
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     }
@@ -7188,11 +7362,13 @@
       ],
       "new_bbox_mm": [
         86680,
-        25234,
+        27550,
         102980,
-        33534
+        35850
       ],
-      "added_area_m2": "19.56"
+      "added_area_m2": "19.56",
+      "translation_x_mm": 0,
+      "translation_y_mm": 2316
     },
     {
       "zone_code": "finished_goods_room",
@@ -7204,11 +7380,13 @@
       ],
       "new_bbox_mm": [
         86680,
-        33534,
+        35850,
         105280,
-        65934
+        68250
       ],
-      "added_area_m2": "0.00"
+      "added_area_m2": "0.00",
+      "translation_x_mm": 0,
+      "translation_y_mm": 3516
     },
     {
       "zone_code": "office",
@@ -7220,11 +7398,13 @@
       ],
       "new_bbox_mm": [
         76880,
-        40034,
+        42350,
         84626,
-        47780
+        50096
       ],
-      "added_area_m2": "0.000000"
+      "added_area_m2": "0.000000",
+      "translation_x_mm": 0,
+      "translation_y_mm": 3516
     },
     {
       "zone_code": "shipping_channel",
@@ -7236,11 +7416,13 @@
       ],
       "new_bbox_mm": [
         78987,
-        33534,
+        35850,
         86680,
-        40034
+        42350
       ],
-      "added_area_m2": "0.0000"
+      "added_area_m2": "0.0000",
+      "translation_x_mm": 0,
+      "translation_y_mm": 3516
     }
   ],
   "room_search_runs": [
@@ -7746,11 +7928,11 @@
   "grant_claim_accessed": false,
   "production_default_changed": false,
   "global_infeasibility_proven": false,
-  "result_hash": "sha256:9203afcfc2b6abd12a5ac988585088d1941e20730b36ec3c75bcd3fa4543f345",
+  "result_hash": "sha256:cd3a0fd638fd7a51b633d14458e57f3a4737007e8a40ec2ea13dea03d7b15383",
   "candidates": [
     {
       "file": "autonomous-layout-A12.json",
-      "result_hash": "sha256:9bad1a80516b2916bfd4452177d8377e6ea699d733fa0d00777ede3dd5879d3e"
+      "result_hash": "sha256:4a6ed0f1ca6094f9fc6177bc807a96e221b7a416b4a88b11370c1d6b3eba10b2"
     }
   ]
 }

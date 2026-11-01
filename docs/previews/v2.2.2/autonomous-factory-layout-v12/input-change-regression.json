@@ -11,12 +11,12 @@
     "name": "成品间",
     "bbox_mm": [
       86680,
-      33534,
+      35850,
       105280,
-      65934
+      68250
     ],
     "x_mm": 86680,
-    "y_mm": 33534,
+    "y_mm": 35850,
     "width_mm": 18600,
     "depth_mm": 32400,
     "authority_width_m": "32.4",
@@ -34,14 +34,11 @@
     },
     "internal_columns": [
       "COLUMN-41502",
-      "COLUMN-41485",
       "COLUMN-41976",
-      "COLUMN-41486",
-      "COLUMN-41977",
-      "COLUMN-41487"
+      "COLUMN-41977"
     ],
-    "column_area_m2": "0.3603",
-    "floor_minus_columns_m2": "602.2797",
+    "column_area_m2": "0.1785",
+    "floor_minus_columns_m2": "602.4615",
     "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
   },
   "after_room": {
@@ -82,7 +79,7 @@
     "floor_minus_columns_m2": "661.0797",
     "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
   },
-  "source_after_result_hash": "sha256:616583ed5507ef5af7aa6b19b057a9a8881aecd7ea5abeec24f5ad28e2a912da",
+  "source_after_result_hash": "sha256:009841ec7c4a8e1e8dd55e36ffb42cb0f011dd2ebc8cfa0f8ff691233b502be8",
   "after_status": "INTERRUPTED_PROCESS_CANDIDATE",
   "remaining_static_conflicts": [
     {
@@ -104,6 +101,64 @@
       "other": "COLUMN-41487"
     }
   ],
+  "storage_feedback": [
+    {
+      "variant": "NORTH_GROWTH",
+      "required_existing_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 364,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "placed_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 354,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "status": "EXISTING_CAPACITY_REJECTED"
+    },
+    {
+      "variant": "COUPLED_GROUP_NORTH_OF_RETAINED_COLUMN_ROW",
+      "coating_depth_increment_mm": 1200,
+      "group_translation_north_mm": 2316,
+      "triggering_columns": [
+        "COLUMN-41485",
+        "COLUMN-41486",
+        "COLUMN-41487"
+      ],
+      "separation_assumption_mm": 100,
+      "formula": "max(trigger_column_top_mm) + separation_assumption_mm - finished_room_south_mm",
+      "finished_room_south_mm_before_translation": 33534,
+      "trigger_column_top_mm": [
+        35750,
+        35750,
+        35750
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true,
+      "required_existing_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 364,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "source": "FRESH_IN_MEMORY_ROOM_CANDIDATES",
+      "placed_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 360,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "status": "BOUNDED_VARIANT_REJECTED",
+      "equipment_failures": []
+    }
+  ],
   "global_infeasibility_proven": false,
-  "note": "New room geometry is computed. Original reserved storage aisle intersects three retained columns; the changed input is not reported as a globally accepted candidate. Six route-only chains do not replace this failed static reservation."
+  "note": "Actual input/P1/geometry were recomputed. Route-only success cannot replace failed reserved-aisle or original-capacity checks."
 }

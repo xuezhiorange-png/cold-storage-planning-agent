@@ -8,15 +8,31 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from decimal import Decimal
 from typing import Any
 
-from cold_storage.modules.layout.application.autonomous_factory_layout import bind_autonomous_input
+from cold_storage.modules.layout.application.access_routing import _zone_authority_checks
+from cold_storage.modules.layout.application.autonomous_factory_layout import (
+    AutonomousContext,
+    _room_rows,
+    bind_autonomous_input,
+    structural_signature,
+)
 from cold_storage.modules.layout.application.functional_autonomous_layout import (
     generate_functional_layout,
 )
 from cold_storage.modules.layout.domain import access_routing as routing
+from cold_storage.modules.layout.domain.adjacency import (
+    RectangleObservationV1,
+    evaluate_adjacency,
+    process_graph,
+)
+from cold_storage.modules.layout.domain.autonomous_equipment import positive_intersection
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
+from cold_storage.modules.layout.domain.functional_equipment_layout import (
+    build_functional_equipment,
+)
 from cold_storage.modules.layout.domain.functional_portal_layout import joint_portals
 from cold_storage.modules.layout.domain.process_endpoint_routes import (
     ProcessRoutePlanner,
@@ -25,10 +41,12 @@ from cold_storage.modules.layout.domain.process_endpoint_routes import (
 from cold_storage.modules.layout.domain.process_flow_arrangement import (
     arrange_process_workplaces,
     coating_service_depth,
+    realize_coating_aisles,
     relocation_capacity_trials,
 )
+from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 
-VERSION = "autonomous-process-continuity@1.2.0"
+VERSION = "autonomous-process-continuity@1.2.1"
 VERIFIED = "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
 
 
@@ -52,6 +70,150 @@ def _no_candidate(
     result.pop("result_hash", None)
     result["result_hash"] = canonical_hash(result)
     return result
+
+
+def _preserve_storage_feedback(
+    original: Mapping[str, Any],
+    expanded: dict[str, Any],
+    project: Mapping[str, Any],
+    context: AutonomousContext,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Bounded column-row feedback, never delete original pallet addresses.
+
+    North growth can move the finished-store aisle onto retained columns. Try
+    translating the coupled downstream group past that measured column row.
+    Only original geometry/Authority and complete storage motion can accept it.
+    """
+
+    def counts(c: Mapping[str, Any]) -> dict[str, int]:
+        return {
+            s["layout"]["room"]: s["layout"]["placed_positions"] for s in c["equipment"]["storage"]
+        }
+
+    required = {
+        s["layout"]["room"]: max(
+            s["layout"]["placed_positions"], s["layout"]["original_grid_positions"]
+        )
+        for s in original["equipment"]["storage"]
+    }
+    trials: list[dict[str, Any]] = [
+        {
+            "variant": "NORTH_GROWTH",
+            "required_existing_positions": required,
+            "placed_positions": counts(expanded),
+        }
+    ]
+    if all(counts(expanded).get(k, 0) >= n for k, n in required.items()):
+        trials[-1]["status"] = "EXISTING_CAPACITY_PRESERVED"
+        return expanded, trials
+    trials[-1]["status"] = "EXISTING_CAPACITY_REJECTED"
+    rooms = {
+        r["zone_code"]: PlacedRectangleV1(
+            r["zone_code"],
+            Decimal(r["x_mm"]) / 1000,
+            Decimal(r["y_mm"]) / 1000,
+            Decimal(r["authority_width_m"]),
+            Decimal(r["authority_depth_m"]),
+            r["rotation_deg"],
+        )
+        for r in expanded["rooms"]
+    }
+    old_coat = next(r for r in original["rooms"] if r["zone_code"] == "coating_room")
+    delta = (
+        rooms["coating_room"].bounds_mm[3]
+        - rooms["coating_room"].bounds_mm[1]
+        - old_coat["depth_mm"]
+    )
+    f = rooms["finished_goods_room"].bounds_mm
+    original_store = next(
+        s["layout"]
+        for s in original["equipment"]["storage"]
+        if s["layout"]["room"] == "finished_goods_room"
+    )
+    aisle_width = original_store["main_aisle_width_mm"]
+    target_aisle = [f[0], f[1], f[2], f[1] + aisle_width]
+    blockers = [
+        q
+        for q in project["building"]["columns"]
+        if positive_intersection(target_aisle, q["bbox_mm"])
+    ]
+    shift = max((q["bbox_mm"][3] + 100 - f[1] for q in blockers), default=0)
+    for code in ("coating_room", "finished_goods_room", "shipping_channel", "office"):
+        rooms[code] = replace(rooms[code], y=Decimal(rooms[code].y) + Decimal(shift) / 1000)
+    trial: dict[str, Any] = {
+        "variant": "COUPLED_GROUP_NORTH_OF_RETAINED_COLUMN_ROW",
+        "coating_depth_increment_mm": delta,
+        "group_translation_north_mm": shift,
+        "triggering_columns": [q["id"] for q in blockers],
+        "separation_assumption_mm": 100,
+        "formula": "max(trigger_column_top_mm) + separation_assumption_mm - finished_room_south_mm",
+        "finished_room_south_mm_before_translation": f[1],
+        "trigger_column_top_mm": [q["bbox_mm"][3] for q in blockers],
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": True,
+        "required_existing_positions": required,
+        "source": "FRESH_IN_MEMORY_ROOM_CANDIDATES",
+    }
+    try:
+        _zone_authority_checks(
+            [
+                {
+                    "zone_code": k,
+                    "x": str(q.x),
+                    "y": str(q.y),
+                    "width_m": str(q.width_m),
+                    "depth_m": str(q.depth_m),
+                    "rotation_deg": q.rotation_deg,
+                }
+                for k, q in rooms.items()
+            ],
+            context.binding.dimension_authorities,
+            context.boundary,
+            context.walls,
+        )
+        adjacency = evaluate_adjacency(
+            process_graph(),
+            tuple(
+                RectangleObservationV1(
+                    q.zone_code,
+                    Decimal(q.x),
+                    Decimal(q.y),
+                    Decimal(q.width_m),
+                    Decimal(q.depth_m),
+                    q.rotation_deg,
+                )
+                for q in rooms.values()
+            ),
+        )
+        if not adjacency["geometry_passed"]:
+            raise LayoutAuthorityError("PROCESS_FEEDBACK_MUST_OR_OVERLAP_REJECTED")
+        eq = build_functional_equipment(
+            rooms,
+            project["equipment_specs"],
+            context.plan,
+            project["building"]["columns"],
+            context.binding.access_requirements,
+        )
+        new = {
+            **expanded,
+            "rooms": _room_rows(rooms, project, context),
+            "equipment": eq,
+            "room_non_overlap_and_MUST": adjacency,
+        }
+        trial["placed_positions"] = counts(new)
+        if eq["failures"] or not all(counts(new).get(k, 0) >= n for k, n in required.items()):
+            trial["status"] = "BOUNDED_VARIANT_REJECTED"
+            trial["equipment_failures"] = eq["failures"]
+        else:
+            trial["status"] = "EXISTING_CAPACITY_PRESERVED"
+            trials.append(trial)
+            return new, trials
+    except LayoutAuthorityError as error:
+        trial.update(status="ORIGINAL_AUTHORITY_REJECTED", code=error.code, details=error.details)
+    trials.append(trial)
+    expanded["storage_preservation_failure"] = trials
+    return expanded, trials
 
 
 def _flow_routes(
@@ -347,7 +509,11 @@ def generate_process_layout(
             "BOUNDED_FEEDBACK_SEARCH_NO_CANDIDATE",
             attempts + regenerated["attempts"],
         )
-    arranged = arrange_process_workplaces(regenerated["candidates"][0], parameters)
+    repaired, storage_trials = _preserve_storage_feedback(
+        original, regenerated["candidates"][0], project, context
+    )
+    attempts.extend(storage_trials)
+    arranged = arrange_process_workplaces(repaired, parameters)
     c = arranged["candidate"]
     eq = c["equipment"]
     rooms = room_rectangles(c)
@@ -405,7 +571,10 @@ def generate_process_layout(
         progress("DEVICE_PORTS_PALLET_SWEEPS_AND_REAL_DOOR_CROSSINGS")
     walls = [list(b) for w in context.walls if (b := routing._rectangle_bounds(w))]
     flows = _flow_routes(c, parameters, walls)
+    aisle_feedback = realize_coating_aisles(c, flows, arranged["static_conflicts"])
+    c["coating_actual_aisle_feedback"] = aisle_feedback
     c["schema_version"] = VERSION
+    c["structural_signature"] = structural_signature(rooms)
     c["source_process_parameter_hash"] = canonical_hash(parameters)
     flows["carrier_parameters"] = parameters["carriers"]
     flows["carton_projection_mm"] = parameters["carton_projection_mm"]
@@ -415,6 +584,8 @@ def generate_process_layout(
         "storage_portal_interfaces"
     ] = []  # Original ordered stock motion retained; new device routes are separate.
     c["metrics"].update(
+        gross_room_area_m2=str(sum(Decimal(q["area_m2"]) for q in c["rooms"])),
+        retained_internal_column_area_m2=str(sum(Decimal(q["column_area_m2"]) for q in c["rooms"])),
         portal_approach_conflict_count=sum(q["status"] != "BODY_FREE_APPROACH" for q in approaches),
         verified_interior_route_count=0,
         verified_device_route_count=flows["verified_route_count"],
@@ -426,6 +597,7 @@ def generate_process_layout(
         "CONDITIONAL_PROCESS_CANDIDATE"
         if flows["continuous_main_product_chain_count"]
         and not arranged["static_conflicts"]
+        and not c.get("storage_preservation_failure")
         and c["non_truck_access_pass_count"] == 11
         and c["building_footprint"]["status"] == "SINGLE_CONNECTED_ZERO_HOLE_UNION"
         else "INTERRUPTED_PROCESS_CANDIDATE"
@@ -484,6 +656,8 @@ def generate_process_layout(
                 "original_bbox_mm": old_room["bbox_mm"],
                 "new_bbox_mm": q["bbox_mm"],
                 "added_area_m2": str(Decimal(q["area_m2"]) - Decimal(old_room["area_m2"])),
+                "translation_x_mm": q["x_mm"] - old_room["x_mm"],
+                "translation_y_mm": q["y_mm"] - old_room["y_mm"],
             }
             for q in c["rooms"]
             for old_room in original["rooms"]
