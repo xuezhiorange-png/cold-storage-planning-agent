@@ -17,6 +17,7 @@
   "station_boundary_margin_mm": 50,
   "interpair_nonroute_gap_mm": 50,
   "case_magazine_bay_mm": 1800,
+  "case_middle_extra_mm": 40,
   "pallet_tangent_gap_mm": 200,
   "line_workers": [
     10,
@@ -35,6 +36,12 @@
       "minimum_main_aisle_mm": 2500
     },
     "CARTON_CARRY": {
+      "tangent_mm": 600,
+      "normal_mm": 800,
+      "load_normal_mm": 600,
+      "minimum_main_aisle_mm": 1000
+    },
+    "FOOD_TOTE_CARRY": {
       "tangent_mm": 600,
       "normal_mm": 800,
       "load_normal_mm": 600,
@@ -85,6 +92,8 @@
     "throughput_validation": "NOT_EVALUATED"
   },
   "assumptions": [
+    "40mm additional case-bank middle spacing leaves 30mm outer boundary gaps. This is an unapproved positioning assumption, not manufacturer installation clearance.",
+    "FOOD_TOTE_CARRY shares a 600x400mm assumed load projection and 600x800mm handling envelope; food-safe bin and loose-fruit transfer hardware remain INPUT_REQUIRED.",
     "Carrier rectangles include a hypothetical load and handling space; no forklift steering or manufacturer turning circle is established.",
     "90 degree turns reserve a circumscribed square, not an approved real vehicle kinematic model.",
     "Machine input/output and magazine faces are explicit unverified design assumptions, not vendor-confirmed interfaces.",

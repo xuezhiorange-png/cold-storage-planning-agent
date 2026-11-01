@@ -5,10 +5,10 @@ PACK-03,sorting_packaging_room,packing_line,"[33720, 25645, 61722, 26246]",0,Joi
 PACK-04,sorting_packaging_room,packing_line,"[33720, 27246, 61722, 27847]",0,Joint deterministic geometry; original device dimensions
 PACK-05,sorting_packaging_room,packing_line,"[33720, 27897, 61722, 28498]",0,Joint deterministic geometry; original device dimensions
 PACK-06,sorting_packaging_room,packing_line,"[33720, 29498, 61722, 30099]",0,Joint deterministic geometry; original device dimensions
-ERECT-01,sorting_packaging_room,case_erector,"[64422, 20893, 68225, 26393]",90,Joint deterministic geometry; original device dimensions
-ERECT-02,sorting_packaging_room,case_erector,"[70025, 20893, 73828, 26393]",90,Joint deterministic geometry; original device dimensions
-ERECT-03,sorting_packaging_room,case_erector,"[64422, 28893, 68225, 34393]",270,Joint deterministic geometry; original device dimensions
-ERECT-04,sorting_packaging_room,case_erector,"[70025, 28893, 73828, 34393]",270,Joint deterministic geometry; original device dimensions
+ERECT-01,sorting_packaging_room,case_erector,"[64422, 20873, 68225, 26373]",90,Joint deterministic geometry; original device dimensions
+ERECT-02,sorting_packaging_room,case_erector,"[70025, 20873, 73828, 26373]",90,Joint deterministic geometry; original device dimensions
+ERECT-03,sorting_packaging_room,case_erector,"[64422, 28913, 68225, 34413]",270,Joint deterministic geometry; original device dimensions
+ERECT-04,sorting_packaging_room,case_erector,"[70025, 28913, 73828, 34413]",270,Joint deterministic geometry; original device dimensions
 PRI-C1-P1,primary_precooling_room,PRI_pallet,"[20170, 37443, 21170, 38643]",0,Joint deterministic geometry; original device dimensions
 PRI-C1-P2,primary_precooling_room,PRI_pallet,"[20170, 38743, 21170, 39943]",0,Joint deterministic geometry; original device dimensions
 PRI-C1-P3,primary_precooling_room,PRI_pallet,"[20170, 40043, 21170, 41243]",0,Joint deterministic geometry; original device dimensions

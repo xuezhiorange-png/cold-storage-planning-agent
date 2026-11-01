@@ -33,7 +33,15 @@ from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.functional_equipment_layout import (
     build_functional_equipment,
 )
-from cold_storage.modules.layout.domain.functional_portal_layout import joint_portals
+from cold_storage.modules.layout.domain.functional_portal_layout import (
+    functional_interior_routes,
+    joint_portals,
+    storage_portal_interfaces,
+)
+from cold_storage.modules.layout.domain.process_continuity_acceptance import (
+    assess_process_continuity,
+    coverage_identity,
+)
 from cold_storage.modules.layout.domain.process_endpoint_routes import (
     ProcessRoutePlanner,
     room_rectangles,
@@ -44,10 +52,187 @@ from cold_storage.modules.layout.domain.process_flow_arrangement import (
     realize_coating_aisles,
     relocation_capacity_trials,
 )
-from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
+from cold_storage.modules.layout.domain.process_transfer_interfaces import (
+    GEOMETRY,
+    connect_transfer,
+    geometry_fingerprint,
+    route_is_conditionally_usable,
+)
+from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1, PolygonMM
 
-VERSION = "autonomous-process-continuity@1.2.1"
-VERIFIED = "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+VERSION = "autonomous-process-continuity@1.2.2"
+VERIFIED = GEOMETRY
+
+
+def assess_process_candidate(
+    c: Mapping[str, Any], project: Mapping[str, Any], parameters: Mapping[str, Any]
+) -> dict[str, Any]:
+    """One full admission point, using original Authority and P1 predicates."""
+    from cold_storage.modules.layout.domain.access_predicates import _evaluate_bound_requirement
+
+    context = bind_autonomous_input(project)
+    rooms = {
+        r["zone_code"]: PlacedRectangleV1(
+            r["zone_code"],
+            Decimal(r["x_mm"]) / 1000,
+            Decimal(r["y_mm"]) / 1000,
+            Decimal(r["authority_width_m"]),
+            Decimal(r["authority_depth_m"]),
+            r["rotation_deg"],
+        )
+        for r in c["rooms"]
+    }
+    authority = True
+    try:
+        _zone_authority_checks(
+            [
+                {
+                    "zone_code": k,
+                    "x": str(q.x),
+                    "y": str(q.y),
+                    "width_m": str(q.width_m),
+                    "depth_m": str(q.depth_m),
+                    "rotation_deg": q.rotation_deg,
+                }
+                for k, q in rooms.items()
+            ],
+            context.binding.dimension_authorities,
+            context.boundary,
+            context.walls,
+        )
+    except LayoutAuthorityError:
+        authority = False
+    adjacency = evaluate_adjacency(
+        process_graph(),
+        tuple(
+            RectangleObservationV1(
+                q.zone_code,
+                Decimal(q.x),
+                Decimal(q.y),
+                Decimal(q.width_m),
+                Decimal(q.depth_m),
+                q.rotation_deg,
+            )
+            for q in rooms.values()
+        ),
+    )
+    required_access = {
+        q["identity"]: q for q in context.binding.access_requirements if q["flow_kind"] != "TRUCK"
+    }
+    observed = {
+        q["requirement_identity"]: q for q in c["access_results"] if q["flow_kind"] != "TRUCK"
+    }
+    access_ok = set(observed) == set(required_access) and all(
+        q["status"] == "PASS"
+        and _evaluate_bound_requirement(routing._requirement_object(required_access[k]), q)[
+            "status"
+        ]
+        == "PASS"
+        for k, q in observed.items()
+    )
+    footprint = False
+    try:
+        # Original exported route envelopes are exact integer-mm polygons.
+        corridors: list[PolygonMM] = []
+        # External people route must be included from the original bound access.
+        for q in observed.values():
+            if q.get("topology") == "CORRIDOR_MEDIATED":
+                path = tuple(
+                    (round(Decimal(str(p["x"])) * 1000), round(Decimal(str(p["y"])) * 1000))
+                    for p in q["centerline"]
+                )
+                corridors.extend(
+                    e.polygon_mm
+                    for e in routing._path_envelopes(
+                        path, round(Decimal(str(q["corridor_clear_width_m"])) * 1000)
+                    )
+                )
+        actual_fp = routing.derive_building_footprint(rooms, corridors)
+        footprint = [list(p) for p in actual_fp] == c["building_footprint"].get("points_mm")
+    except LayoutAuthorityError:
+        footprint = False
+    fixed = [*c["equipment"]["items"], *c["equipment"].get("process_operator_zones", [])]
+    fixed.extend(
+        q
+        for layout in c["equipment"]["layouts"].values()
+        for q in layout.get("operator_positions", [])
+    )
+    static = all(
+        rooms[q["room"]].bounds_mm[0]
+        <= q["bbox_mm"][0]
+        < q["bbox_mm"][2]
+        <= rooms[q["room"]].bounds_mm[2]
+        and rooms[q["room"]].bounds_mm[1]
+        <= q["bbox_mm"][1]
+        < q["bbox_mm"][3]
+        <= rooms[q["room"]].bounds_mm[3]
+        and not any(
+            positive_intersection(q["bbox_mm"], other["bbox_mm"])
+            for other in [*fixed[:i], *c["original_building"]["columns"]]
+        )
+        for i, q in enumerate(fixed)
+    )
+    counts = {
+        k: sum(q["kind"] == k for q in c["equipment"]["items"])
+        for k in (
+            "packing_line",
+            "case_erector",
+            "ten_door_locker",
+            "PRI_pallet",
+            "SEC_pallet",
+            "case_film_component",
+        )
+    }
+    expected_stock = {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36,
+    }
+    stock = {q["layout"]["room"]: q for q in c["equipment"]["storage"]}
+    stock_ok = set(stock) == set(expected_stock) and all(
+        stock[k]["layout"]["placed_positions"]
+        >= max(
+            n,
+            stock[k]["layout"]["minimum_positions"],
+            stock[k]["layout"]["original_grid_positions"],
+        )
+        and len(stock[k]["layout"]["items"]) == stock[k]["layout"]["placed_positions"]
+        and sum(q["kind"] == k + "_pallet" for q in c["equipment"]["items"])
+        == stock[k]["layout"]["placed_positions"]
+        and stock[k]["movement"]["conditional_pick_put_geometry_pass"]
+        for k, n in expected_stock.items()
+    )
+    checks = {
+        "original_project_and_building_binding": c["source_input_hash"] == canonical_hash(project)
+        and c["source_building_hash"] == canonical_hash(project["building"])
+        and canonical_hash(c["original_building"]) == canonical_hash(project["building"])
+        and c["source_zone_plan_hash"] == context.binding.canonical_zone_plan_hash,
+        "original_authority_and_12_rooms": authority
+        and len(rooms) == 12
+        and c["source_p1_handoff_hash"] == context.binding.p1_handoff_hash,
+        "original_MUST_and_room_nonoverlap": bool(adjacency["geometry_passed"]),
+        "all_eleven_original_nontruck_access": access_ok,
+        "single_connected_zero_hole_footprint": footprint,
+        "all_equipment_operators_columns_clear": static,
+        "all_original_device_counts": counts
+        == {
+            "packing_line": 6,
+            "case_erector": 5,
+            "ten_door_locker": 11,
+            "PRI_pallet": 18,
+            "SEC_pallet": 12,
+            "case_film_component": 4,
+        },
+        "existing_493_stock_addresses_and_pick_put": stock_ok,
+        "original_53_person_two_shift_conditional_model": bool(
+            c["changing_function"]["conditional_complete_sequence_verified"]
+        ),
+        "no_unresolved_layout_feedback": not c["remaining_geometry_issues"]
+        and not c.get("storage_preservation_failure"),
+    }
+    return assess_process_continuity(c, parameters, checks)
 
 
 def _no_candidate(
@@ -250,7 +435,7 @@ def _flow_routes(
         p.route(raw_ep, pri_ep, "PRODUCT-RAW-PRI", "RAW_CRATES_TO_PRIMARY_PRECOOL"),
         p.route(pri_ep, unload, "PRODUCT-PRI-PACKING", "PRIMARY_PRECOOL_TO_RAW_UNLOAD"),
     ]
-    raw_crates = p.endpoint("RAW-UNLOAD", "CRATE-OUT", "N", "CARTON_CARRY")
+    raw_crates = p.endpoint("RAW-UNLOAD", "CRATE-OUT", "N", "FOOD_TOTE_CARRY")
     depal = pal("DEPALLETIZE")
     repal = pal("REPALLETIZE")
     downstream = [p.route(sec_ep, depal, "PRODUCT-SEC-DEPAL", "SECONDARY_PRECOOL_TO_DEPALLETIZE")]
@@ -292,11 +477,12 @@ def _flow_routes(
                 p.route(ep, sec_ep, "BUFFER-SEC-" + ident, "BUFFER_POSITION_TO_SECONDARY_PRECOOL")
             )
     chains = []
+    transfers: dict[str, dict[str, Any]] = {}
     packing_inputs = []
     packing_outputs = []
     for i in range(1, 7):
         machine = f"PACK-{i:02}"
-        inp = p.endpoint(machine, "RAW-IN", "W", "CARTON_CARRY")
+        inp = p.endpoint(machine, "RAW-IN", "W", "FOOD_TOTE_CARRY")
         out = p.endpoint(machine, "PRODUCT-OUT", "E", "CARTON_CARRY")
         packing_inputs.append(p.endpoint(machine, "BOX-IN", "W", "CARTON_CARRY"))
         work = f"WORK-PACK-{i:02}"
@@ -305,7 +491,7 @@ def _flow_routes(
         group = "N" if i <= 3 else "S"
         bid = f"BUF-{group}-{(i - 1) % 3 + 1:02}"
         be = p.endpoints[bid + ":PALLET-TRANSFER"]["id"]
-        a = p.route(raw_crates, inp, "RAW-LINE-" + str(i), "RAW_CRATE_TO_ACTUAL_PACKING_INLET")
+        a = p.route(raw_crates, inp, "RAW-LINE-" + str(i), "FOOD_TOTE_TO_PACKING_INLET")
         machine_process = p.handoff(machine, machine, "PROCESS-" + machine, internal=True)
         machine_process.update(
             purpose="PACKING_MACHINE_INTERNAL",
@@ -320,9 +506,15 @@ def _flow_routes(
         d = p.route(work_ep, be, "LINE-BUFFER-" + str(i), "FULL_PALLET_TO_ASSIGNED_BUFFER")
         e = next(q for q in buffers if q["id"] == "BUFFER-SEC-" + bid)
         legs = [*common, a, machine_process, b, d, e, *downstream]
-        failed = [
-            q["id"] for q in legs if q["status"] not in (VERIFIED, "PROCESSING_INTERFACE_ASSUMED")
-        ]
+        failed = [q["id"] for q in legs if not route_is_conditionally_usable(q)]
+        transfer_ids = []
+        for left, right in zip(legs, legs[1:], strict=False):
+            tid = "TRANSFER:" + left["id"] + ":" + right["id"]
+            if tid not in transfers:
+                transfers[tid] = connect_transfer(
+                    c, parameters, left, right, p.endpoints, identity=tid
+                )
+            transfer_ids.append(tid)
         chains.append(
             {
                 "id": "PRODUCT-CHAIN-" + str(i),
@@ -338,6 +530,7 @@ def _flow_routes(
                     for q in legs
                 ],
                 "failed_segments": failed,
+                "transfer_ids": transfer_ids,
                 "continuous_object_chain": all(
                     a["target_object"] == b["source_object"]
                     for a, b in zip(legs, legs[1:], strict=False)
@@ -409,12 +602,74 @@ def _flow_routes(
         if selected
         else []
     )
-    verified = [q for q in p.routes if q["status"] == VERIFIED]
+    branches = []
+    for prefix, room, line in (
+        ("SECONDARY", "secondary_fruit_buffer", 1),
+        ("FROZEN", "frozen_fruit_room", 2),
+    ):
+        machine = f"PACK-{line:02}"
+        source = p.endpoint(machine, prefix + "-CONDITIONAL-SORT-OUT", "E", "FOOD_TOTE_CARRY")
+        target = p.endpoint(f"WORK-PACK-{line:02}", prefix + "-BIN-IN", "N", "FOOD_TOTE_CARRY")
+        feeding = p.route(source, target, prefix + "-SORT-WORK", prefix + "_SORT_OUT_TO_WORKPLACE")
+        stock = [q for q in items.values() if q["kind"] == room + "_pallet"]
+        # Selection uses the actual legal portal, not an archived room coordinate.
+        door = next(q for q in c["access_results"] if q.get("to_ref") == room)
+        seg = door["portal_to"]["segment"]
+        centre = round((Decimal(str(seg["start"]["x"])) + Decimal(str(seg["end"]["x"]))) * 500)
+        slot = min(
+            (q for q in stock if q["grid_row"] == 0),
+            key=lambda q: abs((q["bbox_mm"][0] + q["bbox_mm"][2]) // 2 - centre),
+        )
+        delivery = p.route(
+            pal(f"WORK-PACK-{line:02}"),
+            pal(slot["id"]),
+            prefix + "-WORK-STORE",
+            prefix + "_WORKPLACE_TO_STORAGE",
+        )
+        tid = "TRANSFER:" + feeding["id"] + ":" + delivery["id"]
+        transfers[tid] = connect_transfer(
+            c, parameters, feeding, delivery, p.endpoints, identity=tid
+        )
+        split_id = "SPLIT:" + prefix
+        raw_line = next(q for q in p.routes if q["id"] == "RAW-LINE-" + str(line))
+        transfers[split_id] = connect_transfer(
+            c, parameters, raw_line, feeding, p.endpoints, identity=split_id
+        )
+        branches.append(
+            {
+                "flow_kind": prefix,
+                "from_ref": "sorting_packaging_room",
+                "to_ref": room,
+                "source_interface": source,
+                "interface_basis": "CONDITIONAL_REJECT_OUTLET_NOT_VENDOR_CONFIRMED",
+                "route_ids": [feeding["id"], delivery["id"]],
+                "transfer_ids": [split_id, tid],
+                "stock_handoff_object": slot["id"],
+                "workplace_policy": "TIME_SEPARATED_FROM_MAIN_PRODUCT_PALLET_ASSEMBLY",
+                "actual_sort_outlet_and_storage_process": "INPUT_REQUIRED",
+            }
+        )
+    for machine in erectors:
+        mid = machine["id"]
+        supply = next(q for q in blank_routes if q["target_object"] == mid)
+        selected_delivery = next((q for q in assignments if q["erector"] == mid), None)
+        if selected_delivery:
+            delivery = next(q for q in p.routes if q["id"] == selected_delivery["route_id"])
+            tid = "FORMING:" + mid
+            transfers[tid] = connect_transfer(
+                c, parameters, supply, delivery, p.endpoints, identity=tid
+            )
+    for route in p.routes:
+        route.pop("witness_hash", None)
+        route["witness_hash"] = canonical_hash(route)
+    verified = [q for q in p.routes if route_is_conditionally_usable(q)]
     return {
         "schema_version": VERSION,
         "endpoints": list(p.endpoints.values()),
         "routes": p.routes,
         "product_chains": chains,
+        "transfers": list(transfers.values()),
+        "auxiliary_branches": branches,
         "continuous_main_product_chain_count": sum(
             q["status"] == "CONTINUOUS_CONDITIONAL_CHAIN" and q["continuous_object_chain"]
             for q in chains
@@ -573,35 +828,76 @@ def generate_process_layout(
     flows = _flow_routes(c, parameters, walls)
     aisle_feedback = realize_coating_aisles(c, flows, arranged["static_conflicts"])
     c["coating_actual_aisle_feedback"] = aisle_feedback
+    route_index = {r["id"]: r for r in flows["routes"]}
+    endpoint_index = {e["id"]: e for e in flows["endpoints"]}
+    flows["transfers"] = [
+        connect_transfer(
+            c,
+            parameters,
+            route_index[t["upstream_route"]],
+            route_index[t["downstream_route"]],
+            endpoint_index,
+            identity=t["id"],
+        )
+        for t in flows["transfers"]
+    ]
     c["schema_version"] = VERSION
     c["structural_signature"] = structural_signature(rooms)
     c["source_process_parameter_hash"] = canonical_hash(parameters)
     flows["carrier_parameters"] = parameters["carriers"]
     flows["carton_projection_mm"] = parameters["carton_projection_mm"]
     c["process_continuity"] = flows
-    c["equipment_aware_interior_paths"] = []  # V1.1 routes referred to moved bodies.
-    c[
-        "storage_portal_interfaces"
-    ] = []  # Original ordered stock motion retained; new device routes are separate.
+    # Reuse only the original requirement identities; recompute all geometry.
+    flows["v11_required_coverage"] = {
+        "interior": [
+            coverage_identity(q, "interior") for q in original["equipment_aware_interior_paths"]
+        ],
+        "storage": [coverage_identity(q, "storage") for q in original["storage_portal_interfaces"]],
+    }
+    route_obstacles = [*c["original_building"]["columns"], *eq.get("process_operator_zones", [])]
+    route_obstacles.extend(
+        q for layout in eq["layouts"].values() for q in layout.get("operator_positions", [])
+    )
+    c["equipment_aware_interior_paths"] = functional_interior_routes(
+        rooms, access, eq, route_obstacles, use_reserved_waypoints=True
+    )
+    c["storage_portal_interfaces"] = storage_portal_interfaces(
+        rooms, access, eq, route_obstacles, use_reserved_waypoints=True
+    )
+    for kind, field in (
+        ("interior", "equipment_aware_interior_paths"),
+        ("storage", "storage_portal_interfaces"),
+    ):
+        for row in c[field]:
+            row["coverage_id"] = coverage_identity(row, kind)
+            row["geometry_context_hash"] = geometry_fingerprint(c, parameters)
+            row["evidence_origin"] = "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+
     c["metrics"].update(
         gross_room_area_m2=str(sum(Decimal(q["area_m2"]) for q in c["rooms"])),
         retained_internal_column_area_m2=str(sum(Decimal(q["column_area_m2"]) for q in c["rooms"])),
         portal_approach_conflict_count=sum(q["status"] != "BODY_FREE_APPROACH" for q in approaches),
-        verified_interior_route_count=0,
+        verified_interior_route_count=sum(
+            q["status"] == "INTERIOR_FULL_WIDTH_PATH_VERIFIED"
+            for q in c["equipment_aware_interior_paths"]
+        ),
         verified_device_route_count=flows["verified_route_count"],
         continuous_product_chain_count=flows["continuous_main_product_chain_count"],
     )
     c["remaining_geometry_issues"] = arranged["static_conflicts"]
     c["process_workplace_groups"] = arranged["group_mapping"]
-    c["status"] = (
-        "CONDITIONAL_PROCESS_CANDIDATE"
-        if flows["continuous_main_product_chain_count"]
-        and not arranged["static_conflicts"]
-        and not c.get("storage_preservation_failure")
-        and c["non_truck_access_pass_count"] == 11
-        and c["building_footprint"]["status"] == "SINGLE_CONNECTED_ZERO_HOLE_UNION"
-        else "INTERRUPTED_PROCESS_CANDIDATE"
-    )
+    admission = assess_process_candidate(c, project, parameters)
+    c["process_admission"] = admission
+    c["status"] = admission["status"]
+    flows["continuous_main_product_chain_count"] = admission["main_line_count"]
+    c["metrics"]["continuous_product_chain_count"] = admission["main_line_count"]
+    for chain, check in zip(flows["product_chains"], admission["main_lines"], strict=True):
+        chain["status"] = check["status"]
+        transfer_index = {t["id"]: t for t in flows["transfers"]}
+        chain["failed_transfers"] = [
+            i for i in chain["transfer_ids"] if transfer_index[i]["geometry_status"] != GEOMETRY
+        ]
+        chain["continuous_transfer_chain"] = not chain["failed_transfers"]
     c.pop("result_hash", None)
     c["result_hash"] = canonical_hash(c)
     attempts.append(
@@ -614,7 +910,7 @@ def generate_process_layout(
             "route_failures": [
                 {"id": q["id"], "failure": q.get("failure", q["status"])}
                 for q in flows["routes"]
-                if q["status"] != VERIFIED
+                if not route_is_conditionally_usable(q)
             ],
         }
     )

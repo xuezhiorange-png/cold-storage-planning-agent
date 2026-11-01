@@ -341,6 +341,8 @@ def functional_interior_routes(
     access: Sequence[Mapping[str, Any]],
     equipment: Mapping[str, Any],
     columns: Sequence[Mapping[str, Any]],
+    *,
+    use_reserved_waypoints: bool = False,
 ) -> list[dict[str, Any]]:
     ports: dict[str, list[tuple[Mapping[str, Any], Mapping[str, Any]]]] = {}
     for row in access:
@@ -362,7 +364,22 @@ def functional_interior_routes(
             width = 2000 if "PEOPLE" in (first[0]["flow_kind"], other[0]["flow_kind"]) else 2500
             start, end = _inward(first[1], q, width // 2), _inward(other[1], q, width // 2)
             path, nodes = rectilinear_path(
-                start, end, q.bounds_mm, bodies, width, width, node_budget=4000
+                start,
+                end,
+                q.bounds_mm,
+                bodies,
+                width,
+                width,
+                node_budget=4000,
+                waypoints=[
+                    (
+                        (a["bbox_mm"][0] + a["bbox_mm"][2]) // 2,
+                        (a["bbox_mm"][1] + a["bbox_mm"][3]) // 2,
+                    )
+                    for a in equipment["layouts"][code]["service_corridors"]
+                ]
+                if use_reserved_waypoints
+                else (),
             )
             safe, reason, envelopes = (
                 routing._route_is_safe(
@@ -402,6 +419,8 @@ def storage_portal_interfaces(
     access: Sequence[Mapping[str, Any]],
     equipment: Mapping[str, Any],
     columns: Sequence[Mapping[str, Any]],
+    *,
+    use_reserved_waypoints: bool = False,
 ) -> list[dict[str, Any]]:
     """Connect each stateful pickup goal to its real cargo portal.
 
@@ -426,7 +445,22 @@ def storage_portal_interfaces(
                     continue
                 end = _inward(row["portal_" + side], q, 1250)
                 path, nodes = rectilinear_path(
-                    start, end, q.bounds_mm, bodies, 2500, 2500, node_budget=4000
+                    start,
+                    end,
+                    q.bounds_mm,
+                    bodies,
+                    2500,
+                    2500,
+                    node_budget=4000,
+                    waypoints=[
+                        (
+                            (a["bbox_mm"][0] + a["bbox_mm"][2]) // 2,
+                            (a["bbox_mm"][1] + a["bbox_mm"][3]) // 2,
+                        )
+                        for a in equipment["layouts"][code]["service_corridors"]
+                    ]
+                    if use_reserved_waypoints
+                    else (),
                 )
                 safe, reason, env = (
                     routing._route_is_safe(

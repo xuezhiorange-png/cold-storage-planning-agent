@@ -1,78 +1,62 @@
-# 自主布局 V1.2 · 实际设备物流贯通
+# 自主布局V1.2 · R1工程补正
 
-`V2_2_2_AUTONOMOUS_PROCESS_FLOW_CONTINUITY_R1`。基线PR #338，精确HEAD `28ee3bef2860fc93f9f1e692ffc8de669b86a709`。独立非Native、opt-in概念设计入口，不接入生产/MCP/MAIN。
+`V2_2_2_AUTONOMOUS_PROCESS_FLOW_CONTINUITY_R1 / R1_CORRECTION_1`。审核基线 `278fdaaf291eeb05900201977a623c4e2ddaacfe`，计算器 `autonomous-process-continuity@1.2.2`。在原PR #339正常追加，PR #338保持不变。
 
-[整厂PDF](autonomous-layout-A12.pdf) · [高清PNG](autonomous-layout-A12.png) · [SVG](autonomous-layout-A12.svg) · [工艺局部放大](A12-process-detail.png) · [本地评审页](autonomous-layout-review.html)
+[整厂PDF](autonomous-layout-A12.pdf) · [PNG](autonomous-layout-A12.png) · [SVG](autonomous-layout-A12.svg) · [局部放大](A12-process-detail.png) · [评审HTML](autonomous-layout-review.html)
 
-[主产品物流图](main-product-logistics.pdf) · [五台折箱机/六线供箱图](six-line-case-supply.pdf) · [端点与路线JSON索引](equipment-endpoints-and-routes.json) · [完整原始候选](autonomous-layout-A12.json)
+[主产品及支线图](main-product-logistics.pdf) · [五机六线供箱图](six-line-case-supply.pdf) · [同次原始A12](autonomous-layout-A12.json) · [工艺明细](process-detail.md)
 
-## 实际生成结果
+## 已实现的补正
 
-- 12区、原7条MUST、原固定尺寸和面积来源、房间级非货车Access 11/11；生成占用并集单连通、零孔洞。所有原建筑柱体保留，净面积扣减单列。
-- 六条线分别形成原果货位→一级预冷托位→周转筐卸料工作位→包装机入口→包装机出口→线端托位→待冷缓冲→二级预冷→拆托→四段独立纸箱封膜→复托→成品货位→出货工作位的完整条件链。
-- 共87条设备/托位路线条件通过，0条有界路线失败。其中6段包装机、4段封膜组件的内部输送为明确声明的机器内部接口，非车辆通道或厂家性能验收。每条产品链经过6个真实原P1物料Access门洞。
-- 五台折箱机全部有纸板供给路径；计算30条成箱到六线的实际路径，并在1800个覆盖全部五机、每机最多服务两线的组合中按几何长度选配。没有进行设备产能均衡或证明该分配的小时供箱能力。
-- 14个待冷位（N/S服务组各7）与6个包装托盘工作位、1个周转筐卸料位分别计数。14个待冷位均有到二级预冷托位的条件路径。N/S组在本次自主房间北侧工作带重新布置，不等同于B1两个厅的位置。
+- **A：次果和冻果**：条件分流口分别绑定PACK-01、PACK-02，食品周转容器送至WORK-PACK-01/02组托，经原2400mm P1门洞、2500mm主通道，交接至实际库位PAL-004/PAL-005。其他库位仍占用，源载荷与该批次预留目标分别处理。分流口、容器、组托及冻果实际工艺仍需厂家/工艺确认；不是设备接口批准。
+- **B：57个显式交接**：逐个保存前后载荷/载具、参考点、载荷锚点、接触位置、真实投影连接、操作空间及状态。RAW-UNLOAD的750mm参考点差没有消失，另有950mm载荷锚点差、完整投影连接和操作人员绕托路径；人工可达/取放/卸料方式仍为`CONDITIONAL_OPERATION_ASSUMED / INPUT_REQUIRED`。包装机6段、封膜组件4段、短交接5段的状态均不再冒充厂家内部工艺已验证。
+- **C：集中全量验收**：六线全部、三条辅助流、最终选定的五机六线供箱、14缓冲连接、每个载具转换、全部原几何/Authority/Access/货位/条件更衣与16项原通行功能均须通过相应级别。设备或端点移动后，旧证据失效。非选用的备用候选失败不误伤已连接选择。
+- **D：重新覆盖10+6项**：按当前房间、设备、全部货位、柱体及人员位置，重新运行原室内全宽和仓储门洞谓词。10项室内路线、6项仓储接口均恢复；原V1.1仅复用需求身份，不继承旧PASS。
 
-| 包装线 | 含机内声明输送的条件中心线总长 |
-|---|---:|
-| PACK-01 | 279.872m |
-| PACK-02 | 274.270m |
-| PACK-03 | 270.568m |
-| PACK-04 | 255.366m |
-| PACK-05 | 251.664m |
-| PACK-06 | 246.062m |
+状态：`CONDITIONAL_PROCESS_CANDIDATE`，六线6/6，辅助流PACKAGING/SECONDARY/FROZEN三条条件连接。完整P2D、Truck、实际工程批准、车辆运动学、同时交通、20t吞吐和现场功能仍未成立。
 
-以上是不同运输/交接方式的几何参考线长度合计，不能当作车辆行驶里程、果实真实轨迹、作业时长或产能。V1.1没有建立设备端到端链，其对应长度和冲突数为NOT_EVALUATED，不虚构改善百分比。
+## 数量和定位
 
-## 具体调整与代价
+12区、7 MUST、非货车Access 11/11、单连通零孔洞；六线、五台折箱机、11台十门柜、一级18/二级12预冷位、4段封膜设备全部保留。两班53人原条件模型不变。
 
-包材库增放第二台完整折箱机的6个实际位置尝试均只能保留63/最低67位，因此全部否决。保留4台分选间、1台包材库；四台分选间折箱机旋转90°，中部2500mm主通道、两列间1800mm补料操作带。六线原1000mm人员操作带保留，仅压缩非通行的对间空隙。
+包材67、成品324、原果45、次果21、冻果36，合计493货位，未用最低容量替代原实际容量。14待冷位、6线端托位、1卸料托位另计，非仓储货位。
 
-首次在原7100mm封膜房间深度下纳入完整托盘与600×900mm操作位，操作位会占用预留主通道。程序据断面尺寸链提出柔性房间8300mm深度，再重新生成并验证；这是候选尺寸，不是P1新增硬限制。
+原87条路线：最终选用63条、探索备用24条。新增次果/冻果运输4条，合计91条，选用67条、备用24条。10条机内投影与5条短交接是选用集合的子集，不能与选用/备用数量重复相加。[机器可读分类](route-selection.json)
 
-| 区域 | A1→V1.2 |
-|---|---|
-| 独立封膜间 | 16300×7100→16300×8300mm，增加19.56㎡ |
-| 成品库 | 原面积及固定尺寸不变，向北3516mm，内部货位由程序重新排布 |
-| 出货区、办公室 | 固定/原柔性尺寸不变，向北3516mm |
-| 更衣室 | 12600×9700mm及原条件模型保留；人员Portal变化仅由原适配器复核进入/离室 |
+为恢复原2500mm闭合障碍通行谓词，四台折箱机各沿Y向外移20mm，中部物理间隔2500→2540mm；仍保留2500mm净通道，外围非通行间隙50→30mm。这是待厂家安装复核的定位条件，不是新安装标准。房间坐标、两级预冷位置、现有封膜扩展及原绕柱路径保留。
 
-[房间坐标差异](a1-a12-room-changes.csv) · [设备坐标差异](a1-a12-equipment-changes.csv) · [实际反馈/失败](iteration-feedback.json) · [完整比较](layout-comparison.md)
+[完整交接/载具状态](process-interfaces.json) · [全量门禁](process-admission.json) · [16项对应表](v11-function-coverage.json) · [全部设备坐标](equipment-placement.csv)
 
-包材67/最低67、成品324/最低315、原果45/最低37、次果21/最低19、冻果36/最低34。保留493货位原有序取放见证，不代表每一个货位都已经通过本轮整车包络或任意顺序存取。成品容量仍沿用原P1冻果扣减及126000kg分配，不冒称20t/天全部成品储存7天。分选固定几何45760×13600=622.336㎡、业务显示622.34㎡的原四舍五入口径不变。
+## 软件验证
 
-## 几何与工程边界
+原39项工艺测试扩展至80项，全部有本地通过观察：完整主运行77通过，最后4项针对性复核通过（重复1项正对照，唯一用例80）。其中覆盖六条线任一失败、两条支线缺失、每条选中供箱失败、交接中断/锚点/载具/路径篡改、移动设备后旧证据、旧通行缺失/重复/失败、机内状态冒充几何批准、重复补料/缓冲连接及未选备用失败对照。
 
-主通道2500mm，包材主通道5000mm；托盘1200×1000mm、整车及载荷1300×1800mm为未批准假设。直角转向采用外接方形2222mm，门洞2400mm仅直线通过；不是叉车/地牛真实转向运动学。400×600mm纸箱投影是两种箱重的共同待审几何假设，不是4.8kg/3.2kg厂家箱型已确认。
+[77项主运行JUnit](r1-process-main-junit.xml) · [最后4项JUnit](r1-strict-levels-junit.xml) · [既有与架构白名单849通过/16原有跳过](r1-retained-whitelist-junit.xml) · [65项CI契约](r1-ci-contracts.txt) · [完整验证摘要](r1-correction-validation.json)
 
-设备嘴部与载荷接触、载荷相对搬运参考点偏移、机外短交接、主通道、实际门洞和转向包络分别保存。每条路线均保留其他等待托盘，源托位随载荷移动、目标为该批次预留空位。共享通道及补料/出箱交会需要时间分离；未证明同时交通、缓冲动态容量或20t连续吞吐。包装/封膜机内部嘴部和输送方向仍需厂家接口确认。
+首次测试有1项断言把2540mm物理间隔误当2500mm保留通道；修正为分别核对两者，未放宽原障碍谓词。[首轮原始记录](r1-first-test-attempt.txt)
 
-B3/B4的20t/天、4.8kg与3.2kg、六线人员10/10/10/8/8/7、换托60s/端且重叠45s、全部二级预冷后独立纸箱覆膜仅作为衔接条件，不重算产能或制冷。Truck、完整P2D、现场功能批准及整厂适用性未成立。H5实际功能仍INPUT_REQUIRED，不把两班53人条件流程升级为工程批准。
+Ruff、Format1176文件、Mypy545文件（含入口）及差异检查通过。三张PDF均实际841×594mm、1:200，PNG6623×4678，完成实际渲染复核。
 
-## 复算与输入变化
+7→8天依然实际重算并失败：初始成品354位（P1最低360，原新输入候选364），北移尝试只能360/364，且原预留通道与3根柱体冲突；仓储接口未全部闭环。未强行改成成功、不宣称全局不可行。[本轮真实失败](r1-input-change-regression.json)。原[历史输入变化证据](input-change-regression.json)、[容量修正](capacity-correction.json)及旧测试文件保留。
 
-在backend目录、Python3.12锁定依赖下，输出目录必须预先不存在：
+## 复算
+
+在backend目录使用Python3.12锁定依赖，输出目录预先不存在：
 
 ```bash
-uv sync --locked --python 3.12
 PATH="$PWD/.venv/bin:$PATH" \
 PYTHONPATH=tests/functional_native_guard:src:scripts \
-R11_FUNCTIONAL_GUARD_AUDIT=/tmp/autonomous-v12-guard \
-uv run python scripts/generate_autonomous_process_layout.py \
+R11_FUNCTIONAL_GUARD_AUDIT=/tmp/autonomous-v12-r1-guard \
+.venv/bin/python scripts/generate_autonomous_process_layout.py \
   --input ../docs/previews/v2.2.2/autonomous-factory-layout-v12/inputs/project-input.json \
   --parameters ../docs/previews/v2.2.2/autonomous-factory-layout-v12/inputs/process-parameters.json \
-  --output /tmp/autonomous-v12-new-output
+  --output /tmp/autonomous-v12-r1-new
 ```
 
-`--finished-storage-days 8 --no-drawings`实际重算原P1和房间，成品库从原框变为`[86680,33534,107880,64734]`，新候选原预留主通道与3个保留柱体相交，因此整体状态为`INTERRUPTED_PROCESS_CANDIDATE`。即使六条路线可以各自绕行，也没有覆盖该失败或返回旧方案冒充成功；不宣称全局不可行。[实际输入回归](input-change-regression.json)
+可增加`--finished-storage-days 8 --no-drawings`复算实际失败。生成只读取结构、业务、设备规格，不读取Owner/V2/V3/旧候选坐标；相同输入确定性回归保留。
 
-相同输入结果Hash一致；禁止读取历史布局坐标的回归通过。本入口不签发Stage A/B预算、不建立Work账本，不把房间选项计数伪称600000 Work中的收费。[实测耗时/RSS/操作数](execution-resource-usage.json)
+## 工程条件
 
-## 软件验证与执行边界
+食品容器/实际分流口、卸料及原果输送、包装/封膜机内部过程、组托拆托复托、人体动作、搬运载荷和转向、共用通道调度、次果/冻果工艺及H5柜门/洁污条件继续`INPUT_REQUIRED`。本轮仅证明分级条件几何，不作实际生产、厂家、Truck或P2D批准。
 
-新模块增加货位完整保留与固定托位阻挡反例，当前39项定向测试通过；原V1.1共36、V1共23及架构790在相关回归中通过。最终完整白名单888项通过、16项原有跳过。CI契约65通过；Ruff、Format1174文件、Mypy542源码加新入口严格检查通过。
-
-[本地白名单JUnit](local-whitelist.xml) · [新模块JUnit](process-tests-junit.xml) · [补充反例JUnit](geometric-negatives-junit.xml) · [验证摘要](validation-summary.json)
-
-父子进程保留Native禁用；负向测试的solve/Solve请求均在调用底层Native前拒绝。没有MAIN、真实Grant/Claim或正式CI。ci-fast新增本模块并保留全部继承测试及Python3.12锁定；继承自动快速CI会执行既有合成Native测试，不能把整次CI宣称为零Native。精确HEAD自动CI与远端JUnit以本PR Checks最终回执为准。
+本地新增Native执行0，父子防护保留；负向solve/Solve请求在底层调用前拒绝。没有MAIN、真实Grant/Claim、正式CI、Ready/Merge/Deploy。现有自动ci-fast保留全部继承合成Native，不能将整个CI宣称为零Native。新HEAD远端80项和最终门禁由本PR Checks的终态及JUnit回执确认。

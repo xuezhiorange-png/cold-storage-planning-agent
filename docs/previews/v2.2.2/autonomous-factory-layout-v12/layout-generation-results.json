@@ -1,8 +1,8 @@
 {
   "task_id": "V2_2_2_AUTONOMOUS_PROCESS_FLOW_CONTINUITY_R1",
-  "calculator_version": "autonomous-process-continuity@1.2.1",
+  "calculator_version": "autonomous-process-continuity@1.2.2",
   "source_input_hash": "sha256:d9cd4110874625b5c6b92f5d32a2862de0c919d24dd2d0afae9e01fa2991380b",
-  "process_parameter_hash": "sha256:ea075227ebef342b6fa7a28c13525f10ecddf37f95ce123eeabbab193f32f62e",
+  "process_parameter_hash": "sha256:11dfd0a28365f416e5f29379f0934641bb850d9b38afbf4fc6378f8dbcd61640",
   "p1_handoff_hash": "sha256:469b89b0599b39f002cdcb1b6475d3d13c2a90db84babaec8b9e7eb1001834aa",
   "zone_plan": {
     "success": true,
@@ -1419,9 +1419,9 @@
       ],
       "new_bbox_mm": [
         64422,
-        20893,
+        20873,
         68225,
-        26393
+        26373
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1436,9 +1436,9 @@
       ],
       "new_bbox_mm": [
         70025,
-        20893,
+        20873,
         73828,
-        26393
+        26373
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1453,9 +1453,9 @@
       ],
       "new_bbox_mm": [
         64422,
-        28893,
+        28913,
         68225,
-        34393
+        34413
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -1470,9 +1470,9 @@
       ],
       "new_bbox_mm": [
         70025,
-        28893,
+        28913,
         73828,
-        34393
+        34413
       ],
       "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK"
     },
@@ -7928,11 +7928,11 @@
   "grant_claim_accessed": false,
   "production_default_changed": false,
   "global_infeasibility_proven": false,
-  "result_hash": "sha256:cd3a0fd638fd7a51b633d14458e57f3a4737007e8a40ec2ea13dea03d7b15383",
+  "result_hash": "sha256:66cae2c072548b0a0159f200f26abf649f43bfb5ef4a9430b257f9a45411cccf",
   "candidates": [
     {
       "file": "autonomous-layout-A12.json",
-      "result_hash": "sha256:4a6ed0f1ca6094f9fc6177bc807a96e221b7a416b4a88b11370c1d6b3eba10b2"
+      "result_hash": "sha256:188083411deb269eeebf35458623134805acd37acbdae5fd67be543ad194eff0"
     }
   ]
 }

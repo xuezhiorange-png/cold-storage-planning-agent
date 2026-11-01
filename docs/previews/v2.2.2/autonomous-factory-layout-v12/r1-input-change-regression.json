@@ -1,0 +1,374 @@
+{
+  "status": "INTERRUPTED_PROCESS_CANDIDATE",
+  "source_input_hash": "sha256:5fd9695b8385a36a8f2f6a15078643e00f54434e1b57d5245538a30fde7b30bf",
+  "source_p1_handoff_hash": "sha256:4d28cd9315b33f3387bbb0a9be16badf1b41455ac9c4b2a63821597716ff16a0",
+  "candidate_result_hash": "sha256:34721a9eab55686b081e1f5721b67267afd8b28a7c718a83a5ce218e3eb16d01",
+  "admission": {
+    "accepted": false,
+    "status": "INTERRUPTED_PROCESS_CANDIDATE",
+    "main_lines": [
+      {
+        "line": "PACK-01",
+        "status": "CONTINUOUS_CONDITIONAL_CHAIN"
+      },
+      {
+        "line": "PACK-02",
+        "status": "CONTINUOUS_CONDITIONAL_CHAIN"
+      },
+      {
+        "line": "PACK-03",
+        "status": "CONTINUOUS_CONDITIONAL_CHAIN"
+      },
+      {
+        "line": "PACK-04",
+        "status": "CONTINUOUS_CONDITIONAL_CHAIN"
+      },
+      {
+        "line": "PACK-05",
+        "status": "CONTINUOUS_CONDITIONAL_CHAIN"
+      },
+      {
+        "line": "PACK-06",
+        "status": "CONTINUOUS_CONDITIONAL_CHAIN"
+      }
+    ],
+    "main_line_count": 6,
+    "auxiliary_flows": [
+      {
+        "flow_kind": "SECONDARY",
+        "status": "CONDITIONAL_CONNECTED"
+      },
+      {
+        "flow_kind": "FROZEN",
+        "status": "CONDITIONAL_CONNECTED"
+      },
+      {
+        "flow_kind": "PACKAGING",
+        "status": "CONDITIONAL_CONNECTED"
+      }
+    ],
+    "v11_coverage": [
+      {
+        "kind": "interior",
+        "required": 10,
+        "verified": 10,
+        "complete": true
+      },
+      {
+        "kind": "storage",
+        "required": 6,
+        "verified": 4,
+        "complete": false
+      }
+    ],
+    "engineering_checks": {
+      "original_project_and_building_binding": true,
+      "original_authority_and_12_rooms": true,
+      "original_MUST_and_room_nonoverlap": true,
+      "all_eleven_original_nontruck_access": true,
+      "single_connected_zero_hole_footprint": true,
+      "all_equipment_operators_columns_clear": true,
+      "all_original_device_counts": true,
+      "existing_493_stock_addresses_and_pick_put": false,
+      "original_53_person_two_shift_conditional_model": true,
+      "no_unresolved_layout_feedback": false
+    },
+    "failures": [
+      {
+        "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+        "id": "storage"
+      },
+      {
+        "code": "ORIGINAL_ENGINEERING_CONSTRAINT_REJECTED",
+        "id": "existing_493_stock_addresses_and_pick_put"
+      },
+      {
+        "code": "ORIGINAL_ENGINEERING_CONSTRAINT_REJECTED",
+        "id": "no_unresolved_layout_feedback"
+      }
+    ],
+    "selected_route_ids": [
+      "BLANK-ERECT-01",
+      "BLANK-ERECT-02",
+      "BLANK-ERECT-03",
+      "BLANK-ERECT-04",
+      "BLANK-ERECT-05",
+      "BUFFER-SEC-BUF-N-01",
+      "BUFFER-SEC-BUF-N-02",
+      "BUFFER-SEC-BUF-N-03",
+      "BUFFER-SEC-BUF-N-04",
+      "BUFFER-SEC-BUF-N-05",
+      "BUFFER-SEC-BUF-N-06",
+      "BUFFER-SEC-BUF-N-07",
+      "BUFFER-SEC-BUF-S-01",
+      "BUFFER-SEC-BUF-S-02",
+      "BUFFER-SEC-BUF-S-03",
+      "BUFFER-SEC-BUF-S-04",
+      "BUFFER-SEC-BUF-S-05",
+      "BUFFER-SEC-BUF-S-06",
+      "BUFFER-SEC-BUF-S-07",
+      "EMPTY-CASE-ERECT-01-LINE-1",
+      "EMPTY-CASE-ERECT-02-LINE-2",
+      "EMPTY-CASE-ERECT-03-LINE-3",
+      "EMPTY-CASE-ERECT-04-LINE-6",
+      "EMPTY-CASE-ERECT-05-LINE-4",
+      "EMPTY-CASE-ERECT-05-LINE-5",
+      "FILM-DEPAL-INFEED",
+      "FILM-OUT-REPAL",
+      "FROZEN-SORT-WORK",
+      "FROZEN-WORK-STORE",
+      "INTERNAL-FILM-FILM",
+      "INTERNAL-FILM-INFEED",
+      "INTERNAL-FILM-OUTFEED",
+      "INTERNAL-FILM-SEALER",
+      "LINE-BUFFER-1",
+      "LINE-BUFFER-2",
+      "LINE-BUFFER-3",
+      "LINE-BUFFER-4",
+      "LINE-BUFFER-5",
+      "LINE-BUFFER-6",
+      "LINK-FILM-FILM",
+      "LINK-FILM-INFEED",
+      "LINK-FILM-SEALER",
+      "PACK-PALLET-1",
+      "PACK-PALLET-2",
+      "PACK-PALLET-3",
+      "PACK-PALLET-4",
+      "PACK-PALLET-5",
+      "PACK-PALLET-6",
+      "PROCESS-PACK-01",
+      "PROCESS-PACK-02",
+      "PROCESS-PACK-03",
+      "PROCESS-PACK-04",
+      "PROCESS-PACK-05",
+      "PROCESS-PACK-06",
+      "PRODUCT-FINISHED-DISPATCH",
+      "PRODUCT-PRI-PACKING",
+      "PRODUCT-RAW-PRI",
+      "PRODUCT-REPAL-FINISHED",
+      "PRODUCT-SEC-DEPAL",
+      "RAW-LINE-1",
+      "RAW-LINE-2",
+      "RAW-LINE-3",
+      "RAW-LINE-4",
+      "RAW-LINE-5",
+      "RAW-LINE-6",
+      "SECONDARY-SORT-WORK",
+      "SECONDARY-WORK-STORE"
+    ],
+    "alternative_route_ids": [
+      "EMPTY-CASE-ERECT-01-LINE-2",
+      "EMPTY-CASE-ERECT-01-LINE-3",
+      "EMPTY-CASE-ERECT-01-LINE-4",
+      "EMPTY-CASE-ERECT-01-LINE-5",
+      "EMPTY-CASE-ERECT-01-LINE-6",
+      "EMPTY-CASE-ERECT-02-LINE-1",
+      "EMPTY-CASE-ERECT-02-LINE-3",
+      "EMPTY-CASE-ERECT-02-LINE-4",
+      "EMPTY-CASE-ERECT-02-LINE-5",
+      "EMPTY-CASE-ERECT-02-LINE-6",
+      "EMPTY-CASE-ERECT-03-LINE-1",
+      "EMPTY-CASE-ERECT-03-LINE-2",
+      "EMPTY-CASE-ERECT-03-LINE-4",
+      "EMPTY-CASE-ERECT-03-LINE-5",
+      "EMPTY-CASE-ERECT-03-LINE-6",
+      "EMPTY-CASE-ERECT-04-LINE-1",
+      "EMPTY-CASE-ERECT-04-LINE-2",
+      "EMPTY-CASE-ERECT-04-LINE-3",
+      "EMPTY-CASE-ERECT-04-LINE-4",
+      "EMPTY-CASE-ERECT-04-LINE-5",
+      "EMPTY-CASE-ERECT-05-LINE-1",
+      "EMPTY-CASE-ERECT-05-LINE-2",
+      "EMPTY-CASE-ERECT-05-LINE-3",
+      "EMPTY-CASE-ERECT-05-LINE-6"
+    ],
+    "selected_transfer_ids": [
+      "FORMING:ERECT-01",
+      "FORMING:ERECT-02",
+      "FORMING:ERECT-03",
+      "FORMING:ERECT-04",
+      "FORMING:ERECT-05",
+      "SPLIT:FROZEN",
+      "SPLIT:SECONDARY",
+      "TRANSFER:BUFFER-SEC-BUF-N-01:PRODUCT-SEC-DEPAL",
+      "TRANSFER:BUFFER-SEC-BUF-N-02:PRODUCT-SEC-DEPAL",
+      "TRANSFER:BUFFER-SEC-BUF-N-03:PRODUCT-SEC-DEPAL",
+      "TRANSFER:BUFFER-SEC-BUF-S-01:PRODUCT-SEC-DEPAL",
+      "TRANSFER:BUFFER-SEC-BUF-S-02:PRODUCT-SEC-DEPAL",
+      "TRANSFER:BUFFER-SEC-BUF-S-03:PRODUCT-SEC-DEPAL",
+      "TRANSFER:FILM-DEPAL-INFEED:INTERNAL-FILM-INFEED",
+      "TRANSFER:FILM-OUT-REPAL:PRODUCT-REPAL-FINISHED",
+      "TRANSFER:FROZEN-SORT-WORK:FROZEN-WORK-STORE",
+      "TRANSFER:INTERNAL-FILM-FILM:LINK-FILM-FILM",
+      "TRANSFER:INTERNAL-FILM-INFEED:LINK-FILM-INFEED",
+      "TRANSFER:INTERNAL-FILM-OUTFEED:FILM-OUT-REPAL",
+      "TRANSFER:INTERNAL-FILM-SEALER:LINK-FILM-SEALER",
+      "TRANSFER:LINE-BUFFER-1:BUFFER-SEC-BUF-N-01",
+      "TRANSFER:LINE-BUFFER-2:BUFFER-SEC-BUF-N-02",
+      "TRANSFER:LINE-BUFFER-3:BUFFER-SEC-BUF-N-03",
+      "TRANSFER:LINE-BUFFER-4:BUFFER-SEC-BUF-S-01",
+      "TRANSFER:LINE-BUFFER-5:BUFFER-SEC-BUF-S-02",
+      "TRANSFER:LINE-BUFFER-6:BUFFER-SEC-BUF-S-03",
+      "TRANSFER:LINK-FILM-FILM:INTERNAL-FILM-OUTFEED",
+      "TRANSFER:LINK-FILM-INFEED:INTERNAL-FILM-SEALER",
+      "TRANSFER:LINK-FILM-SEALER:INTERNAL-FILM-FILM",
+      "TRANSFER:PACK-PALLET-1:LINE-BUFFER-1",
+      "TRANSFER:PACK-PALLET-2:LINE-BUFFER-2",
+      "TRANSFER:PACK-PALLET-3:LINE-BUFFER-3",
+      "TRANSFER:PACK-PALLET-4:LINE-BUFFER-4",
+      "TRANSFER:PACK-PALLET-5:LINE-BUFFER-5",
+      "TRANSFER:PACK-PALLET-6:LINE-BUFFER-6",
+      "TRANSFER:PROCESS-PACK-01:PACK-PALLET-1",
+      "TRANSFER:PROCESS-PACK-02:PACK-PALLET-2",
+      "TRANSFER:PROCESS-PACK-03:PACK-PALLET-3",
+      "TRANSFER:PROCESS-PACK-04:PACK-PALLET-4",
+      "TRANSFER:PROCESS-PACK-05:PACK-PALLET-5",
+      "TRANSFER:PROCESS-PACK-06:PACK-PALLET-6",
+      "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-1",
+      "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-2",
+      "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-3",
+      "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-4",
+      "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-5",
+      "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-6",
+      "TRANSFER:PRODUCT-RAW-PRI:PRODUCT-PRI-PACKING",
+      "TRANSFER:PRODUCT-REPAL-FINISHED:PRODUCT-FINISHED-DISPATCH",
+      "TRANSFER:PRODUCT-SEC-DEPAL:FILM-DEPAL-INFEED",
+      "TRANSFER:RAW-LINE-1:PROCESS-PACK-01",
+      "TRANSFER:RAW-LINE-2:PROCESS-PACK-02",
+      "TRANSFER:RAW-LINE-3:PROCESS-PACK-03",
+      "TRANSFER:RAW-LINE-4:PROCESS-PACK-04",
+      "TRANSFER:RAW-LINE-5:PROCESS-PACK-05",
+      "TRANSFER:RAW-LINE-6:PROCESS-PACK-06",
+      "TRANSFER:SECONDARY-SORT-WORK:SECONDARY-WORK-STORE"
+    ],
+    "counts": {
+      "all_routes": 91,
+      "selected_routes": 67,
+      "exploratory_alternatives": 24,
+      "conditional_machine_internal_routes": 10,
+      "conditional_short_handoffs": 5,
+      "explicit_transfers": 57
+    },
+    "engineering_approval": "NOT_EVALUATED",
+    "factory_applicability": "NOT_EVALUATED"
+  },
+  "remaining_geometry_issues": [
+    {
+      "code": "RESERVED_AISLE_OCCUPIED",
+      "room": "finished_goods_room",
+      "aisle": "STORAGE-MAIN",
+      "other": "COLUMN-41485"
+    },
+    {
+      "code": "RESERVED_AISLE_OCCUPIED",
+      "room": "finished_goods_room",
+      "aisle": "STORAGE-MAIN",
+      "other": "COLUMN-41486"
+    },
+    {
+      "code": "RESERVED_AISLE_OCCUPIED",
+      "room": "finished_goods_room",
+      "aisle": "STORAGE-MAIN",
+      "other": "COLUMN-41487"
+    }
+  ],
+  "storage_preservation_failure": [
+    {
+      "variant": "NORTH_GROWTH",
+      "required_existing_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 364,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "placed_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 354,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "status": "EXISTING_CAPACITY_REJECTED"
+    },
+    {
+      "variant": "COUPLED_GROUP_NORTH_OF_RETAINED_COLUMN_ROW",
+      "coating_depth_increment_mm": 1200,
+      "group_translation_north_mm": 2316,
+      "triggering_columns": [
+        "COLUMN-41485",
+        "COLUMN-41486",
+        "COLUMN-41487"
+      ],
+      "separation_assumption_mm": 100,
+      "formula": "max(trigger_column_top_mm) + separation_assumption_mm - finished_room_south_mm",
+      "finished_room_south_mm_before_translation": 33534,
+      "trigger_column_top_mm": [
+        35750,
+        35750,
+        35750
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true,
+      "required_existing_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 364,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "source": "FRESH_IN_MEMORY_ROOM_CANDIDATES",
+      "placed_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 360,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "status": "BOUNDED_VARIANT_REJECTED",
+      "equipment_failures": []
+    }
+  ],
+  "finished_room": {
+    "zone_code": "finished_goods_room",
+    "name": "成品间",
+    "bbox_mm": [
+      86680,
+      33534,
+      107880,
+      64734
+    ],
+    "x_mm": 86680,
+    "y_mm": 33534,
+    "width_mm": 21200,
+    "depth_mm": 31200,
+    "authority_width_m": "31.2",
+    "authority_depth_m": "21.2",
+    "rotation_deg": 90,
+    "area_m2": "661.44",
+    "required_area_m2": "661.44",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-finished_goods_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "661.44",
+      "reporting_projection": null
+    },
+    "internal_columns": [
+      "COLUMN-41502",
+      "COLUMN-41485",
+      "COLUMN-41976",
+      "COLUMN-41486",
+      "COLUMN-41977",
+      "COLUMN-41487"
+    ],
+    "column_area_m2": "0.3603",
+    "floor_minus_columns_m2": "661.0797",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  "global_infeasibility_proven": false,
+  "historical_input_change_regression_file": "input-change-regression.json",
+  "historical_evidence_changed": false
+}

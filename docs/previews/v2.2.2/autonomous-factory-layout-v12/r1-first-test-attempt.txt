@@ -1,0 +1,45 @@
+........................................................................ [ 93%]
+...F.                                                                    [100%]
+=================================== FAILURES ===================================
+__ test_original_predicate_rejects_touch_and_layout_feedback_preserves_width ___
+
+candidate = {'schema_version': 'autonomous-process-continuity@1.2.2', 'candidate_status': 'CONDITIONAL_CONCEPT_NOT_P2D', 'profile_...: 'LINEAR_BANDED', 'source_input_hash': 'sha256:d9cd4110874625b5c6b92f5d32a2862de0c919d24dd2d0afae9e01fa2991380b', ...}
+parameters = {'schema_version': 'autonomous-process-parameters@1.2.0', 'main_aisle_mm': 2500, 'pallet_mm': [1200, 1000], 'carton_projection_mm': [600, 400], ...}
+
+    def test_original_predicate_rejects_touch_and_layout_feedback_preserves_width(
+        candidate, parameters
+    ):
+        from cold_storage.modules.layout.domain import access_routing as routing
+        from cold_storage.modules.layout.domain.autonomous_process_routes import _ring
+    
+        assert not routing._route_is_safe(
+            [(1250, 3250), (3750, 3250)],
+            width_mm=2500,
+            boundary=_ring([0, 0, 5000, 6500]),
+            obstacles=[_ring([0, 0, 5000, 2000])],
+            zones={},
+            incident_refs=frozenset(),
+        )[0]
+        q = candidate["equipment"]["layouts"]["sorting_packaging_room"]["service_corridors"]
+        middle = next(a for a in q if a["id"] == "CASE-MIDDLE")
+>       assert middle["bbox_mm"][3] - middle["bbox_mm"][1] == parameters["main_aisle_mm"]
+E       assert (28913 - 26373) == 2500
+
+tests/unit/test_v222_autonomous_process_continuity.py:703: AssertionError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:488
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:488
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_v222_autonomous_process_continuity.py::test_original_predicate_rejects_touch_and_layout_feedback_preserves_width
+1 failed, 76 passed, 5 warnings in 259.23s (0:04:19)
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute

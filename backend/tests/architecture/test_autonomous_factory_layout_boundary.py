@@ -9,6 +9,11 @@ def test_opt_in_generation_does_not_import_native_store_or_database():
         LAYOUT / "application/autonomous_factory_layout.py",
         LAYOUT / "domain/autonomous_room_search.py",
         LAYOUT / "domain/autonomous_equipment.py",
+        LAYOUT / "application/autonomous_process_continuity.py",
+        LAYOUT / "domain/process_continuity_acceptance.py",
+        LAYOUT / "domain/process_transfer_interfaces.py",
+        LAYOUT / "domain/process_endpoint_routes.py",
+        LAYOUT / "domain/process_flow_arrangement.py",
     ]
     for path in files:
         text = path.read_text()

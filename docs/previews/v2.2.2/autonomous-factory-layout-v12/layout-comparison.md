@@ -5,7 +5,12 @@
 
 
 12区、7条MUST、非货车Access 11/11；
-实际设备路径 87 条条件通过，0 条未贯通。
+实际路径 91 条具有分级几何见证，
+0 条未贯通。
+全量准入：CONDITIONAL_PROCESS_CANDIDATE；选用67条、
+备用24条；
+其中机内投影10条及短交接5条仅CONDITIONAL_OPERATION_ASSUMED，不是厂家验证。
+次果、冻果及包材三支线与全部10+6项V1.1通行功能均纳入集中门禁；详见process-detail.md。
 主产品完整链 6/6。
 厂车运动学、多人同时交通、热工批次能力、20t吞吐、Truck及完整P2D均未由本轮证明。
 
@@ -14,6 +19,8 @@
 
 四台分选间折箱机保持完整外形并旋转90°，中部保留2500mm通道、两列间1800mm补料操作带；
 第五台保留包材库。
+R1补正把四机中部间隔从2500扩至2540mm，各机沿Y向外移20mm；外围未通行空隙从50降至30mm，需厂家安装复核。
+实际保留的主通道仍为2500mm，原封闭障碍相交谓词未放宽。
 六线三对1000mm人员操作带不变，只缩小非通行的对间空隙。
 新增14个独立缓冲位、6个线端托位及1个周转筐卸料托位，N/S为原B4服务组在自主房间中的位置映射，并非照搬两厅世界坐标。
 
@@ -41,12 +48,12 @@ V1.1只核验房间内部Portal接口，未建立完整设备端点链；
 
 |包装线|条件中心线m|结果|
 |---|---:|---|
-|PACK-01|279.872|CONTINUOUS_CONDITIONAL_CHAIN|
-|PACK-02|274.270|CONTINUOUS_CONDITIONAL_CHAIN|
-|PACK-03|270.568|CONTINUOUS_CONDITIONAL_CHAIN|
-|PACK-04|255.366|CONTINUOUS_CONDITIONAL_CHAIN|
-|PACK-05|251.664|CONTINUOUS_CONDITIONAL_CHAIN|
-|PACK-06|246.062|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-01|279.852|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-02|274.250|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-03|270.548|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-04|255.346|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-05|251.644|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-06|246.042|CONTINUOUS_CONDITIONAL_CHAIN|
 
 |库房|原最低货位|当前货位|
 |---|---:|---:|

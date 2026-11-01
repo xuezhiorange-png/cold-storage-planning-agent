@@ -66,7 +66,7 @@ def realize_coating_aisles(
     replacements = {}
     failures = []
     for row in flows["routes"]:
-        if row["status"] != "CONDITIONAL_DEVICE_ROUTE_VERIFIED":
+        if row["status"] not in ("GEOMETRY_VERIFIED", "CONDITIONAL_DEVICE_ROUTE_VERIFIED"):
             continue
         for seg in row.get("segments", []):
             if seg["kind"] != "ROOM_MAIN_AISLE" or seg["room"] != code:
@@ -208,14 +208,18 @@ def arrange_process_workplaces(
     cw, ch = old[2] - old[0], old[3] - old[1]
     # All four original full bodies rotate.  Two discharge north and two south
     # into the 2500mm middle aisle; magazine faces share a larger operation bay.
-    row_bottom = sy + 50
+    extra = int(parameters.get("case_middle_extra_mm", 0))
+    outer = ((st - sy) - 2 * cw - aisle - extra) // 2
+    if outer < 0:
+        raise ValueError("CASE_BANK_DOES_NOT_FIT_WITH_ORIGINAL_AISLE")
+    row_bottom = sy + outer
     case_middle = row_bottom + cw
     inner_gap = int(parameters["case_magazine_bay_mm"])
     for i, q in enumerate(sorted(case, key=lambda q: q["id"])):
         col = i % 2
         case_row = i // 2
         x = bank + col * (ch + inner_gap)
-        y = row_bottom + case_row * (cw + aisle)
+        y = row_bottom + case_row * (cw + aisle + extra)
         q.update(
             bbox_mm=[x, y, x + ch, y + cw],
             rotation_deg=90 if case_row == 0 else 270,
@@ -224,7 +228,7 @@ def arrange_process_workplaces(
             magazine_face="E" if col == 0 else "W",
             interface_status="DESIGN_ASSUMPTION_VENDOR_CONFIRMATION_REQUIRED",
         )
-    middle = [transfer[0], case_middle, sr, case_middle + aisle]
+    middle = [transfer[0], case_middle, sr, case_middle + aisle + extra]
     east = [sr - aisle, sy, sr, st]
     north = [sx, st - aisle, transfer[2], st]
     south = [sx, sy, transfer[2], sy + aisle]

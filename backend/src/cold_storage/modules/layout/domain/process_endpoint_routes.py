@@ -22,6 +22,12 @@ from cold_storage.modules.layout.domain.functional_material_geometry import (
     rectilinear_path,
     swept_boxes,
 )
+from cold_storage.modules.layout.domain.process_transfer_interfaces import (
+    ASSUMED,
+    GEOMETRY,
+    endpoint_fingerprint,
+    geometry_fingerprint,
+)
 
 NORMALS = MappingProxyType({"W": (-1, 0), "E": (1, 0), "S": (0, -1), "N": (0, 1)})
 
@@ -84,6 +90,7 @@ class ProcessRoutePlanner:
         wall_boxes: Sequence[Sequence[int]] = (),
     ) -> None:
         self.candidate = candidate
+        self.geometry_context_hash = geometry_fingerprint(candidate, parameters)
         self.parameters = parameters
         self.rooms = {q["zone_code"]: q["bbox_mm"] for q in candidate["rooms"]}
         self.items = {q["id"]: q for q in candidate["equipment"]["items"]}
@@ -103,7 +110,7 @@ class ProcessRoutePlanner:
         b = q["bbox_mm"]
         n = NORMALS[face]
         spec = self.parameters["carriers"][carrier]
-        is_pallet = carrier != "CARTON_CARRY" and (
+        is_pallet = carrier in ("LOADED_PALLET", "BLANK_BUNDLE") and (
             "pallet" in q["kind"] or q["kind"] in ("raw_crate_handoff", "precooling_buffer")
         )
         centre = [(b[0] + b[2]) // 2, (b[1] + b[3]) // 2]
@@ -123,7 +130,7 @@ class ProcessRoutePlanner:
             pose = [contact[i] + n[i] * (spec["normal_mm"] // 2 + 50) for i in range(2)]
             compatible = True
         identity = object_id + ":" + role
-        row = {
+        row: dict[str, Any] = {
             "id": identity,
             "object_id": object_id,
             "room": q["room"],
@@ -186,7 +193,22 @@ class ProcessRoutePlanner:
                 node_budget=int(self.parameters["routing_node_budget"]),
                 waypoints=waypoints,
             )
-        return self._cache[key]
+        path, nodes = self._cache[key]
+        if path:
+            from cold_storage.modules.layout.domain import access_routing as routing
+            from cold_storage.modules.layout.domain.autonomous_process_routes import _ring
+
+            safe, _, _ = routing._route_is_safe(
+                path,
+                width_mm=width,
+                boundary=_ring(self.rooms[room]),
+                obstacles=[_ring(b) for b in boxes],
+                zones={},
+                incident_refs=frozenset(),
+            )
+            if not safe:
+                return [], nodes
+        return path, nodes
 
     def _dock(
         self, endpoint: Mapping[str, Any], blocked: list[dict[str, Any]], main: int
@@ -278,7 +300,12 @@ class ProcessRoutePlanner:
                 failed.append("OPERATION_BAY_TURN_BLOCKED")
                 continue
             end = _box(path[-1], main, main)
-            if not bounds_inside(end, clear) or any(positive_intersection(end, o) for o in boxes):
+            from cold_storage.modules.layout.domain import access_routing as routing
+            from cold_storage.modules.layout.domain.autonomous_process_routes import _ring
+
+            if not bounds_inside(end, clear) or any(
+                routing._polygon_intersects_closed(_ring(end), _ring(o)) for o in boxes
+            ):
                 failed.append("MAIN_AISLE_STAGING_BLOCKED")
                 continue
             return {
@@ -349,7 +376,7 @@ class ProcessRoutePlanner:
             }
         normal, tangent = (
             self.parameters["carton_projection_mm"]
-            if endpoint["carrier"] == "CARTON_CARRY"
+            if endpoint["carrier"] in ("CARTON_CARRY", "FOOD_TOTE_CARRY")
             else self.parameters["pallet_mm"]
         )
         width, depth = (normal, tangent) if n[0] else (tangent, normal)
@@ -382,7 +409,7 @@ class ProcessRoutePlanner:
         all_blocked = {room: self.obstacles(room, carried) for room in self.rooms}
         sd = self._dock(source, all_blocked[source["room"]], main)
         td = self._dock(target, all_blocked[target["room"]], main)
-        row = {
+        row: dict[str, Any] = {
             "id": identity,
             "purpose": purpose,
             "source_endpoint": source_id,
@@ -508,11 +535,11 @@ class ProcessRoutePlanner:
                 }
             )
             if path:
-                row["status"] = "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+                row["status"] = GEOMETRY
             else:
                 row["failure"] = "ROOM_PATH:" + room
         row["segments"] = segments
-        if row["status"] == "CONDITIONAL_DEVICE_ROUTE_VERIFIED":
+        if row["status"] == GEOMETRY:
             points = [*sd["centerline_mm"]]
             for seg in segments:
                 points.extend(seg["centerline_mm"])
@@ -522,6 +549,14 @@ class ProcessRoutePlanner:
             ]
             row["length_mm"] = path_length(row["centerline_mm"])
             row["witness_hash"] = canonical_hash(row)
+        row["geometry_status"] = (
+            GEOMETRY if row["status"] in (GEOMETRY, ASSUMED) else "NOT_VERIFIED"
+        )
+        row["geometry_context_hash"] = self.geometry_context_hash
+        row["endpoint_binding_hashes"] = {
+            k: endpoint_fingerprint(self.endpoints[row[k + "_endpoint"]])
+            for k in ("source", "target")
+        }
         self.routes.append(row)
         return row
 
@@ -577,7 +612,7 @@ class ProcessRoutePlanner:
                 for e in envelopes
             )
         )
-        row = {
+        row: dict[str, Any] = {
             "id": identity,
             "purpose": "CARTON_MACHINE_INTERNAL" if internal else "CARTON_SHORT_HANDOFF",
             "source_object": source_object,
@@ -586,7 +621,9 @@ class ProcessRoutePlanner:
             "target_endpoint": target_object + (":E" if internal else ":W"),
             "centerline_mm": [list(p) for p in path] if clear else [],
             "length_mm": path_length(path) if clear else 0,
-            "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED" if clear else "HANDOFF_COLLISION",
+            "status": ASSUMED if clear else "HANDOFF_COLLISION",
+            "verification_scope": "FRAME_AND_REGISTERED_MOUTH_PROJECTION_ONLY",
+            "actual_operation_status": "INPUT_REQUIRED",
             "segments": [
                 {
                     "kind": "REGISTERED_OWNED_MACHINE_THROAT"
@@ -603,6 +640,14 @@ class ProcessRoutePlanner:
             "source_type": "demo",
             "validity_status": "unverified",
             "requires_review": True,
+        }
+        row["geometry_status"] = (
+            GEOMETRY if row["status"] in (GEOMETRY, ASSUMED) else "NOT_VERIFIED"
+        )
+        row["geometry_context_hash"] = self.geometry_context_hash
+        row["endpoint_binding_hashes"] = {
+            k: endpoint_fingerprint(self.endpoints[row[k + "_endpoint"]])
+            for k in ("source", "target")
         }
         self.routes.append(row)
         return row

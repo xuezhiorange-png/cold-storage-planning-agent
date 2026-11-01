@@ -1,5 +1,5 @@
 {
-  "source_candidate_hash": "sha256:4a6ed0f1ca6094f9fc6177bc807a96e221b7a416b4a88b11370c1d6b3eba10b2",
+  "source_candidate_hash": "sha256:188083411deb269eeebf35458623134805acd37acbdae5fd67be543ad194eff0",
   "endpoints": [
     {
       "id": "raw_fruit_buffer-PAL-005:PALLET-TRANSFER",
@@ -147,7 +147,7 @@
         58320,
         31849
       ],
-      "carrier": "CARTON_CARRY",
+      "carrier": "FOOD_TOTE_CARRY",
       "carried_pallet": false,
       "load_dimensions_compatible": true,
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
@@ -1015,7 +1015,7 @@
         33270,
         23693
       ],
-      "carrier": "CARTON_CARRY",
+      "carrier": "FOOD_TOTE_CARRY",
       "carried_pallet": false,
       "load_dimensions_compatible": true,
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
@@ -1227,7 +1227,7 @@
         33270,
         25294
       ],
-      "carrier": "CARTON_CARRY",
+      "carrier": "FOOD_TOTE_CARRY",
       "carried_pallet": false,
       "load_dimensions_compatible": true,
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
@@ -1439,7 +1439,7 @@
         33270,
         25945
       ],
-      "carrier": "CARTON_CARRY",
+      "carrier": "FOOD_TOTE_CARRY",
       "carried_pallet": false,
       "load_dimensions_compatible": true,
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
@@ -1651,7 +1651,7 @@
         33270,
         27546
       ],
-      "carrier": "CARTON_CARRY",
+      "carrier": "FOOD_TOTE_CARRY",
       "carried_pallet": false,
       "load_dimensions_compatible": true,
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
@@ -1863,7 +1863,7 @@
         33270,
         28197
       ],
-      "carrier": "CARTON_CARRY",
+      "carrier": "FOOD_TOTE_CARRY",
       "carried_pallet": false,
       "load_dimensions_compatible": true,
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
@@ -2075,7 +2075,7 @@
         33270,
         29798
       ],
-      "carrier": "CARTON_CARRY",
+      "carrier": "FOOD_TOTE_CARRY",
       "carried_pallet": false,
       "load_dimensions_compatible": true,
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
@@ -2313,11 +2313,11 @@
       ],
       "contact_mm": [
         68225,
-        23643
+        23623
       ],
       "dock_reference_mm": [
         68975,
-        23643
+        23623
       ],
       "carrier": "BLANK_BUNDLE",
       "carried_pallet": false,
@@ -2325,9 +2325,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         64422,
-        20893,
+        20873,
         68225,
-        26393
+        26373
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -2345,11 +2345,11 @@
       ],
       "contact_mm": [
         66323,
-        26393
+        26373
       ],
       "dock_reference_mm": [
         66323,
-        26843
+        26823
       ],
       "carrier": "CARTON_CARRY",
       "carried_pallet": false,
@@ -2357,9 +2357,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         64422,
-        20893,
+        20873,
         68225,
-        26393
+        26373
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -2377,11 +2377,11 @@
       ],
       "contact_mm": [
         70025,
-        23643
+        23623
       ],
       "dock_reference_mm": [
         69275,
-        23643
+        23623
       ],
       "carrier": "BLANK_BUNDLE",
       "carried_pallet": false,
@@ -2389,9 +2389,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         70025,
-        20893,
+        20873,
         73828,
-        26393
+        26373
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -2409,11 +2409,11 @@
       ],
       "contact_mm": [
         71926,
-        26393
+        26373
       ],
       "dock_reference_mm": [
         71926,
-        26843
+        26823
       ],
       "carrier": "CARTON_CARRY",
       "carried_pallet": false,
@@ -2421,9 +2421,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         70025,
-        20893,
+        20873,
         73828,
-        26393
+        26373
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -2441,11 +2441,11 @@
       ],
       "contact_mm": [
         68225,
-        31643
+        31663
       ],
       "dock_reference_mm": [
         68975,
-        31643
+        31663
       ],
       "carrier": "BLANK_BUNDLE",
       "carried_pallet": false,
@@ -2453,9 +2453,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         64422,
-        28893,
+        28913,
         68225,
-        34393
+        34413
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -2473,11 +2473,11 @@
       ],
       "contact_mm": [
         66323,
-        28893
+        28913
       ],
       "dock_reference_mm": [
         66323,
-        28443
+        28463
       ],
       "carrier": "CARTON_CARRY",
       "carried_pallet": false,
@@ -2485,9 +2485,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         64422,
-        28893,
+        28913,
         68225,
-        34393
+        34413
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -2505,11 +2505,11 @@
       ],
       "contact_mm": [
         70025,
-        31643
+        31663
       ],
       "dock_reference_mm": [
         69275,
-        31643
+        31663
       ],
       "carrier": "BLANK_BUNDLE",
       "carried_pallet": false,
@@ -2517,9 +2517,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         70025,
-        28893,
+        28913,
         73828,
-        34393
+        34413
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -2537,11 +2537,11 @@
       ],
       "contact_mm": [
         71926,
-        28893
+        28913
       ],
       "dock_reference_mm": [
         71926,
-        28443
+        28463
       ],
       "carrier": "CARTON_CARRY",
       "carried_pallet": false,
@@ -2549,9 +2549,9 @@
       "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
       "object_bbox_mm": [
         70025,
-        28893,
+        28913,
         73828,
-        34393
+        34413
       ],
       "source_type": "demo",
       "validity_status": "unverified",
@@ -2620,6 +2620,198 @@
       "source_type": "demo",
       "validity_status": "unverified",
       "requires_review": true
+    },
+    {
+      "id": "PACK-01:SECONDARY-CONDITIONAL-SORT-OUT",
+      "object_id": "PACK-01",
+      "room": "sorting_packaging_room",
+      "role": "SECONDARY-CONDITIONAL-SORT-OUT",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        23693
+      ],
+      "dock_reference_mm": [
+        62172,
+        23693
+      ],
+      "carrier": "FOOD_TOTE_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        23393,
+        61722,
+        23994
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-01:SECONDARY-BIN-IN",
+      "object_id": "WORK-PACK-01",
+      "room": "sorting_packaging_room",
+      "role": "SECONDARY-BIN-IN",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        51120,
+        31399
+      ],
+      "dock_reference_mm": [
+        51120,
+        31849
+      ],
+      "carrier": "FOOD_TOTE_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        50620,
+        30199,
+        51620,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "secondary_fruit_buffer-PAL-004:PALLET-TRANSFER",
+      "object_id": "secondary_fruit_buffer-PAL-004",
+      "room": "secondary_fruit_buffer",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        54000,
+        17843
+      ],
+      "dock_reference_mm": [
+        54000,
+        17543
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        53500,
+        16643,
+        54500,
+        17843
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-02:FROZEN-CONDITIONAL-SORT-OUT",
+      "object_id": "PACK-02",
+      "room": "sorting_packaging_room",
+      "role": "FROZEN-CONDITIONAL-SORT-OUT",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        25294
+      ],
+      "dock_reference_mm": [
+        62172,
+        25294
+      ],
+      "carrier": "FOOD_TOTE_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        24994,
+        61722,
+        25595
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-02:FROZEN-BIN-IN",
+      "object_id": "WORK-PACK-02",
+      "room": "sorting_packaging_room",
+      "role": "FROZEN-BIN-IN",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        52320,
+        31399
+      ],
+      "dock_reference_mm": [
+        52320,
+        31849
+      ],
+      "carrier": "FOOD_TOTE_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        51820,
+        30199,
+        52820,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "frozen_fruit_room-PAL-005:PALLET-TRANSFER",
+      "object_id": "frozen_fruit_room-PAL-005",
+      "room": "frozen_fruit_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        63600,
+        17843
+      ],
+      "dock_reference_mm": [
+        63600,
+        17543
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        63100,
+        16643,
+        64100,
+        17843
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
     }
   ],
   "product_chains": [
@@ -2632,122 +2824,144 @@
           "route_id": "PRODUCT-RAW-PRI",
           "source_object": "raw_fruit_buffer-PAL-005",
           "target_object": "PRI-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-PRI-PACKING",
           "source_object": "PRI-C1-P6",
           "target_object": "RAW-UNLOAD",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "RAW-LINE-1",
           "source_object": "RAW-UNLOAD",
           "target_object": "PACK-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PROCESS-PACK-01",
           "source_object": "PACK-01",
           "target_object": "PACK-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PACK-PALLET-1",
           "source_object": "PACK-01",
           "target_object": "WORK-PACK-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "LINE-BUFFER-1",
           "source_object": "WORK-PACK-01",
           "target_object": "BUF-N-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "BUFFER-SEC-BUF-N-01",
           "source_object": "BUF-N-01",
           "target_object": "SEC-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-SEC-DEPAL",
           "source_object": "SEC-C1-P6",
           "target_object": "DEPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "FILM-DEPAL-INFEED",
           "source_object": "DEPALLETIZE",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-OUTFEED",
           "source_object": "FILM-OUTFEED",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "FILM-OUT-REPAL",
           "source_object": "FILM-OUTFEED",
           "target_object": "REPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
           "target_object": "finished_goods_room-PAL-002",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
           "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         }
       ],
       "failed_segments": [],
+      "transfer_ids": [
+        "TRANSFER:PRODUCT-RAW-PRI:PRODUCT-PRI-PACKING",
+        "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-1",
+        "TRANSFER:RAW-LINE-1:PROCESS-PACK-01",
+        "TRANSFER:PROCESS-PACK-01:PACK-PALLET-1",
+        "TRANSFER:PACK-PALLET-1:LINE-BUFFER-1",
+        "TRANSFER:LINE-BUFFER-1:BUFFER-SEC-BUF-N-01",
+        "TRANSFER:BUFFER-SEC-BUF-N-01:PRODUCT-SEC-DEPAL",
+        "TRANSFER:PRODUCT-SEC-DEPAL:FILM-DEPAL-INFEED",
+        "TRANSFER:FILM-DEPAL-INFEED:INTERNAL-FILM-INFEED",
+        "TRANSFER:INTERNAL-FILM-INFEED:LINK-FILM-INFEED",
+        "TRANSFER:LINK-FILM-INFEED:INTERNAL-FILM-SEALER",
+        "TRANSFER:INTERNAL-FILM-SEALER:LINK-FILM-SEALER",
+        "TRANSFER:LINK-FILM-SEALER:INTERNAL-FILM-FILM",
+        "TRANSFER:INTERNAL-FILM-FILM:LINK-FILM-FILM",
+        "TRANSFER:LINK-FILM-FILM:INTERNAL-FILM-OUTFEED",
+        "TRANSFER:INTERNAL-FILM-OUTFEED:FILM-OUT-REPAL",
+        "TRANSFER:FILM-OUT-REPAL:PRODUCT-REPAL-FINISHED",
+        "TRANSFER:PRODUCT-REPAL-FINISHED:PRODUCT-FINISHED-DISPATCH"
+      ],
       "continuous_object_chain": true,
-      "length_mm": 279872,
+      "length_mm": 279852,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
-      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE",
+      "failed_transfers": [],
+      "continuous_transfer_chain": true
     },
     {
       "id": "PRODUCT-CHAIN-2",
@@ -2758,122 +2972,144 @@
           "route_id": "PRODUCT-RAW-PRI",
           "source_object": "raw_fruit_buffer-PAL-005",
           "target_object": "PRI-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-PRI-PACKING",
           "source_object": "PRI-C1-P6",
           "target_object": "RAW-UNLOAD",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "RAW-LINE-2",
           "source_object": "RAW-UNLOAD",
           "target_object": "PACK-02",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PROCESS-PACK-02",
           "source_object": "PACK-02",
           "target_object": "PACK-02",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PACK-PALLET-2",
           "source_object": "PACK-02",
           "target_object": "WORK-PACK-02",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "LINE-BUFFER-2",
           "source_object": "WORK-PACK-02",
           "target_object": "BUF-N-02",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "BUFFER-SEC-BUF-N-02",
           "source_object": "BUF-N-02",
           "target_object": "SEC-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-SEC-DEPAL",
           "source_object": "SEC-C1-P6",
           "target_object": "DEPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "FILM-DEPAL-INFEED",
           "source_object": "DEPALLETIZE",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-OUTFEED",
           "source_object": "FILM-OUTFEED",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "FILM-OUT-REPAL",
           "source_object": "FILM-OUTFEED",
           "target_object": "REPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
           "target_object": "finished_goods_room-PAL-002",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
           "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         }
       ],
       "failed_segments": [],
+      "transfer_ids": [
+        "TRANSFER:PRODUCT-RAW-PRI:PRODUCT-PRI-PACKING",
+        "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-2",
+        "TRANSFER:RAW-LINE-2:PROCESS-PACK-02",
+        "TRANSFER:PROCESS-PACK-02:PACK-PALLET-2",
+        "TRANSFER:PACK-PALLET-2:LINE-BUFFER-2",
+        "TRANSFER:LINE-BUFFER-2:BUFFER-SEC-BUF-N-02",
+        "TRANSFER:BUFFER-SEC-BUF-N-02:PRODUCT-SEC-DEPAL",
+        "TRANSFER:PRODUCT-SEC-DEPAL:FILM-DEPAL-INFEED",
+        "TRANSFER:FILM-DEPAL-INFEED:INTERNAL-FILM-INFEED",
+        "TRANSFER:INTERNAL-FILM-INFEED:LINK-FILM-INFEED",
+        "TRANSFER:LINK-FILM-INFEED:INTERNAL-FILM-SEALER",
+        "TRANSFER:INTERNAL-FILM-SEALER:LINK-FILM-SEALER",
+        "TRANSFER:LINK-FILM-SEALER:INTERNAL-FILM-FILM",
+        "TRANSFER:INTERNAL-FILM-FILM:LINK-FILM-FILM",
+        "TRANSFER:LINK-FILM-FILM:INTERNAL-FILM-OUTFEED",
+        "TRANSFER:INTERNAL-FILM-OUTFEED:FILM-OUT-REPAL",
+        "TRANSFER:FILM-OUT-REPAL:PRODUCT-REPAL-FINISHED",
+        "TRANSFER:PRODUCT-REPAL-FINISHED:PRODUCT-FINISHED-DISPATCH"
+      ],
       "continuous_object_chain": true,
-      "length_mm": 274270,
+      "length_mm": 274250,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
-      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE",
+      "failed_transfers": [],
+      "continuous_transfer_chain": true
     },
     {
       "id": "PRODUCT-CHAIN-3",
@@ -2884,122 +3120,144 @@
           "route_id": "PRODUCT-RAW-PRI",
           "source_object": "raw_fruit_buffer-PAL-005",
           "target_object": "PRI-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-PRI-PACKING",
           "source_object": "PRI-C1-P6",
           "target_object": "RAW-UNLOAD",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "RAW-LINE-3",
           "source_object": "RAW-UNLOAD",
           "target_object": "PACK-03",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PROCESS-PACK-03",
           "source_object": "PACK-03",
           "target_object": "PACK-03",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PACK-PALLET-3",
           "source_object": "PACK-03",
           "target_object": "WORK-PACK-03",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "LINE-BUFFER-3",
           "source_object": "WORK-PACK-03",
           "target_object": "BUF-N-03",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "BUFFER-SEC-BUF-N-03",
           "source_object": "BUF-N-03",
           "target_object": "SEC-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-SEC-DEPAL",
           "source_object": "SEC-C1-P6",
           "target_object": "DEPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "FILM-DEPAL-INFEED",
           "source_object": "DEPALLETIZE",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-OUTFEED",
           "source_object": "FILM-OUTFEED",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "FILM-OUT-REPAL",
           "source_object": "FILM-OUTFEED",
           "target_object": "REPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
           "target_object": "finished_goods_room-PAL-002",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
           "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         }
       ],
       "failed_segments": [],
+      "transfer_ids": [
+        "TRANSFER:PRODUCT-RAW-PRI:PRODUCT-PRI-PACKING",
+        "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-3",
+        "TRANSFER:RAW-LINE-3:PROCESS-PACK-03",
+        "TRANSFER:PROCESS-PACK-03:PACK-PALLET-3",
+        "TRANSFER:PACK-PALLET-3:LINE-BUFFER-3",
+        "TRANSFER:LINE-BUFFER-3:BUFFER-SEC-BUF-N-03",
+        "TRANSFER:BUFFER-SEC-BUF-N-03:PRODUCT-SEC-DEPAL",
+        "TRANSFER:PRODUCT-SEC-DEPAL:FILM-DEPAL-INFEED",
+        "TRANSFER:FILM-DEPAL-INFEED:INTERNAL-FILM-INFEED",
+        "TRANSFER:INTERNAL-FILM-INFEED:LINK-FILM-INFEED",
+        "TRANSFER:LINK-FILM-INFEED:INTERNAL-FILM-SEALER",
+        "TRANSFER:INTERNAL-FILM-SEALER:LINK-FILM-SEALER",
+        "TRANSFER:LINK-FILM-SEALER:INTERNAL-FILM-FILM",
+        "TRANSFER:INTERNAL-FILM-FILM:LINK-FILM-FILM",
+        "TRANSFER:LINK-FILM-FILM:INTERNAL-FILM-OUTFEED",
+        "TRANSFER:INTERNAL-FILM-OUTFEED:FILM-OUT-REPAL",
+        "TRANSFER:FILM-OUT-REPAL:PRODUCT-REPAL-FINISHED",
+        "TRANSFER:PRODUCT-REPAL-FINISHED:PRODUCT-FINISHED-DISPATCH"
+      ],
       "continuous_object_chain": true,
-      "length_mm": 270568,
+      "length_mm": 270548,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
-      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE",
+      "failed_transfers": [],
+      "continuous_transfer_chain": true
     },
     {
       "id": "PRODUCT-CHAIN-4",
@@ -3010,122 +3268,144 @@
           "route_id": "PRODUCT-RAW-PRI",
           "source_object": "raw_fruit_buffer-PAL-005",
           "target_object": "PRI-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-PRI-PACKING",
           "source_object": "PRI-C1-P6",
           "target_object": "RAW-UNLOAD",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "RAW-LINE-4",
           "source_object": "RAW-UNLOAD",
           "target_object": "PACK-04",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PROCESS-PACK-04",
           "source_object": "PACK-04",
           "target_object": "PACK-04",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PACK-PALLET-4",
           "source_object": "PACK-04",
           "target_object": "WORK-PACK-04",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "LINE-BUFFER-4",
           "source_object": "WORK-PACK-04",
           "target_object": "BUF-S-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "BUFFER-SEC-BUF-S-01",
           "source_object": "BUF-S-01",
           "target_object": "SEC-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-SEC-DEPAL",
           "source_object": "SEC-C1-P6",
           "target_object": "DEPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "FILM-DEPAL-INFEED",
           "source_object": "DEPALLETIZE",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-OUTFEED",
           "source_object": "FILM-OUTFEED",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "FILM-OUT-REPAL",
           "source_object": "FILM-OUTFEED",
           "target_object": "REPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
           "target_object": "finished_goods_room-PAL-002",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
           "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         }
       ],
       "failed_segments": [],
+      "transfer_ids": [
+        "TRANSFER:PRODUCT-RAW-PRI:PRODUCT-PRI-PACKING",
+        "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-4",
+        "TRANSFER:RAW-LINE-4:PROCESS-PACK-04",
+        "TRANSFER:PROCESS-PACK-04:PACK-PALLET-4",
+        "TRANSFER:PACK-PALLET-4:LINE-BUFFER-4",
+        "TRANSFER:LINE-BUFFER-4:BUFFER-SEC-BUF-S-01",
+        "TRANSFER:BUFFER-SEC-BUF-S-01:PRODUCT-SEC-DEPAL",
+        "TRANSFER:PRODUCT-SEC-DEPAL:FILM-DEPAL-INFEED",
+        "TRANSFER:FILM-DEPAL-INFEED:INTERNAL-FILM-INFEED",
+        "TRANSFER:INTERNAL-FILM-INFEED:LINK-FILM-INFEED",
+        "TRANSFER:LINK-FILM-INFEED:INTERNAL-FILM-SEALER",
+        "TRANSFER:INTERNAL-FILM-SEALER:LINK-FILM-SEALER",
+        "TRANSFER:LINK-FILM-SEALER:INTERNAL-FILM-FILM",
+        "TRANSFER:INTERNAL-FILM-FILM:LINK-FILM-FILM",
+        "TRANSFER:LINK-FILM-FILM:INTERNAL-FILM-OUTFEED",
+        "TRANSFER:INTERNAL-FILM-OUTFEED:FILM-OUT-REPAL",
+        "TRANSFER:FILM-OUT-REPAL:PRODUCT-REPAL-FINISHED",
+        "TRANSFER:PRODUCT-REPAL-FINISHED:PRODUCT-FINISHED-DISPATCH"
+      ],
       "continuous_object_chain": true,
-      "length_mm": 255366,
+      "length_mm": 255346,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
-      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE",
+      "failed_transfers": [],
+      "continuous_transfer_chain": true
     },
     {
       "id": "PRODUCT-CHAIN-5",
@@ -3136,122 +3416,144 @@
           "route_id": "PRODUCT-RAW-PRI",
           "source_object": "raw_fruit_buffer-PAL-005",
           "target_object": "PRI-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-PRI-PACKING",
           "source_object": "PRI-C1-P6",
           "target_object": "RAW-UNLOAD",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "RAW-LINE-5",
           "source_object": "RAW-UNLOAD",
           "target_object": "PACK-05",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PROCESS-PACK-05",
           "source_object": "PACK-05",
           "target_object": "PACK-05",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PACK-PALLET-5",
           "source_object": "PACK-05",
           "target_object": "WORK-PACK-05",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "LINE-BUFFER-5",
           "source_object": "WORK-PACK-05",
           "target_object": "BUF-S-02",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "BUFFER-SEC-BUF-S-02",
           "source_object": "BUF-S-02",
           "target_object": "SEC-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-SEC-DEPAL",
           "source_object": "SEC-C1-P6",
           "target_object": "DEPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "FILM-DEPAL-INFEED",
           "source_object": "DEPALLETIZE",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-OUTFEED",
           "source_object": "FILM-OUTFEED",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "FILM-OUT-REPAL",
           "source_object": "FILM-OUTFEED",
           "target_object": "REPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
           "target_object": "finished_goods_room-PAL-002",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
           "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         }
       ],
       "failed_segments": [],
+      "transfer_ids": [
+        "TRANSFER:PRODUCT-RAW-PRI:PRODUCT-PRI-PACKING",
+        "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-5",
+        "TRANSFER:RAW-LINE-5:PROCESS-PACK-05",
+        "TRANSFER:PROCESS-PACK-05:PACK-PALLET-5",
+        "TRANSFER:PACK-PALLET-5:LINE-BUFFER-5",
+        "TRANSFER:LINE-BUFFER-5:BUFFER-SEC-BUF-S-02",
+        "TRANSFER:BUFFER-SEC-BUF-S-02:PRODUCT-SEC-DEPAL",
+        "TRANSFER:PRODUCT-SEC-DEPAL:FILM-DEPAL-INFEED",
+        "TRANSFER:FILM-DEPAL-INFEED:INTERNAL-FILM-INFEED",
+        "TRANSFER:INTERNAL-FILM-INFEED:LINK-FILM-INFEED",
+        "TRANSFER:LINK-FILM-INFEED:INTERNAL-FILM-SEALER",
+        "TRANSFER:INTERNAL-FILM-SEALER:LINK-FILM-SEALER",
+        "TRANSFER:LINK-FILM-SEALER:INTERNAL-FILM-FILM",
+        "TRANSFER:INTERNAL-FILM-FILM:LINK-FILM-FILM",
+        "TRANSFER:LINK-FILM-FILM:INTERNAL-FILM-OUTFEED",
+        "TRANSFER:INTERNAL-FILM-OUTFEED:FILM-OUT-REPAL",
+        "TRANSFER:FILM-OUT-REPAL:PRODUCT-REPAL-FINISHED",
+        "TRANSFER:PRODUCT-REPAL-FINISHED:PRODUCT-FINISHED-DISPATCH"
+      ],
       "continuous_object_chain": true,
-      "length_mm": 251664,
+      "length_mm": 251644,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
-      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE",
+      "failed_transfers": [],
+      "continuous_transfer_chain": true
     },
     {
       "id": "PRODUCT-CHAIN-6",
@@ -3262,122 +3564,144 @@
           "route_id": "PRODUCT-RAW-PRI",
           "source_object": "raw_fruit_buffer-PAL-005",
           "target_object": "PRI-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-PRI-PACKING",
           "source_object": "PRI-C1-P6",
           "target_object": "RAW-UNLOAD",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "RAW-LINE-6",
           "source_object": "RAW-UNLOAD",
           "target_object": "PACK-06",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PROCESS-PACK-06",
           "source_object": "PACK-06",
           "target_object": "PACK-06",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PACK-PALLET-6",
           "source_object": "PACK-06",
           "target_object": "WORK-PACK-06",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "LINE-BUFFER-6",
           "source_object": "WORK-PACK-06",
           "target_object": "BUF-S-03",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "BUFFER-SEC-BUF-S-03",
           "source_object": "BUF-S-03",
           "target_object": "SEC-C1-P6",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-SEC-DEPAL",
           "source_object": "SEC-C1-P6",
           "target_object": "DEPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "FILM-DEPAL-INFEED",
           "source_object": "DEPALLETIZE",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-INFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-INFEED",
           "source_object": "FILM-INFEED",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-SEALER",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-SEALER",
           "source_object": "FILM-SEALER",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-FILM",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "LINK-FILM-FILM",
           "source_object": "FILM-FILM",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "INTERNAL-FILM-OUTFEED",
           "source_object": "FILM-OUTFEED",
           "target_object": "FILM-OUTFEED",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "FILM-OUT-REPAL",
           "source_object": "FILM-OUTFEED",
           "target_object": "REPALLETIZE",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "CONDITIONAL_OPERATION_ASSUMED"
         },
         {
           "route_id": "PRODUCT-REPAL-FINISHED",
           "source_object": "REPALLETIZE",
           "target_object": "finished_goods_room-PAL-002",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         },
         {
           "route_id": "PRODUCT-FINISHED-DISPATCH",
           "source_object": "finished_goods_room-PAL-002",
           "target_object": "DISPATCH-01",
-          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+          "status": "GEOMETRY_VERIFIED"
         }
       ],
       "failed_segments": [],
+      "transfer_ids": [
+        "TRANSFER:PRODUCT-RAW-PRI:PRODUCT-PRI-PACKING",
+        "TRANSFER:PRODUCT-PRI-PACKING:RAW-LINE-6",
+        "TRANSFER:RAW-LINE-6:PROCESS-PACK-06",
+        "TRANSFER:PROCESS-PACK-06:PACK-PALLET-6",
+        "TRANSFER:PACK-PALLET-6:LINE-BUFFER-6",
+        "TRANSFER:LINE-BUFFER-6:BUFFER-SEC-BUF-S-03",
+        "TRANSFER:BUFFER-SEC-BUF-S-03:PRODUCT-SEC-DEPAL",
+        "TRANSFER:PRODUCT-SEC-DEPAL:FILM-DEPAL-INFEED",
+        "TRANSFER:FILM-DEPAL-INFEED:INTERNAL-FILM-INFEED",
+        "TRANSFER:INTERNAL-FILM-INFEED:LINK-FILM-INFEED",
+        "TRANSFER:LINK-FILM-INFEED:INTERNAL-FILM-SEALER",
+        "TRANSFER:INTERNAL-FILM-SEALER:LINK-FILM-SEALER",
+        "TRANSFER:LINK-FILM-SEALER:INTERNAL-FILM-FILM",
+        "TRANSFER:INTERNAL-FILM-FILM:LINK-FILM-FILM",
+        "TRANSFER:LINK-FILM-FILM:INTERNAL-FILM-OUTFEED",
+        "TRANSFER:INTERNAL-FILM-OUTFEED:FILM-OUT-REPAL",
+        "TRANSFER:FILM-OUT-REPAL:PRODUCT-REPAL-FINISHED",
+        "TRANSFER:PRODUCT-REPAL-FINISHED:PRODUCT-FINISHED-DISPATCH"
+      ],
       "continuous_object_chain": true,
-      "length_mm": 246062,
+      "length_mm": 246042,
       "status": "CONTINUOUS_CONDITIONAL_CHAIN",
-      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE",
+      "failed_transfers": [],
+      "continuous_transfer_chain": true
     }
   ],
   "case_supply": {
@@ -3396,19 +3720,19 @@
         "line": "PACK-01",
         "erector": "ERECT-01",
         "route_id": "EMPTY-CASE-ERECT-01-LINE-1",
-        "length_mm": 42505
+        "length_mm": 42489
       },
       {
         "line": "PACK-02",
         "erector": "ERECT-02",
         "route_id": "EMPTY-CASE-ERECT-02-LINE-2",
-        "length_mm": 49709
+        "length_mm": 49693
       },
       {
         "line": "PACK-03",
         "erector": "ERECT-03",
         "route_id": "EMPTY-CASE-ERECT-03-LINE-3",
-        "length_mm": 44757
+        "length_mm": 44779
       },
       {
         "line": "PACK-04",
@@ -3426,7 +3750,7 @@
         "line": "PACK-06",
         "erector": "ERECT-04",
         "route_id": "EMPTY-CASE-ERECT-04-LINE-6",
-        "length_mm": 48915
+        "length_mm": 48899
       }
     ],
     "status": "FIVE_ERECTORS_SIX_LINES_CONNECTED"
@@ -3445,11 +3769,11 @@
           42293
         ],
         [
-          18320,
+          18321,
           42293
         ],
         [
-          18320,
+          18321,
           43243
         ],
         [
@@ -3462,11 +3786,11 @@
         ],
         [
           21320,
-          43143
+          43144
         ],
         [
           24370,
-          43143
+          43144
         ],
         [
           24370,
@@ -3474,7 +3798,7 @@
         ]
       ],
       "length_mm": 10850,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "PRODUCT-PRI-PACKING",
@@ -3488,11 +3812,11 @@
         ],
         [
           24370,
-          43143
+          43144
         ],
         [
           32419,
-          43143
+          43144
         ],
         [
           32419,
@@ -3508,19 +3832,19 @@
         ],
         [
           32945,
-          32649
+          32650
         ],
         [
           58320,
-          32649
+          32650
         ],
         [
           58320,
           31099
         ]
       ],
-      "length_mm": 48194,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 48196,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "PRODUCT-SEC-DEPAL",
@@ -3534,11 +3858,11 @@
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           85430,
-          29543
+          29544
         ],
         [
           85430,
@@ -3550,19 +3874,19 @@
         ],
         [
           87930,
-          33768
+          33769
         ],
         [
           89780,
-          33768
+          33769
         ],
         [
           89780,
           32000
         ]
       ],
-      "length_mm": 17437,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 17441,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "FILM-DEPAL-INFEED",
@@ -3580,7 +3904,7 @@
         ]
       ],
       "length_mm": 200,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "INTERNAL-FILM-INFEED",
@@ -3598,7 +3922,7 @@
         ]
       ],
       "length_mm": 1684,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "LINK-FILM-INFEED",
@@ -3616,7 +3940,7 @@
         ]
       ],
       "length_mm": 0,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "INTERNAL-FILM-SEALER",
@@ -3634,7 +3958,7 @@
         ]
       ],
       "length_mm": 1924,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "LINK-FILM-SEALER",
@@ -3652,7 +3976,7 @@
         ]
       ],
       "length_mm": 0,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "INTERNAL-FILM-FILM",
@@ -3670,7 +3994,7 @@
         ]
       ],
       "length_mm": 3030,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "LINK-FILM-FILM",
@@ -3688,7 +4012,7 @@
         ]
       ],
       "length_mm": 0,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "INTERNAL-FILM-OUTFEED",
@@ -3706,7 +4030,7 @@
         ]
       ],
       "length_mm": 2020,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "FILM-OUT-REPAL",
@@ -3724,7 +4048,7 @@
         ]
       ],
       "length_mm": 200,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "PRODUCT-REPAL-FINISHED",
@@ -3738,7 +4062,7 @@
         ],
         [
           99838,
-          33768
+          33769
         ],
         [
           99838,
@@ -3758,11 +4082,11 @@
         ],
         [
           87930,
-          37600
+          37599
         ],
         [
           88480,
-          37600
+          37599
         ],
         [
           88480,
@@ -3770,7 +4094,7 @@
         ]
       ],
       "length_mm": 19608,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "PRODUCT-FINISHED-DISPATCH",
@@ -3784,7 +4108,7 @@
         ],
         [
           88480,
-          37600
+          37599
         ],
         [
           88480,
@@ -3808,7 +4132,7 @@
         ]
       ],
       "length_mm": 10293,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-N-01",
@@ -3822,19 +4146,19 @@
         ],
         [
           34320,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -3850,19 +4174,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 57716,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 57680,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-N-02",
@@ -3876,19 +4200,19 @@
         ],
         [
           35520,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -3904,19 +4228,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 56516,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 56480,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-N-03",
@@ -3930,19 +4254,19 @@
         ],
         [
           36720,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -3958,19 +4282,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 55316,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 55280,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-N-04",
@@ -3984,19 +4308,19 @@
         ],
         [
           37920,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4012,19 +4336,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 54116,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 54080,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-N-05",
@@ -4038,19 +4362,19 @@
         ],
         [
           39120,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4066,19 +4390,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 52916,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 52880,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-N-06",
@@ -4092,19 +4416,19 @@
         ],
         [
           40320,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4120,19 +4444,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 51716,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 51680,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-N-07",
@@ -4146,19 +4470,19 @@
         ],
         [
           41520,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4174,19 +4498,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 50516,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 50480,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-S-01",
@@ -4200,19 +4524,19 @@
         ],
         [
           42720,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4228,19 +4552,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 49316,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 49280,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-S-02",
@@ -4254,19 +4578,19 @@
         ],
         [
           43920,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4282,19 +4606,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 48116,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 48080,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-S-03",
@@ -4308,19 +4632,19 @@
         ],
         [
           45120,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4336,19 +4660,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 46916,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 46880,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-S-04",
@@ -4362,19 +4686,19 @@
         ],
         [
           46320,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4390,19 +4714,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 45716,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 45680,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-S-05",
@@ -4416,19 +4740,19 @@
         ],
         [
           47520,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4444,19 +4768,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 44516,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 44480,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-S-06",
@@ -4470,19 +4794,19 @@
         ],
         [
           48720,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4498,19 +4822,19 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 43316,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 43280,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BUFFER-SEC-BUF-S-07",
@@ -4524,19 +4848,19 @@
         ],
         [
           49920,
-          32649
+          32650
         ],
         [
           63171,
-          32649
+          32650
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           75079,
-          27643
+          27662
         ],
         [
           75079,
@@ -4552,25 +4876,25 @@
         ],
         [
           78130,
-          29543
+          29544
         ],
         [
           81180,
-          29543
+          29544
         ],
         [
           81180,
           27343
         ]
       ],
-      "length_mm": 42116,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 42080,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "RAW-LINE-1",
       "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
       "target_endpoint": "PACK-01:RAW-IN",
-      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "purpose": "FOOD_TOTE_TO_PACKING_INLET",
       "centerline_mm": [
         [
           58320,
@@ -4578,14 +4902,14 @@
         ],
         [
           58320,
-          32649
+          32650
         ],
         [
-          32470,
-          32649
+          32469,
+          32650
         ],
         [
-          32470,
+          32469,
           23693
         ],
         [
@@ -4593,8 +4917,8 @@
           23693
         ]
       ],
-      "length_mm": 36406,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 36410,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "PROCESS-PACK-01",
@@ -4612,7 +4936,7 @@
         ]
       ],
       "length_mm": 28002,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "PACK-PALLET-1",
@@ -4625,24 +4949,24 @@
           23693
         ],
         [
-          62972,
+          62973,
           23693
         ],
         [
-          62972,
-          32649
+          62973,
+          32650
         ],
         [
           51120,
-          32649
+          32650
         ],
         [
           51120,
           31849
         ]
       ],
-      "length_mm": 22408,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 22412,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "LINE-BUFFER-1",
@@ -4656,25 +4980,25 @@
         ],
         [
           51120,
-          32649
+          32650
         ],
         [
           34320,
-          32649
+          32650
         ],
         [
           34320,
           31099
         ]
       ],
-      "length_mm": 19900,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 19902,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "RAW-LINE-2",
       "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
       "target_endpoint": "PACK-02:RAW-IN",
-      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "purpose": "FOOD_TOTE_TO_PACKING_INLET",
       "centerline_mm": [
         [
           58320,
@@ -4682,14 +5006,14 @@
         ],
         [
           58320,
-          32649
+          32650
         ],
         [
-          32470,
-          32649
+          32469,
+          32650
         ],
         [
-          32470,
+          32469,
           25294
         ],
         [
@@ -4697,8 +5021,8 @@
           25294
         ]
       ],
-      "length_mm": 34805,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 34809,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "PROCESS-PACK-02",
@@ -4716,7 +5040,7 @@
         ]
       ],
       "length_mm": 28002,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "PACK-PALLET-2",
@@ -4729,24 +5053,24 @@
           25294
         ],
         [
-          62972,
+          62973,
           25294
         ],
         [
-          62972,
-          32649
+          62973,
+          32650
         ],
         [
           52320,
-          32649
+          32650
         ],
         [
           52320,
           31849
         ]
       ],
-      "length_mm": 19607,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 19611,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "LINE-BUFFER-2",
@@ -4760,25 +5084,25 @@
         ],
         [
           52320,
-          32649
+          32650
         ],
         [
           35520,
-          32649
+          32650
         ],
         [
           35520,
           31099
         ]
       ],
-      "length_mm": 19900,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 19902,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "RAW-LINE-3",
       "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
       "target_endpoint": "PACK-03:RAW-IN",
-      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "purpose": "FOOD_TOTE_TO_PACKING_INLET",
       "centerline_mm": [
         [
           58320,
@@ -4786,14 +5110,14 @@
         ],
         [
           58320,
-          32649
+          32650
         ],
         [
-          32470,
-          32649
+          32469,
+          32650
         ],
         [
-          32470,
+          32469,
           25945
         ],
         [
@@ -4801,8 +5125,8 @@
           25945
         ]
       ],
-      "length_mm": 34154,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 34158,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "PROCESS-PACK-03",
@@ -4820,7 +5144,7 @@
         ]
       ],
       "length_mm": 28002,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "PACK-PALLET-3",
@@ -4833,24 +5157,24 @@
           25945
         ],
         [
-          62972,
+          62973,
           25945
         ],
         [
-          62972,
-          32649
+          62973,
+          32650
         ],
         [
           53520,
-          32649
+          32650
         ],
         [
           53520,
           31849
         ]
       ],
-      "length_mm": 17756,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 17760,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "LINE-BUFFER-3",
@@ -4864,25 +5188,25 @@
         ],
         [
           53520,
-          32649
+          32650
         ],
         [
           36720,
-          32649
+          32650
         ],
         [
           36720,
           31099
         ]
       ],
-      "length_mm": 19900,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 19902,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "RAW-LINE-4",
       "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
       "target_endpoint": "PACK-04:RAW-IN",
-      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "purpose": "FOOD_TOTE_TO_PACKING_INLET",
       "centerline_mm": [
         [
           58320,
@@ -4890,14 +5214,14 @@
         ],
         [
           58320,
-          32649
+          32650
         ],
         [
-          32470,
-          32649
+          32469,
+          32650
         ],
         [
-          32470,
+          32469,
           27546
         ],
         [
@@ -4905,8 +5229,8 @@
           27546
         ]
       ],
-      "length_mm": 32553,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 32557,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "PROCESS-PACK-04",
@@ -4924,7 +5248,7 @@
         ]
       ],
       "length_mm": 28002,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "PACK-PALLET-4",
@@ -4937,24 +5261,24 @@
           27546
         ],
         [
-          62972,
+          62973,
           27546
         ],
         [
-          62972,
-          32649
+          62973,
+          32650
         ],
         [
           54720,
-          32649
+          32650
         ],
         [
           54720,
           31849
         ]
       ],
-      "length_mm": 14955,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 14959,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "LINE-BUFFER-4",
@@ -4968,25 +5292,25 @@
         ],
         [
           54720,
-          32649
+          32650
         ],
         [
           42720,
-          32649
+          32650
         ],
         [
           42720,
           31099
         ]
       ],
-      "length_mm": 15100,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 15102,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "RAW-LINE-5",
       "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
       "target_endpoint": "PACK-05:RAW-IN",
-      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "purpose": "FOOD_TOTE_TO_PACKING_INLET",
       "centerline_mm": [
         [
           58320,
@@ -4994,14 +5318,14 @@
         ],
         [
           58320,
-          32649
+          32650
         ],
         [
-          32470,
-          32649
+          32469,
+          32650
         ],
         [
-          32470,
+          32469,
           28197
         ],
         [
@@ -5009,8 +5333,8 @@
           28197
         ]
       ],
-      "length_mm": 31902,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 31906,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "PROCESS-PACK-05",
@@ -5028,7 +5352,7 @@
         ]
       ],
       "length_mm": 28002,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "PACK-PALLET-5",
@@ -5041,24 +5365,24 @@
           28197
         ],
         [
-          62972,
+          62973,
           28197
         ],
         [
-          62972,
-          32649
+          62973,
+          32650
         ],
         [
           55920,
-          32649
+          32650
         ],
         [
           55920,
           31849
         ]
       ],
-      "length_mm": 13104,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 13108,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "LINE-BUFFER-5",
@@ -5072,25 +5396,25 @@
         ],
         [
           55920,
-          32649
+          32650
         ],
         [
           43920,
-          32649
+          32650
         ],
         [
           43920,
           31099
         ]
       ],
-      "length_mm": 15100,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 15102,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "RAW-LINE-6",
       "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
       "target_endpoint": "PACK-06:RAW-IN",
-      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "purpose": "FOOD_TOTE_TO_PACKING_INLET",
       "centerline_mm": [
         [
           58320,
@@ -5098,14 +5422,14 @@
         ],
         [
           58320,
-          32649
+          32650
         ],
         [
-          32470,
-          32649
+          32469,
+          32650
         ],
         [
-          32470,
+          32469,
           29798
         ],
         [
@@ -5113,8 +5437,8 @@
           29798
         ]
       ],
-      "length_mm": 30301,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 30305,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "PROCESS-PACK-06",
@@ -5132,7 +5456,7 @@
         ]
       ],
       "length_mm": 28002,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "CONDITIONAL_OPERATION_ASSUMED"
     },
     {
       "id": "PACK-PALLET-6",
@@ -5145,24 +5469,24 @@
           29798
         ],
         [
-          62972,
+          62973,
           29798
         ],
         [
-          62972,
-          32649
+          62973,
+          32650
         ],
         [
           57120,
-          32649
+          32650
         ],
         [
           57120,
           31849
         ]
       ],
-      "length_mm": 10303,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 10307,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "LINE-BUFFER-6",
@@ -5176,19 +5500,19 @@
         ],
         [
           57120,
-          32649
+          32650
         ],
         [
           45120,
-          32649
+          32650
         ],
         [
           45120,
           31099
         ]
       ],
-      "length_mm": 15100,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 15102,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BLANK-ERECT-01",
@@ -5201,11 +5525,11 @@
           24843
         ],
         [
-          27370,
+          27371,
           24843
         ],
         [
-          27370,
+          27371,
           27643
         ],
         [
@@ -5254,15 +5578,15 @@
         ],
         [
           69125,
-          23643
+          23623
         ],
         [
           68975,
-          23643
+          23623
         ]
       ],
-      "length_mm": 60469,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 60489,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-01-LINE-1",
@@ -5272,15 +5596,15 @@
       "centerline_mm": [
         [
           66323,
-          26843
+          26823
         ],
         [
           66323,
-          27643
+          27624
         ],
         [
           63171,
-          27643
+          27624
         ],
         [
           63171,
@@ -5295,11 +5619,11 @@
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           23693
         ],
         [
@@ -5307,8 +5631,8 @@
           23693
         ]
       ],
-      "length_mm": 42505,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 42489,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-01-LINE-2",
@@ -5318,34 +5642,26 @@
       "centerline_mm": [
         [
           66323,
-          26843
+          26823
         ],
         [
           66323,
-          27643
-        ],
-        [
-          63171,
-          27643
-        ],
-        [
-          63171,
-          27642
+          27624
         ],
         [
           62973,
-          27642
+          27624
         ],
         [
           62973,
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           25294
         ],
         [
@@ -5353,8 +5669,8 @@
           25294
         ]
       ],
-      "length_mm": 44106,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 44090,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-01-LINE-3",
@@ -5364,15 +5680,15 @@
       "centerline_mm": [
         [
           66323,
-          26843
+          26823
         ],
         [
           66323,
-          27643
+          27624
         ],
         [
           63171,
-          27643
+          27624
         ],
         [
           63171,
@@ -5387,11 +5703,11 @@
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           25945
         ],
         [
@@ -5399,8 +5715,8 @@
           25945
         ]
       ],
-      "length_mm": 44757,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 44741,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-01-LINE-4",
@@ -5410,15 +5726,15 @@
       "centerline_mm": [
         [
           66323,
-          26843
+          26823
         ],
         [
           66323,
-          27643
+          27624
         ],
         [
           62973,
-          27643
+          27624
         ],
         [
           62973,
@@ -5433,11 +5749,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           27546
         ],
         [
@@ -5445,8 +5761,8 @@
           27546
         ]
       ],
-      "length_mm": 45564,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 45586,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-01-LINE-5",
@@ -5456,23 +5772,19 @@
       "centerline_mm": [
         [
           66323,
-          26843
+          26823
         ],
         [
           66323,
-          27643
+          27624
         ],
         [
-          63171,
-          27643
-        ],
-        [
-          63171,
-          27644
+          66323,
+          27662
         ],
         [
           62973,
-          27644
+          27662
         ],
         [
           62973,
@@ -5487,11 +5799,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           28197
         ],
         [
@@ -5499,8 +5811,8 @@
           28197
         ]
       ],
-      "length_mm": 44913,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 44935,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-01-LINE-6",
@@ -5510,15 +5822,19 @@
       "centerline_mm": [
         [
           66323,
-          26843
+          26823
         ],
         [
           66323,
-          27643
+          27624
+        ],
+        [
+          66323,
+          27662
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           63171,
@@ -5541,11 +5857,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           29798
         ],
         [
@@ -5553,8 +5869,8 @@
           29798
         ]
       ],
-      "length_mm": 43312,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 43334,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BLANK-ERECT-02",
@@ -5567,11 +5883,11 @@
           24843
         ],
         [
-          27370,
+          27371,
           24843
         ],
         [
-          27370,
+          27371,
           27643
         ],
         [
@@ -5620,15 +5936,15 @@
         ],
         [
           69125,
-          23643
+          23623
         ],
         [
           69275,
-          23643
+          23623
         ]
       ],
-      "length_mm": 60469,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 60489,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-02-LINE-1",
@@ -5638,15 +5954,15 @@
       "centerline_mm": [
         [
           71926,
-          26843
+          26823
         ],
         [
           71926,
-          27643
+          27624
         ],
         [
           63171,
-          27643
+          27624
         ],
         [
           63171,
@@ -5661,11 +5977,11 @@
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           23693
         ],
         [
@@ -5673,8 +5989,8 @@
           23693
         ]
       ],
-      "length_mm": 48108,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 48092,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-02-LINE-2",
@@ -5684,34 +6000,26 @@
       "centerline_mm": [
         [
           71926,
-          26843
+          26823
         ],
         [
           71926,
-          27643
-        ],
-        [
-          63171,
-          27643
-        ],
-        [
-          63171,
-          27642
+          27624
         ],
         [
           62973,
-          27642
+          27624
         ],
         [
           62973,
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           25294
         ],
         [
@@ -5719,8 +6027,8 @@
           25294
         ]
       ],
-      "length_mm": 49709,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 49693,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-02-LINE-3",
@@ -5730,15 +6038,15 @@
       "centerline_mm": [
         [
           71926,
-          26843
+          26823
         ],
         [
           71926,
-          27643
+          27624
         ],
         [
           63171,
-          27643
+          27624
         ],
         [
           63171,
@@ -5753,11 +6061,11 @@
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           25945
         ],
         [
@@ -5765,8 +6073,8 @@
           25945
         ]
       ],
-      "length_mm": 50360,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 50344,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-02-LINE-4",
@@ -5776,15 +6084,15 @@
       "centerline_mm": [
         [
           71926,
-          26843
+          26823
         ],
         [
           71926,
-          27643
+          27624
         ],
         [
           62973,
-          27643
+          27624
         ],
         [
           62973,
@@ -5799,11 +6107,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           27546
         ],
         [
@@ -5811,8 +6119,8 @@
           27546
         ]
       ],
-      "length_mm": 51167,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 51189,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-02-LINE-5",
@@ -5822,23 +6130,19 @@
       "centerline_mm": [
         [
           71926,
-          26843
+          26823
         ],
         [
           71926,
-          27643
+          27624
         ],
         [
-          63171,
-          27643
-        ],
-        [
-          63171,
-          27644
+          71926,
+          27662
         ],
         [
           62973,
-          27644
+          27662
         ],
         [
           62973,
@@ -5853,11 +6157,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           28197
         ],
         [
@@ -5865,8 +6169,8 @@
           28197
         ]
       ],
-      "length_mm": 50516,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 50538,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-02-LINE-6",
@@ -5876,15 +6180,19 @@
       "centerline_mm": [
         [
           71926,
-          26843
+          26823
         ],
         [
           71926,
-          27643
+          27624
+        ],
+        [
+          71926,
+          27662
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           63171,
@@ -5907,11 +6215,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           29798
         ],
         [
@@ -5919,8 +6227,8 @@
           29798
         ]
       ],
-      "length_mm": 48915,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 48937,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BLANK-ERECT-03",
@@ -5933,11 +6241,11 @@
           24843
         ],
         [
-          27370,
+          27371,
           24843
         ],
         [
-          27370,
+          27371,
           27643
         ],
         [
@@ -5986,15 +6294,15 @@
         ],
         [
           69125,
-          31643
+          31663
         ],
         [
           68975,
-          31643
+          31663
         ]
       ],
-      "length_mm": 60469,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 60489,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-03-LINE-1",
@@ -6004,15 +6312,19 @@
       "centerline_mm": [
         [
           66323,
-          28443
+          28463
         ],
         [
           66323,
-          27643
+          27662
+        ],
+        [
+          66323,
+          27624
         ],
         [
           63171,
-          27643
+          27624
         ],
         [
           63171,
@@ -6027,11 +6339,11 @@
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           23693
         ],
         [
@@ -6039,8 +6351,8 @@
           23693
         ]
       ],
-      "length_mm": 42505,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 42527,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-03-LINE-2",
@@ -6050,34 +6362,30 @@
       "centerline_mm": [
         [
           66323,
-          28443
+          28463
         ],
         [
           66323,
-          27643
+          27662
         ],
         [
-          63171,
-          27643
-        ],
-        [
-          63171,
-          27642
+          66323,
+          27624
         ],
         [
           62973,
-          27642
+          27624
         ],
         [
           62973,
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           25294
         ],
         [
@@ -6085,8 +6393,8 @@
           25294
         ]
       ],
-      "length_mm": 44106,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 44128,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-03-LINE-3",
@@ -6096,15 +6404,19 @@
       "centerline_mm": [
         [
           66323,
-          28443
+          28463
         ],
         [
           66323,
-          27643
+          27662
+        ],
+        [
+          66323,
+          27624
         ],
         [
           63171,
-          27643
+          27624
         ],
         [
           63171,
@@ -6119,11 +6431,11 @@
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           25945
         ],
         [
@@ -6131,8 +6443,8 @@
           25945
         ]
       ],
-      "length_mm": 44757,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 44779,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-03-LINE-4",
@@ -6142,15 +6454,15 @@
       "centerline_mm": [
         [
           66323,
-          28443
+          28463
         ],
         [
           66323,
-          27643
+          27662
         ],
         [
           62973,
-          27643
+          27662
         ],
         [
           62973,
@@ -6165,11 +6477,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           27546
         ],
         [
@@ -6177,8 +6489,8 @@
           27546
         ]
       ],
-      "length_mm": 45564,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 45548,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-03-LINE-5",
@@ -6188,23 +6500,15 @@
       "centerline_mm": [
         [
           66323,
-          28443
+          28463
         ],
         [
           66323,
-          27643
-        ],
-        [
-          63171,
-          27643
-        ],
-        [
-          63171,
-          27644
+          27662
         ],
         [
           62973,
-          27644
+          27662
         ],
         [
           62973,
@@ -6219,11 +6523,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           28197
         ],
         [
@@ -6231,8 +6535,8 @@
           28197
         ]
       ],
-      "length_mm": 44913,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 44897,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-03-LINE-6",
@@ -6242,15 +6546,15 @@
       "centerline_mm": [
         [
           66323,
-          28443
+          28463
         ],
         [
           66323,
-          27643
+          27662
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           63171,
@@ -6273,11 +6577,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           29798
         ],
         [
@@ -6285,8 +6589,8 @@
           29798
         ]
       ],
-      "length_mm": 43312,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 43296,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BLANK-ERECT-04",
@@ -6299,11 +6603,11 @@
           24843
         ],
         [
-          27370,
+          27371,
           24843
         ],
         [
-          27370,
+          27371,
           27643
         ],
         [
@@ -6352,15 +6656,15 @@
         ],
         [
           69125,
-          31643
+          31663
         ],
         [
           69275,
-          31643
+          31663
         ]
       ],
-      "length_mm": 60469,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 60489,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-04-LINE-1",
@@ -6370,15 +6674,19 @@
       "centerline_mm": [
         [
           71926,
-          28443
+          28463
         ],
         [
           71926,
-          27643
+          27662
+        ],
+        [
+          71926,
+          27624
         ],
         [
           63171,
-          27643
+          27624
         ],
         [
           63171,
@@ -6393,11 +6701,11 @@
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           23693
         ],
         [
@@ -6405,8 +6713,8 @@
           23693
         ]
       ],
-      "length_mm": 48108,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 48130,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-04-LINE-2",
@@ -6416,34 +6724,30 @@
       "centerline_mm": [
         [
           71926,
-          28443
+          28463
         ],
         [
           71926,
-          27643
+          27662
         ],
         [
-          63171,
-          27643
-        ],
-        [
-          63171,
-          27642
+          71926,
+          27624
         ],
         [
           62973,
-          27642
+          27624
         ],
         [
           62973,
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           25294
         ],
         [
@@ -6451,8 +6755,8 @@
           25294
         ]
       ],
-      "length_mm": 49709,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 49731,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-04-LINE-3",
@@ -6462,15 +6766,19 @@
       "centerline_mm": [
         [
           71926,
-          28443
+          28463
         ],
         [
           71926,
-          27643
+          27662
+        ],
+        [
+          71926,
+          27624
         ],
         [
           63171,
-          27643
+          27624
         ],
         [
           63171,
@@ -6485,11 +6793,11 @@
           22142
         ],
         [
-          32470,
+          32469,
           22142
         ],
         [
-          32470,
+          32469,
           25945
         ],
         [
@@ -6497,8 +6805,8 @@
           25945
         ]
       ],
-      "length_mm": 50360,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 50382,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-04-LINE-4",
@@ -6508,15 +6816,15 @@
       "centerline_mm": [
         [
           71926,
-          28443
+          28463
         ],
         [
           71926,
-          27643
+          27662
         ],
         [
           62973,
-          27643
+          27662
         ],
         [
           62973,
@@ -6531,11 +6839,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           27546
         ],
         [
@@ -6543,8 +6851,8 @@
           27546
         ]
       ],
-      "length_mm": 51167,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 51151,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-04-LINE-5",
@@ -6554,23 +6862,15 @@
       "centerline_mm": [
         [
           71926,
-          28443
+          28463
         ],
         [
           71926,
-          27643
-        ],
-        [
-          63171,
-          27643
-        ],
-        [
-          63171,
-          27644
+          27662
         ],
         [
           62973,
-          27644
+          27662
         ],
         [
           62973,
@@ -6585,11 +6885,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           28197
         ],
         [
@@ -6597,8 +6897,8 @@
           28197
         ]
       ],
-      "length_mm": 50516,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 50500,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-04-LINE-6",
@@ -6608,15 +6908,15 @@
       "centerline_mm": [
         [
           71926,
-          28443
+          28463
         ],
         [
           71926,
-          27643
+          27662
         ],
         [
           63171,
-          27643
+          27662
         ],
         [
           63171,
@@ -6639,11 +6939,11 @@
           32650
         ],
         [
-          32470,
+          32469,
           32650
         ],
         [
-          32470,
+          32469,
           29798
         ],
         [
@@ -6651,8 +6951,8 @@
           29798
         ]
       ],
-      "length_mm": 48915,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 48899,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "BLANK-ERECT-05",
@@ -6665,15 +6965,15 @@
           24843
         ],
         [
-          27370,
+          27371,
           24843
         ],
         [
-          27370,
+          27371,
           31741
         ],
         [
-          27270,
+          27271,
           31741
         ],
         [
@@ -6681,8 +6981,8 @@
           31741
         ]
       ],
-      "length_mm": 9248,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "length_mm": 9250,
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-05-LINE-1",
@@ -6695,7 +6995,7 @@
           33141
         ],
         [
-          27270,
+          27271,
           33141
         ],
         [
@@ -6715,7 +7015,7 @@
           23693
         ],
         [
-          32470,
+          32469,
           23693
         ],
         [
@@ -6724,7 +7024,7 @@
         ]
       ],
       "length_mm": 16248,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-05-LINE-2",
@@ -6737,7 +7037,7 @@
           33141
         ],
         [
-          27270,
+          27271,
           33141
         ],
         [
@@ -6757,7 +7057,7 @@
           25294
         ],
         [
-          32470,
+          32469,
           25294
         ],
         [
@@ -6766,7 +7066,7 @@
         ]
       ],
       "length_mm": 14647,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-05-LINE-3",
@@ -6779,7 +7079,7 @@
           33141
         ],
         [
-          27270,
+          27271,
           33141
         ],
         [
@@ -6799,7 +7099,7 @@
           25945
         ],
         [
-          32470,
+          32469,
           25945
         ],
         [
@@ -6808,7 +7108,7 @@
         ]
       ],
       "length_mm": 13996,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-05-LINE-4",
@@ -6821,7 +7121,7 @@
           33141
         ],
         [
-          27270,
+          27271,
           33141
         ],
         [
@@ -6841,7 +7141,7 @@
           27546
         ],
         [
-          32470,
+          32469,
           27546
         ],
         [
@@ -6850,7 +7150,7 @@
         ]
       ],
       "length_mm": 12395,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-05-LINE-5",
@@ -6863,7 +7163,7 @@
           33141
         ],
         [
-          27270,
+          27271,
           33141
         ],
         [
@@ -6883,7 +7183,7 @@
           28197
         ],
         [
-          32470,
+          32469,
           28197
         ],
         [
@@ -6892,7 +7192,7 @@
         ]
       ],
       "length_mm": 12852,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "GEOMETRY_VERIFIED"
     },
     {
       "id": "EMPTY-CASE-ERECT-05-LINE-6",
@@ -6905,7 +7205,7 @@
           33141
         ],
         [
-          27270,
+          27271,
           33141
         ],
         [
@@ -6925,7 +7225,7 @@
           29798
         ],
         [
-          32470,
+          32469,
           29798
         ],
         [
@@ -6934,7 +7234,159 @@
         ]
       ],
       "length_mm": 14453,
-      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+      "status": "GEOMETRY_VERIFIED"
+    },
+    {
+      "id": "SECONDARY-SORT-WORK",
+      "source_endpoint": "PACK-01:SECONDARY-CONDITIONAL-SORT-OUT",
+      "target_endpoint": "WORK-PACK-01:SECONDARY-BIN-IN",
+      "purpose": "SECONDARY_SORT_OUT_TO_WORKPLACE",
+      "centerline_mm": [
+        [
+          62172,
+          23693
+        ],
+        [
+          62973,
+          23693
+        ],
+        [
+          62973,
+          32650
+        ],
+        [
+          51120,
+          32650
+        ],
+        [
+          51120,
+          31849
+        ]
+      ],
+      "length_mm": 22412,
+      "status": "GEOMETRY_VERIFIED"
+    },
+    {
+      "id": "SECONDARY-WORK-STORE",
+      "source_endpoint": "WORK-PACK-01:PALLET-TRANSFER",
+      "target_endpoint": "secondary_fruit_buffer-PAL-004:PALLET-TRANSFER",
+      "purpose": "SECONDARY_WORKPLACE_TO_STORAGE",
+      "centerline_mm": [
+        [
+          51120,
+          31099
+        ],
+        [
+          51120,
+          32650
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          62973,
+          22093
+        ],
+        [
+          54000,
+          22093
+        ],
+        [
+          54000,
+          19593
+        ],
+        [
+          54000,
+          19094
+        ],
+        [
+          54000,
+          17543
+        ]
+      ],
+      "length_mm": 37484,
+      "status": "GEOMETRY_VERIFIED"
+    },
+    {
+      "id": "FROZEN-SORT-WORK",
+      "source_endpoint": "PACK-02:FROZEN-CONDITIONAL-SORT-OUT",
+      "target_endpoint": "WORK-PACK-02:FROZEN-BIN-IN",
+      "purpose": "FROZEN_SORT_OUT_TO_WORKPLACE",
+      "centerline_mm": [
+        [
+          62172,
+          25294
+        ],
+        [
+          62973,
+          25294
+        ],
+        [
+          62973,
+          32650
+        ],
+        [
+          52320,
+          32650
+        ],
+        [
+          52320,
+          31849
+        ]
+      ],
+      "length_mm": 19611,
+      "status": "GEOMETRY_VERIFIED"
+    },
+    {
+      "id": "FROZEN-WORK-STORE",
+      "source_endpoint": "WORK-PACK-02:PALLET-TRANSFER",
+      "target_endpoint": "frozen_fruit_room-PAL-005:PALLET-TRANSFER",
+      "purpose": "FROZEN_WORKPLACE_TO_STORAGE",
+      "centerline_mm": [
+        [
+          52320,
+          31099
+        ],
+        [
+          52320,
+          32650
+        ],
+        [
+          63072,
+          32650
+        ],
+        [
+          63072,
+          22093
+        ],
+        [
+          63072,
+          19593
+        ],
+        [
+          63072,
+          19094
+        ],
+        [
+          63600,
+          19094
+        ],
+        [
+          63600,
+          17543
+        ]
+      ],
+      "length_mm": 27938,
+      "status": "GEOMETRY_VERIFIED"
     }
   ]
 }

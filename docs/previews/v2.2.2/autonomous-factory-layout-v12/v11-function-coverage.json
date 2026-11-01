@@ -1,0 +1,1044 @@
+{
+  "candidate_hash": "sha256:188083411deb269eeebf35458623134805acd37acbdae5fd67be543ad194eff0",
+  "original_required_identities": {
+    "interior": [
+      "interior:sha256:135ede7b0a67587d33382d636541b57228461901b12ab1c658aa0ed2dc6b17b6",
+      "interior:sha256:9f7feee5b4ee2bb8adbc59bd2e80bb8897596c4f48c3483a38165c90f2b8726d",
+      "interior:sha256:a213f70784bbdf6156b3786f820bdc11c3f0b21a11c93e1606e10458a5efe18b",
+      "interior:sha256:e2d4704ca758ad41e10fb06b00e452a8aa5ae6a364e2cc0b1a654fd32e50aaf4",
+      "interior:sha256:0f8854e5cc3cf689da486f259e1e837a01946caa84bb69bc97e0fb2ad21efc6c",
+      "interior:sha256:33cb2426805e7e4e708ff8cdbbf42c1e5b4c1f8a2b5b68b25cc2866dbc2d5d75",
+      "interior:sha256:3334cb888f37493f7935bc9cbd7f28c4709dc10949c47003e8bda00e830dacb4",
+      "interior:sha256:049107ae2cf157da3acb71a6c29088faee52c2c5bb5a34cf15b69bae9edd8966",
+      "interior:sha256:59220550e5eb685c719424e7e879cafa98c2f8075d5a1140f9852a7ea632457c",
+      "interior:sha256:f26dbf047072f7458d9c442a87c6c5e89b1e9a366dca0aca8c10f88c4f2fedaf"
+    ],
+    "storage": [
+      "storage:sha256:e63f91069b44e41e3c4f488c32a3f94008003aa5e94dcefa229d13fdc20f23af",
+      "storage:sha256:7aa903eb6f6582c69f655df3d7998df0fb12a3e5d0247d42ce2cd45966a35705",
+      "storage:sha256:979f5edbb01c534afec4a483ca92a4c4bd21bf8537667d20313d54168f39b514",
+      "storage:sha256:7bc7c0e647278e7f02e416806d0de4699a34681108820d3b3cdf3c4539223739",
+      "storage:sha256:024f97872da673b59dd72a63354b6ead0f2af1aa5afe315ebba5189aac537630",
+      "storage:sha256:5f7f2b93116e0f7f128fc192ca1eadc2c00a382998ddee166da431be0023ee96"
+    ]
+  },
+  "interior": [
+    {
+      "room": "changing_room",
+      "from_access": "access:main_entrance->changing_room@1.0.0",
+      "to_access": "access:changing_room->sorting_packaging_room@1.0.0",
+      "status": "INTERIOR_FULL_WIDTH_PATH_VERIFIED",
+      "failure_code": null,
+      "clear_width_mm": 2000,
+      "centerline_mm": [
+        [
+          93426,
+          15519
+        ],
+        [
+          93426,
+          15519
+        ]
+      ],
+      "length_mm": 0,
+      "envelope_bbox_mm": [],
+      "nodes_used": 0,
+      "doorway_connector": "SEPARATE_LEGAL_PORTAL_THROAT; NOT_VEHICLE_KINEMATICS",
+      "full_material_handling_or_personnel_pass": false,
+      "coverage_id": "interior:sha256:135ede7b0a67587d33382d636541b57228461901b12ab1c658aa0ed2dc6b17b6",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "coating_room",
+      "from_access": "access:secondary_precooling_room->coating_room@1.0.0",
+      "to_access": "access:coating_room->finished_goods_room@1.0.0",
+      "status": "INTERIOR_FULL_WIDTH_PATH_VERIFIED",
+      "failure_code": null,
+      "clear_width_mm": 2500,
+      "centerline_mm": [
+        [
+          87930,
+          29221
+        ],
+        [
+          87930,
+          34600
+        ]
+      ],
+      "length_mm": 5379,
+      "envelope_bbox_mm": [
+        [
+          86680,
+          29221,
+          89180,
+          34600
+        ]
+      ],
+      "nodes_used": 0,
+      "doorway_connector": "SEPARATE_LEGAL_PORTAL_THROAT; NOT_VEHICLE_KINEMATICS",
+      "full_material_handling_or_personnel_pass": false,
+      "coverage_id": "interior:sha256:9f7feee5b4ee2bb8adbc59bd2e80bb8897596c4f48c3483a38165c90f2b8726d",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "finished_goods_room",
+      "from_access": "access:coating_room->finished_goods_room@1.0.0",
+      "to_access": "access:finished_goods_room->shipping_channel@1.0.0",
+      "status": "INTERIOR_FULL_WIDTH_PATH_VERIFIED",
+      "failure_code": null,
+      "clear_width_mm": 2500,
+      "centerline_mm": [
+        [
+          87930,
+          37100
+        ],
+        [
+          87930,
+          37350
+        ]
+      ],
+      "length_mm": 250,
+      "envelope_bbox_mm": [
+        [
+          86680,
+          37100,
+          89180,
+          37350
+        ]
+      ],
+      "nodes_used": 0,
+      "doorway_connector": "SEPARATE_LEGAL_PORTAL_THROAT; NOT_VEHICLE_KINEMATICS",
+      "full_material_handling_or_personnel_pass": false,
+      "coverage_id": "interior:sha256:a213f70784bbdf6156b3786f820bdc11c3f0b21a11c93e1606e10458a5efe18b",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "primary_precooling_room",
+      "from_access": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "to_access": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "status": "INTERIOR_FULL_WIDTH_PATH_VERIFIED",
+      "failure_code": null,
+      "clear_width_mm": 2500,
+      "centerline_mm": [
+        [
+          21320,
+          43243
+        ],
+        [
+          32419,
+          43243
+        ],
+        [
+          32419,
+          35693
+        ],
+        [
+          32945,
+          35693
+        ]
+      ],
+      "length_mm": 19175,
+      "envelope_bbox_mm": [
+        [
+          21320,
+          41993,
+          32419,
+          44493
+        ],
+        [
+          31169,
+          35693,
+          33669,
+          43243
+        ],
+        [
+          32419,
+          34443,
+          32945,
+          36943
+        ],
+        [
+          31169,
+          41993,
+          33669,
+          44493
+        ],
+        [
+          31169,
+          34443,
+          33669,
+          36943
+        ]
+      ],
+      "nodes_used": 160,
+      "doorway_connector": "SEPARATE_LEGAL_PORTAL_THROAT; NOT_VEHICLE_KINEMATICS",
+      "full_material_handling_or_personnel_pass": false,
+      "coverage_id": "interior:sha256:e2d4704ca758ad41e10fb06b00e452a8aa5ae6a364e2cc0b1a654fd32e50aaf4",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "secondary_precooling_room",
+      "from_access": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "to_access": "access:secondary_precooling_room->coating_room@1.0.0",
+      "status": "INTERIOR_FULL_WIDTH_PATH_VERIFIED",
+      "failure_code": null,
+      "clear_width_mm": 2500,
+      "centerline_mm": [
+        [
+          78130,
+          29643
+        ],
+        [
+          85430,
+          29643
+        ],
+        [
+          85430,
+          29221
+        ]
+      ],
+      "length_mm": 7722,
+      "envelope_bbox_mm": [
+        [
+          78130,
+          28393,
+          85430,
+          30893
+        ],
+        [
+          84180,
+          29221,
+          86680,
+          29643
+        ],
+        [
+          84180,
+          28393,
+          86680,
+          30893
+        ]
+      ],
+      "nodes_used": 0,
+      "doorway_connector": "SEPARATE_LEGAL_PORTAL_THROAT; NOT_VEHICLE_KINEMATICS",
+      "full_material_handling_or_personnel_pass": false,
+      "coverage_id": "interior:sha256:0f8854e5cc3cf689da486f259e1e837a01946caa84bb69bc97e0fb2ad21efc6c",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "sorting_packaging_room",
+      "from_access": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "to_access": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "status": "INTERIOR_FULL_WIDTH_PATH_VERIFIED",
+      "failure_code": null,
+      "clear_width_mm": 2500,
+      "centerline_mm": [
+        [
+          32945,
+          33193
+        ],
+        [
+          63171,
+          33193
+        ],
+        [
+          63171,
+          27662
+        ],
+        [
+          75079,
+          27662
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ]
+      ],
+      "length_mm": 50197,
+      "envelope_bbox_mm": [
+        [
+          32945,
+          31943,
+          63171,
+          34443
+        ],
+        [
+          61921,
+          27662,
+          64421,
+          33193
+        ],
+        [
+          63171,
+          26412,
+          75079,
+          28912
+        ],
+        [
+          73829,
+          27662,
+          76329,
+          29643
+        ],
+        [
+          75079,
+          28393,
+          75630,
+          30893
+        ],
+        [
+          61921,
+          31943,
+          64421,
+          34443
+        ],
+        [
+          61921,
+          26412,
+          64421,
+          28912
+        ],
+        [
+          73829,
+          26412,
+          76329,
+          28912
+        ],
+        [
+          73829,
+          28393,
+          76329,
+          30893
+        ]
+      ],
+      "nodes_used": 236,
+      "doorway_connector": "SEPARATE_LEGAL_PORTAL_THROAT; NOT_VEHICLE_KINEMATICS",
+      "full_material_handling_or_personnel_pass": false,
+      "coverage_id": "interior:sha256:33cb2426805e7e4e708ff8cdbbf42c1e5b4c1f8a2b5b68b25cc2866dbc2d5d75",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "sorting_packaging_room",
+      "from_access": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "to_access": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "status": "INTERIOR_FULL_WIDTH_PATH_VERIFIED",
+      "failure_code": null,
+      "clear_width_mm": 2500,
+      "centerline_mm": [
+        [
+          32945,
+          33193
+        ],
+        [
+          32370,
+          33193
+        ],
+        [
+          32370,
+          27643
+        ]
+      ],
+      "length_mm": 6125,
+      "envelope_bbox_mm": [
+        [
+          32370,
+          31943,
+          32945,
+          34443
+        ],
+        [
+          31120,
+          27643,
+          33620,
+          33193
+        ],
+        [
+          31120,
+          31943,
+          33620,
+          34443
+        ]
+      ],
+      "nodes_used": 0,
+      "doorway_connector": "SEPARATE_LEGAL_PORTAL_THROAT; NOT_VEHICLE_KINEMATICS",
+      "full_material_handling_or_personnel_pass": false,
+      "coverage_id": "interior:sha256:3334cb888f37493f7935bc9cbd7f28c4709dc10949c47003e8bda00e830dacb4",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "sorting_packaging_room",
+      "from_access": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "to_access": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "status": "INTERIOR_FULL_WIDTH_PATH_VERIFIED",
+      "failure_code": null,
+      "clear_width_mm": 2500,
+      "centerline_mm": [
+        [
+          32945,
+          33193
+        ],
+        [
+          32945,
+          32650
+        ],
+        [
+          32569,
+          32650
+        ],
+        [
+          32569,
+          31350
+        ],
+        [
+          32469,
+          31350
+        ],
+        [
+          32469,
+          22142
+        ],
+        [
+          49369,
+          22142
+        ],
+        [
+          49369,
+          22093
+        ],
+        [
+          54000,
+          22093
+        ]
+      ],
+      "length_mm": 33107,
+      "envelope_bbox_mm": [
+        [
+          31695,
+          32650,
+          34195,
+          33193
+        ],
+        [
+          32569,
+          31400,
+          32945,
+          33900
+        ],
+        [
+          31319,
+          31350,
+          33819,
+          32650
+        ],
+        [
+          32469,
+          30100,
+          32569,
+          32600
+        ],
+        [
+          31219,
+          22142,
+          33719,
+          31350
+        ],
+        [
+          32469,
+          20892,
+          49369,
+          23392
+        ],
+        [
+          48119,
+          22093,
+          50619,
+          22142
+        ],
+        [
+          49369,
+          20843,
+          54000,
+          23343
+        ],
+        [
+          31695,
+          31400,
+          34195,
+          33900
+        ],
+        [
+          31319,
+          31400,
+          33819,
+          33900
+        ],
+        [
+          31319,
+          30100,
+          33819,
+          32600
+        ],
+        [
+          31219,
+          30100,
+          33719,
+          32600
+        ],
+        [
+          31219,
+          20892,
+          33719,
+          23392
+        ],
+        [
+          48119,
+          20892,
+          50619,
+          23392
+        ],
+        [
+          48119,
+          20843,
+          50619,
+          23343
+        ]
+      ],
+      "nodes_used": 330,
+      "doorway_connector": "SEPARATE_LEGAL_PORTAL_THROAT; NOT_VEHICLE_KINEMATICS",
+      "full_material_handling_or_personnel_pass": false,
+      "coverage_id": "interior:sha256:049107ae2cf157da3acb71a6c29088faee52c2c5bb5a34cf15b69bae9edd8966",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "sorting_packaging_room",
+      "from_access": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "to_access": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "status": "INTERIOR_FULL_WIDTH_PATH_VERIFIED",
+      "failure_code": null,
+      "clear_width_mm": 2500,
+      "centerline_mm": [
+        [
+          32945,
+          33193
+        ],
+        [
+          63072,
+          33193
+        ],
+        [
+          63072,
+          22093
+        ]
+      ],
+      "length_mm": 41227,
+      "envelope_bbox_mm": [
+        [
+          32945,
+          31943,
+          63072,
+          34443
+        ],
+        [
+          61822,
+          22093,
+          64322,
+          33193
+        ],
+        [
+          61822,
+          31943,
+          64322,
+          34443
+        ]
+      ],
+      "nodes_used": 0,
+      "doorway_connector": "SEPARATE_LEGAL_PORTAL_THROAT; NOT_VEHICLE_KINEMATICS",
+      "full_material_handling_or_personnel_pass": false,
+      "coverage_id": "interior:sha256:59220550e5eb685c719424e7e879cafa98c2f8075d5a1140f9852a7ea632457c",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "sorting_packaging_room",
+      "from_access": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "to_access": "access:changing_room->sorting_packaging_room@1.0.0",
+      "status": "INTERIOR_FULL_WIDTH_PATH_VERIFIED",
+      "failure_code": null,
+      "clear_width_mm": 2000,
+      "centerline_mm": [
+        [
+          32945,
+          33443
+        ],
+        [
+          50819,
+          33443
+        ],
+        [
+          50819,
+          33193
+        ],
+        [
+          57421,
+          33193
+        ],
+        [
+          57421,
+          32400
+        ],
+        [
+          59821,
+          32400
+        ],
+        [
+          59821,
+          31100
+        ],
+        [
+          62723,
+          31100
+        ],
+        [
+          62723,
+          27547
+        ],
+        [
+          69351,
+          27547
+        ],
+        [
+          69351,
+          27374
+        ],
+        [
+          74829,
+          27374
+        ],
+        [
+          74829,
+          21843
+        ],
+        [
+          75630,
+          21843
+        ]
+      ],
+      "length_mm": 54285,
+      "envelope_bbox_mm": [
+        [
+          32945,
+          32443,
+          50819,
+          34443
+        ],
+        [
+          49819,
+          33193,
+          51819,
+          33443
+        ],
+        [
+          50819,
+          32193,
+          57421,
+          34193
+        ],
+        [
+          56421,
+          32400,
+          58421,
+          33193
+        ],
+        [
+          57421,
+          31400,
+          59821,
+          33400
+        ],
+        [
+          58821,
+          31100,
+          60821,
+          32400
+        ],
+        [
+          59821,
+          30100,
+          62723,
+          32100
+        ],
+        [
+          61723,
+          27547,
+          63723,
+          31100
+        ],
+        [
+          62723,
+          26547,
+          69351,
+          28547
+        ],
+        [
+          68351,
+          27374,
+          70351,
+          27547
+        ],
+        [
+          69351,
+          26374,
+          74829,
+          28374
+        ],
+        [
+          73829,
+          21843,
+          75829,
+          27374
+        ],
+        [
+          74829,
+          20843,
+          75630,
+          22843
+        ],
+        [
+          49819,
+          32443,
+          51819,
+          34443
+        ],
+        [
+          49819,
+          32193,
+          51819,
+          34193
+        ],
+        [
+          56421,
+          32193,
+          58421,
+          34193
+        ],
+        [
+          56421,
+          31400,
+          58421,
+          33400
+        ],
+        [
+          58821,
+          31400,
+          60821,
+          33400
+        ],
+        [
+          58821,
+          30100,
+          60821,
+          32100
+        ],
+        [
+          61723,
+          30100,
+          63723,
+          32100
+        ],
+        [
+          61723,
+          26547,
+          63723,
+          28547
+        ],
+        [
+          68351,
+          26547,
+          70351,
+          28547
+        ],
+        [
+          68351,
+          26374,
+          70351,
+          28374
+        ],
+        [
+          73829,
+          26374,
+          75829,
+          28374
+        ],
+        [
+          73829,
+          20843,
+          75829,
+          22843
+        ]
+      ],
+      "nodes_used": 374,
+      "doorway_connector": "SEPARATE_LEGAL_PORTAL_THROAT; NOT_VEHICLE_KINEMATICS",
+      "full_material_handling_or_personnel_pass": false,
+      "coverage_id": "interior:sha256:f26dbf047072f7458d9c442a87c6c5e89b1e9a366dca0aca8c10f88c4f2fedaf",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    }
+  ],
+  "storage": [
+    {
+      "room": "packaging_material_storage",
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "status": "STORAGE_AISLE_TO_REAL_PORTAL_VERIFIED",
+      "centerline_mm": [
+        [
+          28620,
+          25793
+        ],
+        [
+          28620,
+          27643
+        ],
+        [
+          29870,
+          27643
+        ]
+      ],
+      "envelope_bbox_mm": [
+        [
+          27370,
+          25793,
+          29870,
+          27643
+        ],
+        [
+          28620,
+          26393,
+          29870,
+          28893
+        ],
+        [
+          27370,
+          26393,
+          29870,
+          28893
+        ]
+      ],
+      "clear_width_mm": 2500,
+      "failure_code": null,
+      "nodes_used": 0,
+      "doorway_throat": "SEPARATE_ORIGINAL_PORTAL; VEHICLE_KINEMATICS_INPUT_REQUIRED",
+      "coverage_id": "storage:sha256:e63f91069b44e41e3c4f488c32a3f94008003aa5e94dcefa229d13fdc20f23af",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "finished_goods_room",
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "status": "STORAGE_AISLE_TO_REAL_PORTAL_VERIFIED",
+      "centerline_mm": [
+        [
+          95980,
+          37350
+        ],
+        [
+          95980,
+          37100
+        ],
+        [
+          87930,
+          37100
+        ]
+      ],
+      "envelope_bbox_mm": [
+        [
+          94730,
+          37100,
+          97230,
+          37350
+        ],
+        [
+          87930,
+          35850,
+          95980,
+          38350
+        ],
+        [
+          94730,
+          35850,
+          97230,
+          38350
+        ]
+      ],
+      "clear_width_mm": 2500,
+      "failure_code": null,
+      "nodes_used": 0,
+      "doorway_throat": "SEPARATE_ORIGINAL_PORTAL; VEHICLE_KINEMATICS_INPUT_REQUIRED",
+      "coverage_id": "storage:sha256:7aa903eb6f6582c69f655df3d7998df0fb12a3e5d0247d42ce2cd45966a35705",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "finished_goods_room",
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "status": "STORAGE_AISLE_TO_REAL_PORTAL_VERIFIED",
+      "centerline_mm": [
+        [
+          95980,
+          37350
+        ],
+        [
+          87930,
+          37350
+        ]
+      ],
+      "envelope_bbox_mm": [
+        [
+          87930,
+          36100,
+          95980,
+          38600
+        ]
+      ],
+      "clear_width_mm": 2500,
+      "failure_code": null,
+      "nodes_used": 0,
+      "doorway_throat": "SEPARATE_ORIGINAL_PORTAL; VEHICLE_KINEMATICS_INPUT_REQUIRED",
+      "coverage_id": "storage:sha256:979f5edbb01c534afec4a483ca92a4c4bd21bf8537667d20313d54168f39b514",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "raw_fruit_buffer",
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "status": "STORAGE_AISLE_TO_REAL_PORTAL_VERIFIED",
+      "centerline_mm": [
+        [
+          18570,
+          40143
+        ],
+        [
+          18570,
+          43243
+        ],
+        [
+          18820,
+          43243
+        ]
+      ],
+      "envelope_bbox_mm": [
+        [
+          17320,
+          40143,
+          19820,
+          43243
+        ],
+        [
+          18570,
+          41993,
+          18820,
+          44493
+        ],
+        [
+          17320,
+          41993,
+          19820,
+          44493
+        ]
+      ],
+      "clear_width_mm": 2500,
+      "failure_code": null,
+      "nodes_used": 0,
+      "doorway_throat": "SEPARATE_ORIGINAL_PORTAL; VEHICLE_KINEMATICS_INPUT_REQUIRED",
+      "coverage_id": "storage:sha256:7bc7c0e647278e7f02e416806d0de4699a34681108820d3b3cdf3c4539223739",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "secondary_fruit_buffer",
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "status": "STORAGE_AISLE_TO_REAL_PORTAL_VERIFIED",
+      "centerline_mm": [
+        [
+          54000,
+          19343
+        ],
+        [
+          54000,
+          19593
+        ]
+      ],
+      "envelope_bbox_mm": [
+        [
+          52750,
+          19343,
+          55250,
+          19593
+        ]
+      ],
+      "clear_width_mm": 2500,
+      "failure_code": null,
+      "nodes_used": 0,
+      "doorway_throat": "SEPARATE_ORIGINAL_PORTAL; VEHICLE_KINEMATICS_INPUT_REQUIRED",
+      "coverage_id": "storage:sha256:024f97872da673b59dd72a63354b6ead0f2af1aa5afe315ebba5189aac537630",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    },
+    {
+      "room": "frozen_fruit_room",
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "status": "STORAGE_AISLE_TO_REAL_PORTAL_VERIFIED",
+      "centerline_mm": [
+        [
+          63600,
+          19343
+        ],
+        [
+          63600,
+          19593
+        ],
+        [
+          63072,
+          19593
+        ]
+      ],
+      "envelope_bbox_mm": [
+        [
+          62350,
+          19343,
+          64850,
+          19593
+        ],
+        [
+          63072,
+          18343,
+          63600,
+          20843
+        ],
+        [
+          62350,
+          18343,
+          64850,
+          20843
+        ]
+      ],
+      "clear_width_mm": 2500,
+      "failure_code": null,
+      "nodes_used": 0,
+      "doorway_throat": "SEPARATE_ORIGINAL_PORTAL; VEHICLE_KINEMATICS_INPUT_REQUIRED",
+      "coverage_id": "storage:sha256:5f7f2b93116e0f7f128fc192ca1eadc2c00a382998ddee166da431be0023ee96",
+      "geometry_context_hash": "sha256:69c1d00998489a0cf162a711bbb5bc0594218fb317c1c30e24a1917a122abce6",
+      "evidence_origin": "CURRENT_A12_RECOMPUTED_WITH_ORIGINAL_PREDICATES"
+    }
+  ]
+}

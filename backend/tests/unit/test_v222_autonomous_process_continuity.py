@@ -18,6 +18,7 @@ from ortools.sat.python import cp_model
 
 from cold_storage.modules.layout.application.autonomous_process_continuity import (
     VERIFIED,
+    assess_process_candidate,
     generate_process_layout,
 )
 from cold_storage.modules.layout.domain.autonomous_equipment import positive_intersection
@@ -35,6 +36,11 @@ from cold_storage.modules.layout.domain.process_endpoint_routes import (
 from cold_storage.modules.layout.domain.process_flow_arrangement import (
     coating_service_depth,
     realize_coating_aisles,
+)
+from cold_storage.modules.layout.domain.process_transfer_interfaces import (
+    ASSUMED,
+    GEOMETRY,
+    route_is_conditionally_usable,
 )
 from cold_storage.modules.layout.infrastructure.process_continuity_export import (
     draw_process_candidate,
@@ -140,7 +146,7 @@ def test_six_actual_device_chains_no_room_centres(candidate: dict[str, Any]) -> 
         used = [routes[q["route_id"]] for q in chain["stages"] if q["route_id"] in routes]
         assert sum(len(q.get("portal_crossings", [])) for q in used) == 6
         assert chain["length_mm"] == sum(q["length_mm"] for q in used)
-        assert all(q["status"] == VERIFIED for q in used)
+        assert all(route_is_conditionally_usable(q) for q in used)
     assert all(
         e["object_id"] in {q["id"] for q in candidate["equipment"]["items"]} for e in v["endpoints"]
     )
@@ -152,7 +158,7 @@ def test_every_route_rechecks_recorded_sweeps(
 ) -> None:
     planner = ProcessRoutePlanner(candidate, parameters)
     for row in candidate["process_continuity"]["routes"]:
-        assert row["status"] == VERIFIED
+        assert route_is_conditionally_usable(row)
         assert row["length_mm"] == path_length(row["centerline_mm"])
         if "source_dock" not in row:
             continue
@@ -200,10 +206,10 @@ def test_crossings_are_real_p1_portals_and_do_not_turn_in_doors(candidate: dict[
     "role,minimum",
     [
         ("packaging_material_storage", 67),
-        ("finished_goods_room", 315),
-        ("raw_fruit_buffer", 37),
-        ("secondary_fruit_buffer", 19),
-        ("frozen_fruit_room", 34),
+        ("finished_goods_room", 324),
+        ("raw_fruit_buffer", 45),
+        ("secondary_fruit_buffer", 21),
+        ("frozen_fruit_room", 36),
     ],
 )
 def test_no_capacity_deletion(role: str, minimum: int, candidate: dict[str, Any]) -> None:
@@ -517,3 +523,224 @@ def test_export_references_raw_witnesses_does_not_duplicate(
     c.pop("result_hash")
     assert canonical_hash(c) == result["candidates"][0]["result_hash"]
     assert "NOT_EVALUATED" in (tmp_path / "export/layout-comparison.md").read_text()
+
+
+# R1_CORRECTION_1: the full process admission is exercised, not a summary flag.
+def test_full_process_admission_and_route_classification(candidate, project, parameters):
+    a = assess_process_candidate(candidate, project, parameters)
+    assert a["accepted"] and a["main_line_count"] == 6 and not a["failures"]
+    assert a["counts"] == {
+        "all_routes": 91,
+        "selected_routes": 67,
+        "exploratory_alternatives": 24,
+        "conditional_machine_internal_routes": 10,
+        "conditional_short_handoffs": 5,
+        "explicit_transfers": 57,
+    }
+    assert {q["flow_kind"] for q in a["auxiliary_flows"]} == {"PACKAGING", "SECONDARY", "FROZEN"}
+    assert all(q["status"] == "CONDITIONAL_CONNECTED" for q in a["auxiliary_flows"])
+    assert sum(s["layout"]["placed_positions"] for s in candidate["equipment"]["storage"]) == 493
+    assert not candidate["P2D_full_pass"]
+
+
+@pytest.mark.parametrize("number", range(1, 7))
+def test_any_failed_main_line_rejects_whole_candidate(number, candidate, project, parameters):
+    c = copy.deepcopy(candidate)
+    next(q for q in c["process_continuity"]["routes"] if q["id"] == f"PACK-PALLET-{number}")[
+        "status"
+    ] = "BOUNDED_PATH_NOT_FOUND"
+    a = assess_process_candidate(c, project, parameters)
+    assert not a["accepted"] and a["main_line_count"] == 5
+
+
+@pytest.mark.parametrize("kind", ["SECONDARY", "FROZEN"])
+def test_missing_auxiliary_branch_never_passes(kind, candidate, project, parameters):
+    c = copy.deepcopy(candidate)
+    c["process_continuity"]["auxiliary_branches"] = [
+        q for q in c["process_continuity"]["auxiliary_branches"] if q["flow_kind"] != kind
+    ]
+    a = assess_process_candidate(c, project, parameters)
+    assert (
+        not a["accepted"] and {"code": "AUXILIARY_BRANCH_INCOMPLETE", "id": kind} in a["failures"]
+    )
+
+
+@pytest.mark.parametrize("index", range(6))
+def test_each_selected_supply_path_required(index, candidate, project, parameters):
+    c = copy.deepcopy(candidate)
+    id_ = c["process_continuity"]["case_supply"]["line_assignments"][index]["route_id"]
+    next(q for q in c["process_continuity"]["routes"] if q["id"] == id_)["status"] = (
+        "FAILED_SELECTED"
+    )
+    assert not assess_process_candidate(c, project, parameters)["accepted"]
+
+
+def test_failed_unselected_alternative_is_not_a_selected_failure(candidate, project, parameters):
+    c = copy.deepcopy(candidate)
+    id_ = c["process_admission"]["alternative_route_ids"][0]
+    next(q for q in c["process_continuity"]["routes"] if q["id"] == id_)["status"] = (
+        "FAILED_EXPLORATION"
+    )
+    assert assess_process_candidate(c, project, parameters)["accepted"]
+
+
+@pytest.mark.parametrize("mutation", ["remove", "anchor", "payload", "path", "operation"])
+def test_broken_carrier_transfer_cannot_be_bridged_by_owner_id(
+    mutation, candidate, project, parameters
+):
+    c = copy.deepcopy(candidate)
+    ts = c["process_continuity"]["transfers"]
+    t = next(q for q in ts if q["kind"] == "UNLOAD_CRATES_TO_FOOD_BIN")
+    assert t["from"]["object_id"] == t["to"]["object_id"] == "RAW-UNLOAD"
+    if mutation == "remove":
+        ts.remove(t)
+    elif mutation == "anchor":
+        t["to"]["load_anchor_mm"][1] += 1
+    elif mutation == "payload":
+        t["before_state"]["payload_form"] = "PACKED_CARTON"
+    elif mutation == "path":
+        t["load_path_mm"] = []
+    else:
+        t["geometry_status"] = "TRANSFER_GEOMETRY_REJECTED"
+    assert not assess_process_candidate(c, project, parameters)["accepted"]
+
+
+@pytest.mark.parametrize("identity", ["ERECT-01", "PACK-03", "WORK-PACK-01"])
+def test_moved_body_rejects_old_passes(identity, candidate, project, parameters):
+    c = copy.deepcopy(candidate)
+    b = next(q for q in c["equipment"]["items"] if q["id"] == identity)["bbox_mm"]
+    b[0] += 1
+    b[2] += 1
+    a = assess_process_candidate(c, project, parameters)
+    assert not a["accepted"]
+    assert any(q["code"] == "STALE_GEOMETRY_EVIDENCE" for q in a["failures"])
+
+
+@pytest.mark.parametrize("field", ["equipment_aware_interior_paths", "storage_portal_interfaces"])
+@pytest.mark.parametrize("mutation", ["remove", "old_context", "duplicate", "failed"])
+def test_each_original_function_needs_fresh_nonduplicate_coverage(
+    field, mutation, candidate, project, parameters
+):
+    c = copy.deepcopy(candidate)
+    rows = c[field]
+    if mutation == "remove":
+        rows.pop()
+    elif mutation == "old_context":
+        rows[0]["geometry_context_hash"] = "old_v11_PASS"
+    elif mutation == "duplicate":
+        rows[-1] = copy.deepcopy(rows[0])
+    else:
+        rows[0]["status"] = "BOUNDED_PATH_NOT_FOUND"
+    a = assess_process_candidate(c, project, parameters)
+    assert not a["accepted"]
+    assert any(q["code"] == "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE" for q in a["failures"])
+
+
+def test_raw_750mm_reference_gap_has_real_load_and_actor_paths(candidate):
+    ts = candidate["process_continuity"]["transfers"]
+    raw = [q for q in ts if q["kind"] == "UNLOAD_CRATES_TO_FOOD_BIN"]
+    assert len(raw) == 6
+    for t in raw:
+        assert t["reference_gap_mm"] == 750
+        assert t["from"]["load_anchor_mm"] != t["to"]["load_anchor_mm"]
+        assert t["load_path_mm"] and t["load_swept_bbox_mm"]
+        assert t["actor_paths"] and all(a["geometry_status"] == GEOMETRY for a in t["actor_paths"])
+        assert t["geometry_status"] == GEOMETRY and t["validation_status"] == ASSUMED
+        assert t["actual_operation_status"] == "INPUT_REQUIRED" and t["required_inputs"]
+
+
+def test_internal_and_short_transfers_are_not_manufacturer_pass(candidate):
+    internals = [
+        q
+        for q in candidate["process_continuity"]["routes"]
+        if q["purpose"]
+        in ("PACKING_MACHINE_INTERNAL", "CARTON_MACHINE_INTERNAL", "CARTON_SHORT_HANDOFF")
+    ]
+    assert len(internals) == 15
+    assert all(
+        q["status"] == ASSUMED
+        and q["geometry_status"] == GEOMETRY
+        and q["actual_operation_status"] == "INPUT_REQUIRED"
+        for q in internals
+    )
+
+
+@pytest.mark.parametrize("kind", ["SECONDARY", "FROZEN"])
+def test_real_reject_slot_and_original_p1_door_geometry(kind, candidate, parameters):
+    b = next(
+        q for q in candidate["process_continuity"]["auxiliary_branches"] if q["flow_kind"] == kind
+    )
+    rr = {q["id"]: q for q in candidate["process_continuity"]["routes"]}
+    pickup, delivery = [rr[i] for i in b["route_ids"]]
+    assert pickup["source_object"].startswith("PACK-")
+    assert pickup["carrier"] == "FOOD_TOTE_CARRY" and delivery["carrier"] == "LOADED_PALLET"
+    assert delivery["target_object"] == b["stock_handoff_object"]
+    assert len(delivery["portal_crossings"]) == 1
+    assert (
+        delivery["portal_crossings"][0]["requirement_identity"]
+        == "access:sorting_packaging_room->" + b["to_ref"] + "@1.0.0"
+    )
+    assert all(route_is_conditionally_usable(q) for q in (pickup, delivery))
+    assert b["actual_sort_outlet_and_storage_process"] == "INPUT_REQUIRED"
+
+
+def test_original_predicate_rejects_touch_and_layout_feedback_preserves_width(
+    candidate, parameters
+):
+    from cold_storage.modules.layout.domain import access_routing as routing
+    from cold_storage.modules.layout.domain.autonomous_process_routes import _ring
+
+    assert not routing._route_is_safe(
+        [(1250, 3250), (3750, 3250)],
+        width_mm=2500,
+        boundary=_ring([0, 0, 5000, 6500]),
+        obstacles=[_ring([0, 0, 5000, 2000])],
+        zones={},
+        incident_refs=frozenset(),
+    )[0]
+    q = candidate["equipment"]["layouts"]["sorting_packaging_room"]["service_corridors"]
+    middle = next(a for a in q if a["id"] == "CASE-MIDDLE")
+    assert middle["clear_width_mm"] == parameters["main_aisle_mm"] == 2500
+    assert middle["bbox_mm"][3] - middle["bbox_mm"][1] == 2540
+    assert parameters["case_middle_extra_mm"] == 40
+    assert len(candidate["equipment_aware_interior_paths"]) == 10
+    assert all(
+        a["status"] == "INTERIOR_FULL_WIDTH_PATH_VERIFIED"
+        for a in candidate["equipment_aware_interior_paths"]
+    )
+
+
+def test_r1_export_includes_admission_transfers_and_coverage(result, project, parameters, tmp_path):
+    export_process_package(result, project, parameters, tmp_path / "r1", drawings=False)
+    for name in (
+        "process-admission.json",
+        "process-interfaces.json",
+        "v11-function-coverage.json",
+        "route-selection.json",
+        "process-detail.md",
+    ):
+        assert (tmp_path / "r1" / name).is_file()
+    selection = json.loads((tmp_path / "r1/route-selection.json").read_text())
+    assert (
+        selection["original_route_count"],
+        selection["original_selected_count"],
+        selection["original_alternative_count"],
+    ) == (87, 63, 24)
+
+
+@pytest.mark.parametrize("mutation", ["upgrade_internal", "duplicate_blanks", "duplicate_buffer"])
+def test_verification_levels_and_all_required_distinct_connections(
+    mutation, candidate, project, parameters
+):
+    c = copy.deepcopy(candidate)
+    f = c["process_continuity"]
+    if mutation == "upgrade_internal":
+        r = next(q for q in f["routes"] if q["id"] == "PROCESS-PACK-01")
+        r["status"] = GEOMETRY
+        r.pop("witness_hash")
+        r["witness_hash"] = canonical_hash(r)
+    elif mutation == "duplicate_blanks":
+        f["case_supply"]["blank_supply_routes"][-1] = f["case_supply"]["blank_supply_routes"][0]
+    else:
+        f["buffer_routes"][-1] = f["buffer_routes"][0]
+    assert not assess_process_candidate(c, project, parameters)["accepted"]

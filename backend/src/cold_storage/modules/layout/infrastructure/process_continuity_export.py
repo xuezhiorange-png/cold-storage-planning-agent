@@ -9,6 +9,11 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
+from cold_storage.modules.layout.domain.process_transfer_interfaces import (
+    ASSUMED,
+    GEOMETRY,
+    route_is_conditionally_usable,
+)
 from cold_storage.modules.layout.infrastructure.autonomous_layout_export import COLORS, INK, _Sheet
 
 
@@ -132,9 +137,7 @@ def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -
                 0.3,
                 True,
             )
-    verified = {
-        r["id"]: r for r in flows["routes"] if r["status"] == "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
-    }
+    verified = {r["id"]: r for r in flows["routes"] if route_is_conditionally_usable(r)}
     chain = next(
         (q for q in flows["product_chains"] if q["status"] == "CONTINUOUS_CONDITIONAL_CHAIN"), None
     )
@@ -142,7 +145,8 @@ def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -
     if layer in ("main", "process") and chain:
         selected = [
             (verified[x["route_id"]], "#188574")
-            for x in chain["stages"]
+            for product_chain in flows["product_chains"]
+            for x in product_chain["stages"]
             if x["route_id"] in verified
         ]
     if layer in ("main", "cartons"):
@@ -157,8 +161,33 @@ def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -
             for id_ in flows["case_supply"]["blank_supply_routes"]
             if id_ in verified
         )
+    if layer in ("main", "process"):
+        selected.extend(
+            (verified[rid], "#3d6aaf" if branch["flow_kind"] == "SECONDARY" else "#a34d79")
+            for branch in flows["auxiliary_branches"]
+            for rid in branch["route_ids"]
+            if rid in verified
+        )
+    selected = list({r["id"]: (r, color) for r, color in selected}.values())
+    selected_ids = {r["id"] for r, _ in selected}
+    for transfer in flows["transfers"]:
+        if (
+            transfer["upstream_route"] not in selected_ids
+            or transfer["downstream_route"] not in selected_ids
+            or transfer["geometry_status"] != GEOMETRY
+        ):
+            continue
+        route(transfer["load_path_mm"], "#a15b40", 0.35, transfer["validation_status"] == ASSUMED)
+        for workspace in transfer["operation_spaces"]:
+            a, b, r, t = workspace["bbox_mm"]
+            s.line([p(a, b), p(r, b), p(r, t), p(a, t), p(a, b)], "#ad7d55", 0.12, True)
     for r, color in selected:
-        route(r["centerline_mm"], color, 0.35 if layer == "main" else 0.55, layer == "cartons")
+        route(
+            r["centerline_mm"],
+            color,
+            0.35 if layer == "main" else 0.55,
+            r["status"] == ASSUMED or layer == "cartons",
+        )
         for contact in r.get("endpoint_contact_transfers", []):
             if contact["kind"] == "REGISTERED_MANUAL_LOAD_HANDOFF":
                 route(contact["centerline_mm"], color, 0.25)
@@ -187,9 +216,10 @@ def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -
         "候选状态：" + c["status"],
         f"主产品完整条件链 {flows['continuous_main_product_chain_count']}/6",
         f"设备路线 {flows['verified_route_count']}通过 / {flows['failed_route_count']}未贯通",
-        "绿色：所示包装线完整产品路径",
+        "绿色：六线产品；蓝色：次果；玫色：冻果",
+        "虚线机内/人工交接：条件操作，非厂家通过",
         "褐色：成箱配送 / 紫虚线：纸板补给",
-        "紫色：既有人员路径 / 红点：假设设备接口",
+        "紫色：人员路径 / 红点：待审设备接口",
         "14待冷缓冲位与6包装工作位分别计数",
         "N/S为两服务组，重排于本方案北侧工作带",
         "主通道2500；包材主通道5000（mm）",
@@ -201,7 +231,7 @@ def draw_process_candidate(c: dict[str, Any], path: Path, layer: str = "main") -
         "Truck、完整P2D及工程批准未成立",
     ]
     for i, n in enumerate(notes):
-        s.text(609, 223 + i * 9, n, 2.7, "#526f7c")
+        s.text(609, 223 + i * 7.5, n, 2.7, "#526f7c")
     s.text(609, 360, "六线完整链的几何中心线长度", 3.1)
     for i, q in enumerate(flows["product_chains"]):
         s.text(
@@ -283,6 +313,87 @@ def export_process_package(
         },
     )
     dump("iteration-feedback.json", result["attempts"])
+    dump("process-admission.json", c["process_admission"])
+    dump(
+        "process-interfaces.json",
+        {
+            "candidate_hash": c["result_hash"],
+            "transfers": flows["transfers"],
+            "auxiliary_branches": flows["auxiliary_branches"],
+        },
+    )
+    dump(
+        "v11-function-coverage.json",
+        {
+            "candidate_hash": c["result_hash"],
+            "original_required_identities": flows["v11_required_coverage"],
+            "interior": c["equipment_aware_interior_paths"],
+            "storage": c["storage_portal_interfaces"],
+        },
+    )
+    original_ids = {
+        r["id"] for r in flows["routes"] if not r["id"].startswith(("SECONDARY-", "FROZEN-"))
+    }
+    chosen_ids = set(c["process_admission"]["selected_route_ids"])
+    dump(
+        "route-selection.json",
+        {
+            **c["process_admission"]["counts"],
+            "original_route_count": len(original_ids),
+            "original_selected_count": len(original_ids & chosen_ids),
+            "original_alternative_count": len(original_ids - chosen_ids),
+            "selected_route_ids": sorted(chosen_ids),
+            "exploratory_alternative_ids": c["process_admission"]["alternative_route_ids"],
+            "categories_overlap": (
+                "Machine-internal and short-operation routes are subsets of selected routes"
+            ),
+        },
+    )
+    detail = [
+        "# R1补正：工艺支线、载具交接与全量准入",
+        "",
+        "几何核验不等于厂家内部工艺、人工操作或工程批准；所有条件操作的实际输入仍需确认。",
+        "",
+        "## 辅助物料支线",
+        "|支线|来源|实际库位|运输段|",
+        "|---|---|---|---|",
+    ]
+    detail.extend(
+        f"|{b['flow_kind']}|{b['source_interface']}|{b['stock_handoff_object']}|"
+        f"{', '.join(b['route_ids'])}|"
+        for b in flows["auxiliary_branches"]
+    )
+    detail.extend(
+        [
+            "",
+            "## 显式交接（参考点差与载荷实际连接路径分别保存）",
+            "|交接|载具/载荷转换|参考点差mm|投影几何|操作|",
+            "|---|---|---:|---|---|",
+        ]
+    )
+    detail.extend(
+        f"|{t['id']}|{t['kind']}|{t['reference_gap_mm']}|{t['geometry_status']}|{t['validation_status']}|"
+        for t in flows["transfers"]
+    )
+    detail.extend(["", "## V1.1功能重新覆盖", "|房间|原需求|新证据|状态|", "|---|---|---|---|"])
+    detail.extend(
+        f"|{q['room']}|{q.get('from_access', q.get('requirement_identity'))} → "
+        f"{q.get('to_access', '库内主通道')}|{q['coverage_id']}|{q['status']}|"
+        for q in [*c["equipment_aware_interior_paths"], *c["storage_portal_interfaces"]]
+    )
+    detail.extend(
+        [
+            "",
+            "## 全量准入",
+            "```json",
+            json.dumps(c["process_admission"], ensure_ascii=False, indent=2),
+            "```",
+            "",
+            "## 实际输入仍需确认",
+            "分选设备分流口、周转筐卸料/散果输送、包装机内输送与成箱出口、组托/拆托/复托方式、封膜机内部输送与能力；搬运工具、载荷稳定性、人体操作与调度、次果及冻果容器/储存工艺、H5实际柜门/活动尺度/洁污条件。全部保持INPUT_REQUIRED。",
+        ]
+    )
+    (output / "process-detail.md").write_text("\n".join(detail) + "\n")
     for name, rows, fields in (
         (
             "equipment-placement.csv",
@@ -392,7 +503,12 @@ def export_process_package(
 
 
 12区、7条MUST、非货车Access {c["non_truck_access_pass_count"]}/11；
-实际设备路径 {flows["verified_route_count"]} 条条件通过，{flows["failed_route_count"]} 条未贯通。
+实际路径 {flows["verified_route_count"]} 条具有分级几何见证，
+{flows["failed_route_count"]} 条未贯通。
+全量准入：{c["status"]}；选用{c["process_admission"]["counts"]["selected_routes"]}条、
+备用{c["process_admission"]["counts"]["exploratory_alternatives"]}条；
+其中机内投影10条及短交接5条仅CONDITIONAL_OPERATION_ASSUMED，不是厂家验证。
+次果、冻果及包材三支线与全部10+6项V1.1通行功能均纳入集中门禁；详见process-detail.md。
 主产品完整链 {flows["continuous_main_product_chain_count"]}/6。
 厂车运动学、多人同时交通、热工批次能力、20t吞吐、Truck及完整P2D均未由本轮证明。
 
@@ -401,6 +517,8 @@ def export_process_package(
 
 四台分选间折箱机保持完整外形并旋转90°，中部保留2500mm通道、两列间1800mm补料操作带；
 第五台保留包材库。
+R1补正把四机中部间隔从2500扩至2540mm，各机沿Y向外移20mm；外围未通行空隙从50降至30mm，需厂家安装复核。
+实际保留的主通道仍为2500mm，原封闭障碍相交谓词未放宽。
 六线三对1000mm人员操作带不变，只缩小非通行的对间空隙。
 新增14个独立缓冲位、6个线端托位及1个周转筐卸料托位，N/S为原B4服务组在自主房间中的位置映射，并非照搬两厅世界坐标。
 
@@ -499,7 +617,8 @@ border-bottom:1px solid #d2dfe3}}p{{max-width:1120px}}</style>
 整体候选状态：{result["status"]}。
 {flows["continuous_main_product_chain_count"]}条完整条件产品链；
 {flows["case_supply"]["status"]}。
-图中仅显示已验证路径。
+图中实线为条件几何运输，机内/人工交接虚线仅作CONDITIONAL_OPERATION_ASSUMED。
+次果、冻果分流口均是待审条件接口。
 条件矩形转向不是实际车辆运动学，厂区工程批准及连续产能未成立。
 </p>
 <p>
@@ -508,7 +627,10 @@ border-bottom:1px solid #d2dfe3}}p{{max-width:1120px}}</style>
 <a href="autonomous-layout-A12.svg">可缩放SVG</a> ·
 <a href="equipment-endpoints-and-routes.json">端点和路径索引</a> ·
 <a href="autonomous-layout-A12.json">原始候选及全部见证</a> ·
-<a href="layout-comparison.md">A1对照</a>
+<a href="layout-comparison.md">A1对照</a> ·
+<a href="process-detail.md">支线/交接/16项通行明细</a> ·
+<a href="process-admission.json">全量准入</a> ·
+<a href="route-selection.json">选用与备用计数</a>
 </p>
 <div>
 <button data-file="autonomous-layout-A12.svg">整厂平面</button>
@@ -518,6 +640,12 @@ border-bottom:1px solid #d2dfe3}}p{{max-width:1120px}}</style>
 <div class="plan">
 <img id="drawing" src="autonomous-layout-A12.svg" alt="真实比例自主布局">
 </div>
+<p>全量功能门禁：{c["process_admission"]["status"]}；六线{c["process_admission"]["main_line_count"]}/6，三条辅助物料支线纳入。
+原室内{c["process_admission"]["v11_coverage"][0]["verified"]}/10、
+仓储接口{c["process_admission"]["v11_coverage"][1]["verified"]}/6按新布局重算。
+原87条：选用{len(original_ids & chosen_ids)}、备用{len(original_ids - chosen_ids)}；
+新增次果/冻果4条。
+机内投影与实际操作尚未确认，完整P2D与工厂适用性NOT_EVALUATED。</p>
 <h2>各线端到端条件路径</h2>
 <table>
 <tr>
