@@ -118,7 +118,7 @@
     "only_existing_tracked_file_changed": [
       ".github/workflows/ci-fast.yml"
     ],
-    "change": "append new test; preserve all inherited tests",
+    "change": "Append new test and pin backend Python3.12; preserve all inherited tests",
     "P1_StageB_comparators_MCP_old_runners_historical_evidence": "UNCHANGED"
   },
   "local_generation_native_solves": 0,
@@ -150,5 +150,14 @@
     "equipment-aware interior material paths and some portal approaches unresolved",
     "packaging stock bodies 66 vs original minimum67",
     "full Truck/land Site/P2D/full-equipment operation not evaluated"
-  ]
+  ],
+  "first_remote_CI": {
+    "run_id": 41282997356,
+    "status": "FAILURE",
+    "backend_passed": 2144,
+    "new_module_passed": 23,
+    "architecture_failures": 2,
+    "reason": "Python3.14 AST schema differs; original functions and digest checks retained",
+    "evidence": "evidence/ci-first-run-41282997356.json"
+  }
 }

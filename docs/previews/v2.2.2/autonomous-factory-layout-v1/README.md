@@ -80,6 +80,11 @@ R11_FUNCTIONAL_GUARD_AUDIT=/tmp/autonomous-layout-native-guard \
 新增代码没有CP-SAT、MAIN、Store或Claim路径。负测试只验证API请求被阻断，实际Native调用为0。
 自动快速CI保留既有合成Native测试，不能将整次继承CI报告成零Native。
 
+首轮快速CI #41282997356的2144项后端测试（本模块23项）全部通过，但Runner自动选到
+Python3.14.4，使两项历史AST摘要检查失败。相同源码分别在Python3.12与3.14的摘要已复算，
+与原门禁及失败值逐项吻合。仅将ci-fast后端安装固定为`uv sync --locked --python 3.12`；
+未改原摘要、原解析器或历史搜索。首次失败及JUnit保留在`evidence/ci-first-run-*`。
+
 ## 复用与限制
 
 面积/P1绑定、有限房间搜索、设备局部坐标、碰撞检查和结果投影可以复用于具有相同12区合同的项目。

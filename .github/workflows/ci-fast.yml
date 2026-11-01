@@ -32,7 +32,7 @@ jobs:
         id: classify
         run: python3 scripts/ci/classify_changes.py --development
       - name: Locked backend dependencies
-        run: cd backend && uv sync --locked
+        run: cd backend && uv sync --locked --python 3.12
       - name: Shared pytest CJK font prerequisite
         timeout-minutes: 5
         run: |
