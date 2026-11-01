@@ -1,0 +1,6 @@
+Python 3.12.13, locked uv dependencies
+Ruff: All checks passed
+Format: 1159 files already formatted
+Mypy: 531 source files PASS
+Existing file diff: only ci-fast.yml appends new test
+Native Solve: actual0; negative requests blocked by original startup guard
