@@ -1,0 +1,10 @@
+{
+  "elapsed_generation_seconds": 7.235788667007,
+  "rss_peak_mib": 129.265625,
+  "native_calls": 0,
+  "resource_scope": "Standalone deterministic preview, not Stage A/B ledger; no budget issued or reused",
+  "operations": {
+    "room_options_checked": 40251,
+    "room_search_nodes": 36
+  }
+}

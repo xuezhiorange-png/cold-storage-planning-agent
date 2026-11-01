@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>自主布局A1 V1.1</title>
+<style>body{font:15px/1.6 system-ui;color:#233c4b;margin:24px auto;max-width:1400px;
+padding:0 16px}
+img{width:100%;border:1px solid #d3dee4}
+table{border-collapse:collapse;width:100%;margin:16px 0}
+td,th{text-align:left;border-bottom:1px solid #d3dee4;padding:8px}
+a{color:#167d85}
+.scroll{overflow:auto}
+p{max-width:1000px}</style>
+<h1>房间与设备联合生成 · A1</h1>
+<p>同次程序计算12区、设备、货位、门洞和实际路线。原P1最低需求与固定尺寸保持；柔性房间根据功能几何反馈扩大。不是施工图、工程批准或完整P2D。</p>
+<p>
+<a href="autonomous-layout-A1.pdf">A1 1:200 PDF</a> ·
+<a href="autonomous-layout-A1.svg">SVG</a> ·
+<a href="autonomous-layout-A1.json">完整坐标和见证JSON</a> ·
+<a href="functional-movement.json">两班53人运动</a> ·
+<a href="storage-pick-put.json">逐货位取放</a> ·
+<a href="iteration-feedback.json">失败与迭代反馈</a>
+</p>
+<img src="autonomous-layout-A1.svg" alt="程序生成的真实比例整厂平面图">
+<h2>房间与柱体净面积差异</h2>
+<div class="scroll">
+<table>
+<tr>
+<th>房间</th>
+<th>mm</th>
+<th>面积㎡</th>
+<th>柱体㎡</th>
+</tr><tr><td>更衣室</td><td>12600×9700</td><td>122.22</td><td>0</td></tr><tr><td>覆膜间</td><td>16300×7100</td><td>115.73</td><td>0</td></tr><tr><td>成品间</td><td>18600×32400</td><td>602.64</td><td>0.3603</td></tr><tr><td>冻果间</td><td>10800×8200</td><td>88.56</td><td>0</td></tr><tr><td>办公室</td><td>7746×7746</td><td>60.000516</td><td>0</td></tr><tr><td>包材库</td><td>14500×17300</td><td>250.85</td><td>0</td></tr><tr><td>一级预冷间</td><td>14700×10050</td><td>147.735</td><td>0.1212</td></tr><tr><td>原果暂存间</td><td>15200×8700</td><td>132.24</td><td>0</td></tr><tr><td>次果暂存间</td><td>8400×6900</td><td>57.96</td><td>0</td></tr><tr><td>二级预冷间</td><td>9800×10050</td><td>98.49</td><td>0</td></tr><tr><td>出货通道</td><td>7693×6500</td><td>50.0045</td><td>0.0606</td></tr><tr><td>分选包装间</td><td>45760×13600</td><td>622.336</td><td>0</td></tr></table>
+</div>
+<h2>条件性有序取放</h2>
+<p>取货时保留其他存货，放货按实测反向顺序验证。只证明指定荷载包络的几何，不证明叉车转弯、任意顺序存取或运营批准。</p>
+<table>
+<tr>
+<th>库房</th>
+<th>货位/最低</th>
+<th>实际路径见证</th>
+</tr><tr><td>packaging_material_storage</td><td>67/67</td><td>67取 / 67放</td></tr><tr><td>finished_goods_room</td><td>324/315</td><td>324取 / 324放</td></tr><tr><td>raw_fruit_buffer</td><td>45/37</td><td>45取 / 45放</td></tr><tr><td>secondary_fruit_buffer</td><td>21/19</td><td>21取 / 21放</td></tr><tr><td>frozen_fruit_room</td><td>36/34</td><td>36取 / 36放</td></tr></table>
+<h2>53人功能计算</h2>
+<p>两班独立分配柜格，进入、初始53人在室、柜前往返、600×900mm活动区、两种假设铰链及离室分别计算。
+当前条件完整序列：True。
+柜体净尺寸、实际铰链、人体尺度、衣物卫生、门扇和运营时间仍为INPUT_REQUIRED。</p>
+<h2>未成立的范围</h2>
+<p>搬运设备运动学、冷却性能、实际设备维护空间、Truck、完整P2D、整厂适用性及工程批准未成立。货位顺序、人员单人移动与材料操作均为待审条件模型。</p>
+<pre>[]</pre>
+</html>

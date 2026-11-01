@@ -1,0 +1,244 @@
+{
+  "baseline_result_hash": "sha256:077a07f8ecdde8c93a7567db112fd34f7595668d68dcb13940127699dd50f977",
+  "joint_result_hash": "sha256:f4c3e6903b20261d2695878a7d68964a782e58d00e92dcd9fdaf44f74f002e0d",
+  "same_p1": true,
+  "old_portal_conflicts": 12,
+  "new_portal_conflicts": 0,
+  "old_interior_routes": 1,
+  "new_interior_routes": 10,
+  "old_gross_room_area_m2": "2230.825205",
+  "new_gross_room_area_m2": "2348.766016",
+  "room_changes": [
+    {
+      "zone_code": "changing_room",
+      "name": "更衣室",
+      "old_bbox_mm": [
+        71837,
+        14518,
+        78162,
+        20843
+      ],
+      "new_bbox_mm": [
+        87126,
+        14519,
+        99726,
+        24219
+      ],
+      "old_area_m2": "40.005625",
+      "new_area_m2": "122.22",
+      "delta_area_m2": "82.214375"
+    },
+    {
+      "zone_code": "coating_room",
+      "name": "覆膜间",
+      "old_bbox_mm": [
+        86680,
+        23171,
+        95625,
+        32115
+      ],
+      "new_bbox_mm": [
+        86680,
+        25234,
+        102980,
+        32334
+      ],
+      "old_area_m2": "80.00408",
+      "new_area_m2": "115.73",
+      "delta_area_m2": "35.72592"
+    },
+    {
+      "zone_code": "finished_goods_room",
+      "name": "成品间",
+      "old_bbox_mm": [
+        86680,
+        32115,
+        105280,
+        64515
+      ],
+      "new_bbox_mm": [
+        86680,
+        32334,
+        105280,
+        64734
+      ],
+      "old_area_m2": "602.64",
+      "new_area_m2": "602.64",
+      "delta_area_m2": "0.00"
+    },
+    {
+      "zone_code": "frozen_fruit_room",
+      "name": "冻果间",
+      "old_bbox_mm": [
+        58200,
+        12643,
+        69000,
+        20843
+      ],
+      "new_bbox_mm": [
+        58200,
+        12643,
+        69000,
+        20843
+      ],
+      "old_area_m2": "88.56",
+      "new_area_m2": "88.56",
+      "delta_area_m2": "0.00"
+    },
+    {
+      "zone_code": "office",
+      "name": "办公室",
+      "old_bbox_mm": [
+        95625,
+        15615,
+        101625,
+        25615
+      ],
+      "new_bbox_mm": [
+        76880,
+        38834,
+        84626,
+        46580
+      ],
+      "old_area_m2": "60",
+      "new_area_m2": "60.000516",
+      "delta_area_m2": "0.000516"
+    },
+    {
+      "zone_code": "packaging_material_storage",
+      "name": "包材库",
+      "old_bbox_mm": [
+        16620,
+        18993,
+        31120,
+        36293
+      ],
+      "new_bbox_mm": [
+        16620,
+        17143,
+        31120,
+        34443
+      ],
+      "old_area_m2": "250.85",
+      "new_area_m2": "250.85",
+      "delta_area_m2": "0.00"
+    },
+    {
+      "zone_code": "primary_precooling_room",
+      "name": "一级预冷间",
+      "old_bbox_mm": [
+        31120,
+        34443,
+        45820,
+        44493
+      ],
+      "new_bbox_mm": [
+        20070,
+        34443,
+        34770,
+        44493
+      ],
+      "old_area_m2": "147.735",
+      "new_area_m2": "147.735",
+      "delta_area_m2": "0.000"
+    },
+    {
+      "zone_code": "raw_fruit_buffer",
+      "name": "原果暂存间",
+      "old_bbox_mm": [
+        45820,
+        34443,
+        61020,
+        43143
+      ],
+      "new_bbox_mm": [
+        4870,
+        35793,
+        20070,
+        44493
+      ],
+      "old_area_m2": "132.24",
+      "new_area_m2": "132.24",
+      "delta_area_m2": "0.00"
+    },
+    {
+      "zone_code": "secondary_fruit_buffer",
+      "name": "次果暂存间",
+      "old_bbox_mm": [
+        49800,
+        13943,
+        58200,
+        20843
+      ],
+      "new_bbox_mm": [
+        49800,
+        13943,
+        58200,
+        20843
+      ],
+      "old_area_m2": "57.96",
+      "new_area_m2": "57.96",
+      "delta_area_m2": "0.00"
+    },
+    {
+      "zone_code": "secondary_precooling_room",
+      "name": "二级预冷间",
+      "old_bbox_mm": [
+        76880,
+        22618,
+        86680,
+        32668
+      ],
+      "new_bbox_mm": [
+        76880,
+        20843,
+        86680,
+        30893
+      ],
+      "old_area_m2": "98.49",
+      "new_area_m2": "98.49",
+      "delta_area_m2": "0.00"
+    },
+    {
+      "zone_code": "shipping_channel",
+      "name": "出货通道",
+      "old_bbox_mm": [
+        95625,
+        25615,
+        103318,
+        32115
+      ],
+      "new_bbox_mm": [
+        78987,
+        32334,
+        86680,
+        38834
+      ],
+      "old_area_m2": "50.0045",
+      "new_area_m2": "50.0045",
+      "delta_area_m2": "0.0000"
+    },
+    {
+      "zone_code": "sorting_packaging_room",
+      "name": "分选包装间",
+      "old_bbox_mm": [
+        31120,
+        20843,
+        76880,
+        34443
+      ],
+      "new_bbox_mm": [
+        31120,
+        20843,
+        76880,
+        34443
+      ],
+      "old_area_m2": "622.336",
+      "new_area_m2": "622.336",
+      "delta_area_m2": "0.000"
+    }
+  ],
+  "formal_pareto_result": "NOT_EVALUATED_CROSS_VERSION_CONDITIONAL_PREVIEWS",
+  "history_read_only_after_generation": true,
+  "stock_goal_to_real_portal_proofs": 6
+}

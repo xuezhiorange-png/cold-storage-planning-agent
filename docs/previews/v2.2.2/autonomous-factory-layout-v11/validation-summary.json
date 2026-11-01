@@ -1,0 +1,33 @@
+{
+  "task_id": "V2_2_2_AUTONOMOUS_FACTORY_LAYOUT_FUNCTIONAL_CLOSURE_R1",
+  "base_head": "66baca30f47fe691d7f2d41a379fdf83b2180a76",
+  "source_input_hash": "sha256:d9cd4110874625b5c6b92f5d32a2862de0c919d24dd2d0afae9e01fa2991380b",
+  "result_hash": "sha256:c8cf5702756a53685b37300c8a7d340fb2bda52a9f3c403e3444c09c8ea5be67",
+  "new_module_tests": 36,
+  "architecture_passed": 790,
+  "inherited_architecture_skips": 16,
+  "original_and_related_whitelist_passed": 263,
+  "ci_contracts": 65,
+  "ruff": "PASS",
+  "format": "PASS_1168_FILES",
+  "mypy": "PASS_538_SOURCE_FILES_AND_STRICT_CLI",
+  "native_guard_processes": 33,
+  "native_blocked_requests": 0,
+  "new_native_solves": 0,
+  "MAIN": false,
+  "real_grant_claim": false,
+  "formal_ci_requested": false,
+  "printing": {
+    "page_mm": [
+      841,
+      594
+    ],
+    "scale": 200,
+    "axis_world_mm": 108000,
+    "axis_paper_mm": 540,
+    "scale_bar_world_mm": 20000,
+    "scale_bar_paper_mm": 100
+  },
+  "automatic_ci": "Inherited synthetic Native tests remain; whole fast CI is not zero Native",
+  "fast_ci": "Exact commit PR checks and downloaded JUnit after normal push"
+}

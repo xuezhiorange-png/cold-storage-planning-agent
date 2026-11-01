@@ -1,0 +1,50 @@
+{
+  "detached_historical_files": "PASS_IN_GUARDED_CHILD",
+  "storage_days_7_to_8": {
+    "source_input_hash": "sha256:5fd9695b8385a36a8f2f6a15078643e00f54434e1b57d5245538a30fde7b30bf",
+    "p1_handoff_hash": "sha256:4d28cd9315b33f3387bbb0a9be16badf1b41455ac9c4b2a63821597716ff16a0",
+    "result_hash": "sha256:9ca1a28df0197a4fa4b6ab6ef72fb011f01e213d5ed35fce54b85be798233911",
+    "candidate_count": 1,
+    "status": "CONDITIONAL_JOINT_CANDIDATE_GENERATED",
+    "finished_room": {
+      "zone_code": "finished_goods_room",
+      "name": "成品间",
+      "bbox_mm": [
+        86680,
+        32334,
+        107880,
+        63534
+      ],
+      "x_mm": 86680,
+      "y_mm": 32334,
+      "width_mm": 21200,
+      "depth_mm": 31200,
+      "authority_width_m": "31.2",
+      "authority_depth_m": "21.2",
+      "rotation_deg": 90,
+      "area_m2": "661.44",
+      "required_area_m2": "661.44",
+      "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+      "dimension_authority_identity": "upstream-storage-grid-finished_goods_room@1.0.0",
+      "area_requirement": {
+        "exact_authority": null,
+        "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+        "reported_required_area_m2": "661.44",
+        "reporting_projection": null
+      },
+      "internal_columns": [
+        "COLUMN-41502",
+        "COLUMN-41485",
+        "COLUMN-41976",
+        "COLUMN-41486",
+        "COLUMN-41977",
+        "COLUMN-41487"
+      ],
+      "column_area_m2": "0.3603",
+      "floor_minus_columns_m2": "661.0797",
+      "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+    }
+  },
+  "source_layout_coordinates_loaded": false,
+  "new_native_calls": 0
+}

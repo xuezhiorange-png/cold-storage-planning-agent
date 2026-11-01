@@ -97,6 +97,9 @@ def search_room_arrangements(
     complete_limit: int = 1,
     internal_columns: Sequence[PolygonMM] = (),
     personnel_entry: tuple[int, int] | None = None,
+    functional_shapes: Mapping[str, Sequence[tuple[int, int]]] | None = None,
+    functional_alignment: bool = False,
+    functional_open_chain: bool = False,
 ) -> tuple[list[dict[str, PlacedRectangleV1]], dict[str, Any]]:
     if profile not in PROFILES or not 1 <= node_budget <= 60000 or not 1 <= complete_limit <= 4:
         raise ValueError("AUTONOMOUS_SEARCH_CONFIGURATION_INVALID")
@@ -162,6 +165,13 @@ def search_room_arrangements(
             q.bounds_mm[0] - bb[0] for q in placed.values()
         }
         shapes = _shapes(authorities[code], rem)
+        if functional_shapes and code in functional_shapes:
+            if authorities[code]["dimension_mode"] != "FLEXIBLE_RECTANGLE":
+                raise ValueError("FIXED_AUTHORITY_DIMENSIONS_CANNOT_BE_REPLACED")
+            shapes = []
+            for w, h in functional_shapes[code]:
+                validate_flexible_candidate(authorities[code], _m(w), _m(h))
+                shapes.append((w, h, 0))
         occupied = [q.bounds_mm for q in placed.values()]
         neighbor_boxes = [q.bounds_mm for q in neighbors]
         found: dict[tuple[int, int, int, int], PlacedRectangleV1] = {}
@@ -195,6 +205,8 @@ def search_room_arrangements(
                 x, y, r, t = q.bounds_mm
                 ys = {y, t - hh, (y + t - hh) // 2}
                 xs = {x, r - ww, (x + r - ww) // 2}
+                if functional_alignment and code == "primary_precooling_room":
+                    xs.update(x - 1250 - 4900 * j for j in range(3))
                 for other in placed.values():
                     ob = other.bounds_mm
                     ys.update((ob[1], ob[3], ob[1] - hh, ob[3] - hh))
@@ -269,6 +281,33 @@ def search_room_arrangements(
                 preferred_left = code in ("primary_precooling_room", "raw_fruit_buffer")
             side = int((cx > rcx) if preferred_left else (cx < rcx))
             compact = max(r - x, t - y) / min(r - x, t - y)
+            if functional_alignment and code == "packaging_material_storage":
+                return abs(t - root[3]), side, x, y
+            if functional_alignment and code == "primary_precooling_room":
+                aligned = min(abs(x + 1250 + 4900 * j - root[0]) for j in range(3))
+                return int(q.rotation_deg != 0), aligned, abs(y - root[3]), side, x, y
+            if functional_alignment and code == "raw_fruit_buffer":
+                primary = placed["primary_precooling_room"].bounds_mm
+                return abs(t - primary[3]), side, x, y
+            if functional_alignment and code in ("secondary_fruit_buffer", "frozen_fruit_room"):
+                return int(t > root[1]), side, abs(cy - rcy), x, y
+            if functional_alignment and code in ("secondary_precooling_room", "coating_room"):
+                return int(q.rotation_deg != 0), side, abs(y - root[1]), abs(cy - rcy), x, y
+            if functional_open_chain and code == "finished_goods_room":
+                coating = placed["coating_room"].bounds_mm
+                return abs(x - coating[0]), side, abs(cy - rcy), x, y
+            if functional_open_chain and code == "shipping_channel":
+                finished = placed["finished_goods_room"].bounds_mm
+                return abs(y - finished[1]), abs(r - finished[0]), side, x, y
+            if functional_open_chain and code == "office":
+                shipping = placed["shipping_channel"].bounds_mm
+                return int(y < shipping[3]), compact, side, x, y
+            if functional_alignment and code == "changing_room":
+                count = sum(
+                    min(r, c[2]) > max(x, c[0]) and min(t, c[3]) > max(y, c[1]) for c in columns
+                )
+                ex, ey = personnel_entry or ((bb[0] + bb[2]) // 2, bb[1])
+                return count, compact, abs(cx - ex) + abs(cy - ey), x, y
             if code == "changing_room":
                 ex, ey = personnel_entry or ((bb[0] + bb[2]) // 2, bb[1])
                 return compact, abs(cx - ex) + abs(cy - ey), x, y
