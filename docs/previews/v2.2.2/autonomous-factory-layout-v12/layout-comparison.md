@@ -1,0 +1,98 @@
+# 自主布局 V1.2 / 设备工艺物流贯通
+
+本次从结构输入重新计算A1，再由实际设备、托盘工作位和人员操作带冲突触发新候选。
+没有读取Owner/V2/V3的功能区或设备世界坐标。
+
+
+12区、7条MUST、非货车Access 11/11；
+实际路径 91 条具有分级几何见证，
+0 条未贯通。
+全量准入：CONDITIONAL_PROCESS_CANDIDATE；选用67条、
+备用24条；
+其中机内投影10条及短交接5条仅CONDITIONAL_OPERATION_ASSUMED，不是厂家验证。
+次果、冻果及包材三支线与全部10+6项V1.1通行功能均纳入集中门禁；详见process-detail.md。
+主产品完整链 6/6。
+厂车运动学、多人同时交通、热工批次能力、20t吞吐、Truck及完整P2D均未由本轮证明。
+
+
+## A1到V1.2的实际变化
+
+四台分选间折箱机保持完整外形并旋转90°，中部保留2500mm通道、两列间1800mm补料操作带；
+第五台保留包材库。
+R1补正把四机中部间隔从2500扩至2540mm，各机沿Y向外移20mm；外围未通行空隙从50降至30mm，需厂家安装复核。
+实际保留的主通道仍为2500mm，原封闭障碍相交谓词未放宽。
+六线三对1000mm人员操作带不变，只缩小非通行的对间空隙。
+新增14个独立缓冲位、6个线端托位及1个周转筐卸料托位，N/S为原B4服务组在自主房间中的位置映射，并非照搬两厅世界坐标。
+
+
+包材库增放第二台折箱机的6次实际尝试均因货位不足被拒绝，未降低67位要求。
+封膜房间为纳入完整托盘和南侧操作位，
+从16300×7100增加至
+16300×8300mm：
+增加19.56㎡，不改变P1最低面积。
+反馈导致成品库、办公室、出货区位置变化；
+详见坐标差异CSV。
+货位保留反馈：NORTH_GROWTH：成品317/原324，EXISTING_CAPACITY_REJECTED；COUPLED_GROUP_NORTH_OF_RETAINED_COLUMN_ROW：成品324/原324，EXISTING_CAPACITY_PRESERVED，关联组北移2316mm。
+封膜通道状态：EQUAL_WIDTH_ACTUAL_ROUTES_REALIZED。
+被柱体占据的矩形提案不被判为通过；若采用实际路线替换，保留同宽2500mm，
+另对全部固定设备、托位和柱体复核。
+首次7100深度操作带冲突记录保留。
+
+
+V1.1只核验房间内部Portal接口，未建立完整设备端点链；
+其端到端长度与冲突数为NOT_EVALUATED，不能伪称本次缩短了某个旧总长度。
+当前各段参考线合计如下，包含代表性缓冲路径及机内声明输送；
+跨载具交接的载荷锚点路径另存process-interfaces.json，不含在此合计中；
+不是车辆行驶距离或产能指标。
+每条链真正经过6条原合法物料门洞。
+
+
+|包装线|条件中心线m|结果|
+|---|---:|---|
+|PACK-01|279.852|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-02|274.250|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-03|270.548|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-04|255.346|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-05|251.644|CONTINUOUS_CONDITIONAL_CHAIN|
+|PACK-06|246.042|CONTINUOUS_CONDITIONAL_CHAIN|
+
+|库房|原最低货位|当前货位|
+|---|---:|---:|
+|packaging_material_storage|67|67|
+|finished_goods_room|315|324|
+|raw_fruit_buffer|37|45|
+|secondary_fruit_buffer|19|21|
+|frozen_fruit_room|34|36|
+
+5台折箱机全部具备原料供给路径，6条线的成箱分配由30条实际路径及1800个合法覆盖组合中按长度选择；
+不是产能分配证明。
+共享道路、补料与出箱交会需要时间分离，不假定同时运行无冲突。
+所有路线核查时保留其他载荷，源托位随载荷移动，目标为该批次预留空位；
+原有序取放见证保留，但非所有货位都已按新的整车包络验证。
+
+
+## 使用条件
+
+托盘1200×1000，假设整车与载荷1300×1800；
+直角转向保守外接方形2222mm。
+主材料通道2500mm，包材库主通道5000mm；
+门洞2400mm只作直线通过，禁止门内旋转。
+短柜机/包装接口、柜机纸板入口及进出料方向均为待审设计假设。
+局部操作带与主通道的验证分别保存，不以短窄交接替代主通道。
+
+
+柜机原尺寸、原冷库工艺、原H5两班53人条件流程均保留；
+若人员Portal变动，仅调用原适配器重新核验入口/离室路径，不更改H5模型。
+真实柜门、人体、卫生要求仍INPUT_REQUIRED。
+4.8kg与3.2kg、两端60s及重叠45s、6线人员10/10/10/8/8/7来自B3/B4参数条件，仅衔接几何，本轮没有重算产能或制冷。
+
+
+## 复算
+
+在backend中，使用Python3.12锁定依赖；
+以functional_native_guard作为继承PYTHONPATH首项，运行scripts/generate_autonomous_process_layout.py，传入本目录project-input.json、process-parameters.json和预先不存在的输出目录。
+可用--finished-storage-days改变输入；
+结果重新计算或明确返回有界搜索未找到，不复用原坐标。
+
+
+NEW_MAIN=false / Native未调用 / Grant与Claim未访问 / 正式CI未请求 / 概念设计非施工图。

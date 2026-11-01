@@ -1,0 +1,170 @@
+{
+  "rejected_head": "e1b3c33b0ce46d7a58ace5f9f21c781b69c47224",
+  "reason": "Initial prose said 324 but raw generated count was 317. Initial candidate is not accepted as preserving A1 stock. Original commit and local drawing snapshot remain available.",
+  "initial_raw_finished_count": 317,
+  "required_existing_finished_count": 324,
+  "minimum_authority_count": 315,
+  "current_actual_finished_count": 324,
+  "calculator_version": "autonomous-process-continuity@1.2.1",
+  "feedback": [
+    {
+      "variant": "NORTH_GROWTH",
+      "required_existing_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "placed_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 317,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "status": "EXISTING_CAPACITY_REJECTED"
+    },
+    {
+      "variant": "COUPLED_GROUP_NORTH_OF_RETAINED_COLUMN_ROW",
+      "coating_depth_increment_mm": 1200,
+      "group_translation_north_mm": 2316,
+      "triggering_columns": [
+        "COLUMN-41485",
+        "COLUMN-41486",
+        "COLUMN-41487"
+      ],
+      "separation_assumption_mm": 100,
+      "formula": "max(trigger_column_top_mm) + separation_assumption_mm - finished_room_south_mm",
+      "finished_room_south_mm_before_translation": 33534,
+      "trigger_column_top_mm": [
+        35750,
+        35750,
+        35750
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true,
+      "required_existing_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "source": "FRESH_IN_MEMORY_ROOM_CANDIDATES",
+      "placed_positions": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "status": "EXISTING_CAPACITY_PRESERVED"
+    }
+  ],
+  "actual_coating_aisles": {
+    "status": "EQUAL_WIDTH_ACTUAL_ROUTES_REALIZED",
+    "rejected_proposals": [
+      {
+        "room": "coating_room",
+        "id": "FILM-EAST",
+        "bbox_mm": [
+          100480,
+          27550,
+          102980,
+          35850
+        ],
+        "clear_width_mm": 2500,
+        "conflicts": [
+          "COLUMN-41487"
+        ]
+      },
+      {
+        "room": "coating_room",
+        "id": "FILM-NORTH",
+        "bbox_mm": [
+          86680,
+          33350,
+          102980,
+          35850
+        ],
+        "clear_width_mm": 2500,
+        "conflicts": [
+          "COLUMN-41485",
+          "COLUMN-41486",
+          "COLUMN-41487"
+        ]
+      }
+    ],
+    "realized_reserved_aisles": [
+      {
+        "id": "FILM-ACTUAL-1",
+        "bbox_mm": [
+          86680,
+          27971,
+          89180,
+          35018
+        ],
+        "clear_width_mm": 2500,
+        "source_route": "PRODUCT-SEC-DEPAL",
+        "conflicts": []
+      },
+      {
+        "id": "FILM-ACTUAL-2",
+        "bbox_mm": [
+          86680,
+          32518,
+          91030,
+          35018
+        ],
+        "clear_width_mm": 2500,
+        "source_route": "PRODUCT-SEC-DEPAL",
+        "conflicts": []
+      },
+      {
+        "id": "FILM-ACTUAL-3",
+        "bbox_mm": [
+          98588,
+          32518,
+          101088,
+          35211
+        ],
+        "clear_width_mm": 2500,
+        "source_route": "PRODUCT-REPAL-FINISHED",
+        "conflicts": []
+      },
+      {
+        "id": "FILM-ACTUAL-4",
+        "bbox_mm": [
+          86680,
+          32711,
+          101088,
+          35211
+        ],
+        "clear_width_mm": 2500,
+        "source_route": "PRODUCT-REPAL-FINISHED",
+        "conflicts": []
+      },
+      {
+        "id": "FILM-ACTUAL-5",
+        "bbox_mm": [
+          86680,
+          32711,
+          89180,
+          35850
+        ],
+        "clear_width_mm": 2500,
+        "source_route": "PRODUCT-REPAL-FINISHED",
+        "conflicts": []
+      }
+    ],
+    "stationary_pallets_retained": true,
+    "geometry_exceptions_used": false
+  },
+  "source_p1_unchanged": true,
+  "area_authority_changed": false,
+  "native_execution_count": 0,
+  "MAIN": false,
+  "final_candidate_hash": "sha256:4a6ed0f1ca6094f9fc6177bc807a96e221b7a416b4a88b11370c1d6b3eba10b2"
+}

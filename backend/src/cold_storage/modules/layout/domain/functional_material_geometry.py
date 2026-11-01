@@ -47,6 +47,7 @@ def rectilinear_path(
     depth: int,
     *,
     node_budget: int = 4000,
+    waypoints: Sequence[Point] = (),
 ) -> tuple[list[Point], int]:
     """Original swept-body geometry; finite event grid, with no Native calls.
 
@@ -75,6 +76,10 @@ def rectilinear_path(
             return list(dict.fromkeys(trial)), 0
     xs = {a + hw, c - cw, start[0], end[0]}
     ys = {b + hd, d - cd, start[1], end[1]}
+    # Exact reserved-aisle centre lines can matter when the clear width equals
+    # the requested swept width. Empty by default; prior callers are unchanged.
+    xs.update(p[0] for p in waypoints)
+    ys.update(p[1] for p in waypoints)
     for x, y, r, t in obs:
         xs.update((x - cw - 1, r + hw + 1))
         ys.update((y - cd - 1, t + hd + 1))

@@ -1,0 +1,30 @@
+{
+  "task_id": "V2_2_2_AUTONOMOUS_PROCESS_FLOW_CONTINUITY_R1",
+  "base_head": "28ee3bef2860fc93f9f1e692ffc8de669b86a709",
+  "local_whitelist": {
+    "passed": 888,
+    "skipped_existing": 16,
+    "failed": 0
+  },
+  "new_process_tests": 39,
+  "additional_negative_tests": 0,
+  "architecture_passed": 790,
+  "ci_contracts_passed": 65,
+  "ruff": "PASS",
+  "format_files": 1174,
+  "mypy_sources_and_entry": 543,
+  "native_execution_count": 0,
+  "guarded_processes": 21,
+  "negative_child_api_tests": "Both solve/Solve requests blocked before Native; never executed",
+  "MAIN": false,
+  "real_grant_claim": false,
+  "formal_ci_requested": false,
+  "fast_ci": "AUTOMATIC_CORRECTED_HEAD_PENDING",
+  "inherited_fast_ci_native_tests_retained": true,
+  "no_whole_workflow_zero_native_claim": true,
+  "engineering_approval": "NOT_EVALUATED",
+  "P2D_full_pass": false,
+  "additional_negative_tests_note": "All geometric negatives are now included in the 39-test process module",
+  "capacity_preserved_vs_original_A1": true,
+  "calculator_version": "autonomous-process-continuity@1.2.1"
+}

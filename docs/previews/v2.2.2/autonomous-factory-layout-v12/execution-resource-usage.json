@@ -1,0 +1,10 @@
+{
+  "elapsed_generation_seconds": 30.726802665987634,
+  "rss_peak_mib": 131.515625,
+  "native_calls": 0,
+  "guard_inherited": true,
+  "resource_scope": "Standalone deterministic preview; no Stage A/B budget issued or reused",
+  "room_options_checked": 80466,
+  "room_search_nodes": 72,
+  "model_clone_count": 0
+}
