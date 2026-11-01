@@ -1,0 +1,49 @@
+{
+  "TASK_ID": "V2_2_2_AUTONOMOUS_ADAPTIVE_LAYOUT_REGENERATION_R1",
+  "BASE_HEAD": "be6076d3cc937e0bf192e27120ee00b8fdfb4ec3",
+  "branch": "codex/v222-autonomous-adaptive-layout-v13",
+  "local_junit": {
+    "r1-final-41.xml": {
+      "tests": 41,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "inherited-whitelist.xml": {
+      "tests": 950,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 16
+    },
+    "shared-parameter-guards.xml": {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "ci_contracts": {
+    "passed": 65
+  },
+  "static_checks": {
+    "ruff": "PASS",
+    "format": "PASS_1182_FILES",
+    "mypy": "PASS_549_INCLUDING_ENTRY",
+    "ci_scripts_ruff_format_mypy": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "raw_artifact_reload": "FOUR_CANDIDATES_ORIGINAL_ADMISSION_PASS",
+  "A1_print_scale": "841x594mm_1_TO_200; PNG6623x4678",
+  "parent_and_child_native_guard": "PASS_BOTH_APIS",
+  "new_local_native_executions": 0,
+  "automatic_ci_inherited_synthetic_native": "PRESERVED; not represented as zero Native",
+  "MAIN": false,
+  "Grant_Claim": false,
+  "formal_full_ci_requested": false,
+  "production_MCP_or_default_changed": false,
+  "formal_nine_twelve_comparators_changed": false,
+  "prior_PRs_or_historical_evidence_changed": false,
+  "changed_paths_allowlist": "PASS",
+  "first_test_failure_preserved": "first-test-attempt.txt; Python Decimal vs serialized text comparison corrected using canonical JSON, hash and reloaded admission",
+  "fast_ci": "PENDING_AFTER_PUSH; exact HEAD terminal receipt will be linked in PR body"
+}

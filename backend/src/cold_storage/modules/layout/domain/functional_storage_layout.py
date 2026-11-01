@@ -22,21 +22,25 @@ from cold_storage.modules.layout.domain.functional_material_geometry import (
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 
 
-def storage_layouts(
+def _storage_orientation_layouts(
     room: PlacedRectangleV1,
     zone: Mapping[str, Any],
     columns: Sequence[Mapping[str, Any]],
     *,
     preferred_turn: int | None = None,
     case_erector: Mapping[str, Any] | None = None,
+    pallet_local_rotation: int = 0,
 ) -> list[dict[str, Any]]:
     clear = room.bounds_mm
     width, depth = clear[2] - clear[0], clear[3] - clear[1]
     minimum = int(zone.get("n_need", zone["position_count"]))
     original = int(zone["position_count"])
+    pw, pd, px, py = (
+        (1000, 1200, 1200, 1300) if pallet_local_rotation == 0 else (1200, 1000, 1300, 1200)
+    )
     aisle = 5000 if room.zone_code == "packaging_material_storage" else 3000
     cols = [q for q in columns if positive_intersection(clear, q["bbox_mm"])]
-    results = []
+    results: list[dict[str, Any]] = []
     for turn in range(4):
         w, h = (width, depth) if turn % 2 == 0 else (depth, width)
         for dx in (0, 100, 200):
@@ -74,13 +78,15 @@ def storage_layouts(
                 aisle_conflicts = [
                     c["id"] for c in blockers if positive_intersection(main, c["bbox_mm"])
                 ]
-                for row, y in enumerate(range(aisle + dy, h - 1200 + 1, 1300)):
-                    for col, x in enumerate(range(dx, w - 1000 + 1, 1200)):
-                        box = axis_transform((x, y, x + 1000, y + 1200), clear, turn)
+                for row, y in enumerate(range(aisle + dy, h - pd + 1, py)):
+                    for col, x in enumerate(range(dx, w - pw + 1, px)):
+                        box = axis_transform((x, y, x + pw, y + pd), clear, turn)
                         conflicts = [
                             c["id"] for c in blockers if positive_intersection(box, c["bbox_mm"])
                         ]
-                        load_box = axis_transform((x - 50, y - 50, x + 1050, y + 1250), clear, turn)
+                        load_box = axis_transform(
+                            (x - 50, y - 50, x + pw + 50, y + pd + 50), clear, turn
+                        )
                         if not bounds_inside(load_box, clear):
                             conflicts.append("LOAD_MARGIN_OUTSIDE_ROOM")
                         conflicts.extend(
@@ -92,7 +98,7 @@ def storage_layouts(
                             "grid_row": row,
                             "grid_column": col,
                             "bbox_mm": list(box),
-                            "canonical_center_mm": [x + 500, y + 600],
+                            "canonical_center_mm": [x + pw // 2, y + pd // 2],
                         }
                         if conflicts:
                             blocked.append({**cell, "conflicts": conflicts})
@@ -105,7 +111,7 @@ def storage_layouts(
                         "id": f"{room.zone_code}-PAL-{i + 1:03}",
                         "room": room.zone_code,
                         "kind": room.zone_code + "_pallet",
-                        "rotation_deg": (90 + 90 * turn) % 180,
+                        "rotation_deg": (90 + 90 * (turn + pallet_local_rotation)) % 180,
                         "basis": (
                             "Original 1200x1000mm pallet, rotated; finite re-grid, "
                             "no capacity reduction"
@@ -135,6 +141,12 @@ def storage_layouts(
                         "requires_review": True,
                     }
                 )
+    if pallet_local_rotation:
+        for r in results:
+            r["id"] += "-LOAD90"
+            r["pallet_local_rotation_deg"] = 90
+            r["grid_pitch_mm"] = [px, py]
+            r["load_shape_mm"] = [pw, pd]
     return sorted(
         results,
         key=lambda r: (
@@ -145,6 +157,46 @@ def storage_layouts(
             r["id"],
         ),
     )
+
+
+def storage_layouts(
+    room: PlacedRectangleV1,
+    zone: Mapping[str, Any],
+    columns: Sequence[Mapping[str, Any]],
+    *,
+    preferred_turn: int | None = None,
+    case_erector: Mapping[str, Any] | None = None,
+    allow_pallet_rotation: bool = False,
+) -> list[dict[str, Any]]:
+    """Rotate the original pallet AND its original spacing, never shrink either."""
+    layouts = _storage_orientation_layouts(
+        room, zone, columns, preferred_turn=preferred_turn, case_erector=case_erector
+    )
+    if allow_pallet_rotation:
+        layouts += _storage_orientation_layouts(
+            room,
+            zone,
+            columns,
+            preferred_turn=preferred_turn,
+            case_erector=case_erector,
+            pallet_local_rotation=1,
+        )
+        target = max(int(zone["position_count"]), int(zone.get("n_need", zone["position_count"])))
+        for r in layouts:
+            r.setdefault("pallet_local_rotation_deg", 0)
+            r["required_grid_capacity"] = target
+            r["static_capacity_pass"] = (
+                r["placed_positions"] >= target and not r["main_aisle_column_conflicts"]
+            )
+        layouts.sort(
+            key=lambda r: (
+                not r["static_capacity_pass"],
+                -r["placed_positions"],
+                len(r["blocked_slots"]),
+                r["id"],
+            )
+        )
+    return layouts
 
 
 def ordered_stock_movement(
@@ -162,7 +214,7 @@ def ordered_stock_movement(
     fixed = [q["bbox_mm"] for q in columns if positive_intersection(q["bbox_mm"], room.bounds_mm)]
     fixed.extend(q["bbox_mm"] for q in layout.get("extra_equipment", ()))
     stock = {q["id"]: q for q in layout["items"]}
-    turn = int(layout["turn"])
+    turn = int(layout["turn"]) + int(layout.get("pallet_local_rotation_deg", 0)) // 90
     ew, ed = (1100, 1300) if turn % 2 == 0 else (1300, 1100)
     goal = tuple(layout["main_point_mm"])
     events: list[dict[str, Any]] = []
@@ -224,6 +276,11 @@ def ordered_stock_movement(
         "arbitrary_order_direct_access": False,
         "operating_policy": "EXPLICIT_WITNESSED_FRONT_FIRST_WITH_RETRIES; REVERSE_PUTAWAY",
         "load_dimensions_mm": [1000, 1200],
+        **(
+            {"world_load_dimensions_mm": [ew - 100, ed - 100]}
+            if "required_grid_capacity" in layout
+            else {}
+        ),
         "load_margin_each_side_mm": 50,
         "main_aisle_width_mm": layout["main_aisle_width_mm"],
         "load_pickup_interface_is_not_a_reduced_main_aisle": True,

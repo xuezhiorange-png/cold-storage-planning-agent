@@ -1,0 +1,5 @@
+{
+  "candidate_node_budget": 24,
+  "full_evaluation_budget": 8,
+  "candidate_limit": 2
+}

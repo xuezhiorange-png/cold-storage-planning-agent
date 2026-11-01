@@ -1,0 +1,22 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>自主布局V1.3</title>
+<style>body{font:15px/1.6 system-ui;color:#213e4b;
+max-width:1600px;margin:24px auto;padding:0 14px}
+button{padding:10px 16px;margin:4px;background:#edf4f3;
+border:1px solid #aec8c8;color:#213e4b;cursor:pointer}
+.plan{overflow:auto;border:1px solid #c9d7dc}img{width:100%;min-width:1000px}
+a{color:#127b72}p{max-width:1150px}</style>
+<h1>自主布局V1.3 · 7→8天实际再布局</h1>
+<p>从当前项目输入、真实建筑结构和P1重新计算。原7天容量与全量功能保留，8天采用364个成品网格位。
+每套候选均重新验证六条主产品链、三条辅助支线、57项交接、11条非货车Access和16项室内/仓储接口。
+未通过的空间与设备尝试保留在各工况搜索记录中。</p>
+<p>条件性概念设计；机内与人工交接仍需工程输入。几何验证不等于设备批准、同时交通、Truck或完整P2D通过。</p>
+<p><a href="layout-comparison.md">完整对照</a> · <a href="case-comparison.json">结构化比较</a> ·
+<a id="raw" href="">当前原始坐标及见证</a></p>
+<div><button data-file="7-days/autonomous-layout-A13-A.svg" data-link="7-days/autonomous-layout-A13-A.json">7天 A13-A</button><button data-file="7-days/autonomous-layout-A13-B.svg" data-link="7-days/autonomous-layout-A13-B.json">7天 A13-B</button><button data-file="8-days/autonomous-layout-A13-A.svg" data-link="8-days/autonomous-layout-A13-A.json">8天 A13-A</button><button data-file="8-days/autonomous-layout-A13-B.svg" data-link="8-days/autonomous-layout-A13-B.json">8天 A13-B</button></div><div class="plan">
+<img id="drawing" src="7-days/autonomous-layout-A13-A.svg" alt="同次计算的真实比例整厂布局"></div>
+<p>A1横版、1:200，按100%打印。原建筑1～19轴、108000mm；室内柱保留并分别避让设备与通道。
+不同存储天数属于不同P1，不能跨工况冒充正式Pareto。潜在中心线交会仍需生产调度。</p>
+<script>const bs=document.querySelectorAll('button');bs.forEach(b=>b.onclick=()=>{
+document.getElementById('drawing').src=b.dataset.file;document.getElementById('raw').href=b.dataset.link;
+});if(bs.length)bs[0].click();</script></html>

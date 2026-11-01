@@ -88,10 +88,13 @@ class ProcessRoutePlanner:
         candidate: Mapping[str, Any],
         parameters: Mapping[str, Any],
         wall_boxes: Sequence[Sequence[int]] = (),
+        *,
+        adaptive_loads: bool = False,
     ) -> None:
         self.candidate = candidate
         self.geometry_context_hash = geometry_fingerprint(candidate, parameters)
         self.parameters = parameters
+        self.adaptive_loads = adaptive_loads
         self.rooms = {q["zone_code"]: q["bbox_mm"] for q in candidate["rooms"]}
         self.items = {q["id"]: q for q in candidate["equipment"]["items"]}
         self.extra = list(candidate["equipment"].get("process_operator_zones", []))
@@ -119,13 +122,16 @@ class ProcessRoutePlanner:
             b[1] if face == "S" else b[3] if face == "N" else centre[1] + offset_tangent,
         ]
         if is_pallet:
-            offset = (spec["normal_mm"] - spec["load_normal_mm"]) // 2
-            pose = [centre[i] + n[i] * offset for i in range(2)]
             tangent_size = (b[3] - b[1]) if n[0] else (b[2] - b[0])
             normal_size = (b[2] - b[0]) if n[0] else (b[3] - b[1])
+            load_normal = normal_size if self.adaptive_loads else spec["load_normal_mm"]
+            offset = (spec["normal_mm"] - load_normal) // 2
+            pose = [centre[i] + n[i] * offset for i in range(2)]
             compatible = (
-                normal_size == spec["load_normal_mm"] and tangent_size <= spec["tangent_mm"]
-            )
+                sorted((normal_size, tangent_size)) == sorted(self.parameters["pallet_mm"])
+                if self.adaptive_loads
+                else normal_size == spec["load_normal_mm"]
+            ) and tangent_size <= spec["tangent_mm"]
         else:
             pose = [contact[i] + n[i] * (spec["normal_mm"] // 2 + 50) for i in range(2)]
             compatible = True
@@ -149,7 +155,77 @@ class ProcessRoutePlanner:
             "requires_review": True,
         }
         self.endpoints[identity] = row
+        if self.adaptive_loads:
+            row["load_normal_mm"] = normal_size if is_pallet else spec["load_normal_mm"]
+            row["carrier_envelope_unchanged"] = [spec["tangent_mm"], spec["normal_mm"]]
         return identity
+
+    def choose_pallet_endpoint(self, room: str, *, target_room: str, rank: int = 0) -> str:
+        """Choose a real accessible front load, not a previous run's slot ID."""
+        storage = next(
+            (
+                s["layout"]
+                for s in self.candidate["equipment"]["storage"]
+                if s["layout"]["room"] == room
+            ),
+            None,
+        )
+        candidates = [
+            q
+            for q in self.items.values()
+            if q["room"] == room
+            and (q["kind"].endswith("_pallet") or q["kind"] in ("PRI_pallet", "SEC_pallet"))
+        ]
+        if not candidates:
+            raise ValueError("NO_CURRENT_PALLET_BODY:" + room)
+        if storage:
+            face = {0: "S", 1: "E", 2: "N", 3: "W"}[storage["turn"]]
+            front = min(q["grid_row"] for q in candidates)
+            candidates = [q for q in candidates if q["grid_row"] == front]
+        else:
+            rotation = int(candidates[0]["rotation_deg"]) // 90
+            face = {0: "N", 1: "W", 2: "S", 3: "E"}[rotation]
+            axis = 1 if face in ("N", "S") else 0
+            sign = 1 if face in ("N", "E") else -1
+            front_value = max(
+                sign * q["bbox_mm"][axis + (2 if sign > 0 else 0)] for q in candidates
+            )
+            candidates = [
+                q
+                for q in candidates
+                if sign * q["bbox_mm"][axis + (2 if sign > 0 else 0)] == front_value
+            ]
+        access = next(
+            (
+                q
+                for q in self.candidate["access_results"]
+                if q.get("status") == "PASS"
+                and {q.get("from_ref"), q.get("to_ref")} == {room, target_room}
+            ),
+            None,
+        )
+        if access is None:
+            raise ValueError("NO_CURRENT_MATERIAL_ACCESS:" + room)
+        portal = access["portal_from" if access["from_ref"] == room else "portal_to"]["segment"]
+        centre = [
+            round(sum(Decimal(str(portal[k][a])) for k in ("start", "end")) * 500)
+            for a in ("x", "y")
+        ]
+        viable = []
+        for q in candidates:
+            id_ = self.endpoint(q["id"], "PALLET-TRANSFER", face, "LOADED_PALLET")
+            ep = self.endpoints[id_]
+            dock = self._dock(
+                ep, self.obstacles(room, {q["id"]}), int(self.parameters["main_aisle_mm"])
+            )
+            if dock["status"] == "DOCK_AND_TURN_VERIFIED":
+                viable.append(
+                    (sum(abs(ep["dock_reference_mm"][i] - centre[i]) for i in (0, 1)), q["id"], id_)
+                )
+        if not viable:
+            raise ValueError("NO_CURRENT_ACCESSIBLE_PALLET_ENDPOINT:" + room)
+        viable.sort()
+        return viable[min(rank, len(viable) - 1)][2]
 
     def obstacles(self, room: str, carried: set[str]) -> list[dict[str, Any]]:
         return [
@@ -358,7 +434,11 @@ class ProcessRoutePlanner:
         n = endpoint["normal"]
         pose = endpoint["dock_reference_mm"]
         load_centre = [
-            pose[i] - n[i] * (spec["normal_mm"] - spec["load_normal_mm"]) // 2 for i in range(2)
+            pose[i]
+            - n[i]
+            * (spec["normal_mm"] - endpoint.get("load_normal_mm", spec["load_normal_mm"]))
+            // 2
+            for i in range(2)
         ]
         if endpoint["carried_pallet"]:
             centre = [

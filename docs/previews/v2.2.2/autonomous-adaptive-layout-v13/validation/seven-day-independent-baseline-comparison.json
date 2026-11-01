@@ -1,0 +1,32 @@
+{
+  "scope": "FINAL_INDEPENDENT_COMPARISON_ONLY; not an input to generation",
+  "seven_day_room_bboxes_match_v12": true,
+  "seven_day_item_bboxes_match_v12": true,
+  "baseline_metrics": {
+    "selected_transport_reference_length_mm": 1777780,
+    "selected_transport_turns": 286,
+    "gross_room_area_m2": "2368.326016",
+    "footprint_area_m2": "2422.830016",
+    "footprint_perimeter_mm": 483730,
+    "footprint_corners": 50,
+    "potential_route_crossings": 44,
+    "crossing_scope": "INTERIOR_CENTRELINE_INTERSECTIONS_NOT_SIMULTANEOUS_TRAFFIC_COLLISIONS",
+    "length_scope": "DISTINCT_SELECTED_TRANSPORT_REFERENCE_SEGMENTS_NOT_SINGLE_VEHICLE_MILEAGE",
+    "formal_nine_twelve_comparison": "NOT_EVALUATED_UNCHANGED_AUTHORITY_COMPARATORS"
+  },
+  "new_metrics": {
+    "crossing_scope": "INTERIOR_CENTRELINE_INTERSECTIONS_NOT_SIMULTANEOUS_TRAFFIC_COLLISIONS",
+    "footprint_area_m2": "2422.830016",
+    "footprint_corners": 50,
+    "footprint_perimeter_mm": 483730,
+    "formal_nine_twelve_comparison": "NOT_EVALUATED_UNCHANGED_AUTHORITY_COMPARATORS",
+    "gross_room_area_m2": "2368.326016",
+    "length_scope": "DISTINCT_SELECTED_TRANSPORT_REFERENCE_SEGMENTS_NOT_SINGLE_VEHICLE_MILEAGE",
+    "potential_route_crossings": 44,
+    "selected_transport_reference_length_mm": 1777780,
+    "selected_transport_turns": 286
+  },
+  "original_candidate_hash": "sha256:72d1f947e9bf9a7cf174ee7c78d11bbc46349fc7feb5a12a4e291a91b37e5058",
+  "current_candidate_hash": "sha256:baa83df0592913b35566bc44671d9235562b42327e783690eada869e70c6dc4c",
+  "formal_comparison": "NOT_EVALUATED; original nine/twelve comparators unchanged"
+}

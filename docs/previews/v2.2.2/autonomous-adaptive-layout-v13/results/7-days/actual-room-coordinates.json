@@ -1,0 +1,832 @@
+[
+  {
+    "candidate": "A13-A",
+    "zone_code": "changing_room",
+    "name": "更衣室",
+    "bbox_mm": [
+      87126,
+      14519,
+      99726,
+      24219
+    ],
+    "x_mm": 87126,
+    "y_mm": 14519,
+    "width_mm": 12600,
+    "depth_mm": 9700,
+    "authority_width_m": "12.6",
+    "authority_depth_m": "9.7",
+    "rotation_deg": 0,
+    "area_m2": "122.22",
+    "required_area_m2": "40",
+    "dimension_mode": "FLEXIBLE_RECTANGLE",
+    "dimension_authority_identity": "charles-flexible-changing_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "40",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "122.22",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "coating_room",
+    "name": "覆膜间",
+    "bbox_mm": [
+      86680,
+      25234,
+      102980,
+      35850
+    ],
+    "x_mm": 86680,
+    "y_mm": 25234,
+    "width_mm": 16300,
+    "depth_mm": 10616,
+    "authority_width_m": "16.3",
+    "authority_depth_m": "10.616",
+    "rotation_deg": 0,
+    "area_m2": "173.0408",
+    "required_area_m2": "80",
+    "dimension_mode": "FLEXIBLE_RECTANGLE",
+    "dimension_authority_identity": "charles-flexible-coating_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "80",
+      "reporting_projection": null
+    },
+    "internal_columns": [
+      "COLUMN-41485",
+      "COLUMN-41486",
+      "COLUMN-41487"
+    ],
+    "column_area_m2": "0.1818",
+    "floor_minus_columns_m2": "172.8590",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "finished_goods_room",
+    "name": "成品间",
+    "bbox_mm": [
+      86680,
+      35850,
+      105280,
+      68250
+    ],
+    "x_mm": 86680,
+    "y_mm": 35850,
+    "width_mm": 18600,
+    "depth_mm": 32400,
+    "authority_width_m": "32.4",
+    "authority_depth_m": "18.6",
+    "rotation_deg": 90,
+    "area_m2": "602.64",
+    "required_area_m2": "602.64",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-finished_goods_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "602.64",
+      "reporting_projection": null
+    },
+    "internal_columns": [
+      "COLUMN-41502",
+      "COLUMN-41976",
+      "COLUMN-41977"
+    ],
+    "column_area_m2": "0.1785",
+    "floor_minus_columns_m2": "602.4615",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "frozen_fruit_room",
+    "name": "冻果间",
+    "bbox_mm": [
+      58200,
+      12643,
+      69000,
+      20843
+    ],
+    "x_mm": 58200,
+    "y_mm": 12643,
+    "width_mm": 10800,
+    "depth_mm": 8200,
+    "authority_width_m": "10.8",
+    "authority_depth_m": "8.2",
+    "rotation_deg": 0,
+    "area_m2": "88.56",
+    "required_area_m2": "88.56",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-frozen_fruit_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "88.56",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "88.56",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "office",
+    "name": "办公室",
+    "bbox_mm": [
+      76880,
+      42350,
+      84626,
+      50096
+    ],
+    "x_mm": 76880,
+    "y_mm": 42350,
+    "width_mm": 7746,
+    "depth_mm": 7746,
+    "authority_width_m": "7.746",
+    "authority_depth_m": "7.746",
+    "rotation_deg": 0,
+    "area_m2": "60.000516",
+    "required_area_m2": "60",
+    "dimension_mode": "FLEXIBLE_RECTANGLE",
+    "dimension_authority_identity": "charles-flexible-office@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "60",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "60.000516",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "packaging_material_storage",
+    "name": "包材库",
+    "bbox_mm": [
+      16620,
+      17143,
+      31120,
+      34443
+    ],
+    "x_mm": 16620,
+    "y_mm": 17143,
+    "width_mm": 14500,
+    "depth_mm": 17300,
+    "authority_width_m": "17.3",
+    "authority_depth_m": "14.5",
+    "rotation_deg": 90,
+    "area_m2": "250.85",
+    "required_area_m2": "250.85",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "packaging-integer-envelope@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "250.85",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "250.85",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "primary_precooling_room",
+    "name": "一级预冷间",
+    "bbox_mm": [
+      20070,
+      34443,
+      34770,
+      44493
+    ],
+    "x_mm": 20070,
+    "y_mm": 34443,
+    "width_mm": 14700,
+    "depth_mm": 10050,
+    "authority_width_m": "14.7",
+    "authority_depth_m": "10.05",
+    "rotation_deg": 0,
+    "area_m2": "147.735",
+    "required_area_m2": 126,
+    "dimension_mode": "FIXED_RECTANGLE",
+    "dimension_authority_identity": "precool-room-6-position@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "126",
+      "reporting_projection": null
+    },
+    "internal_columns": [
+      "COLUMN-41474",
+      "COLUMN-41475"
+    ],
+    "column_area_m2": "0.1212",
+    "floor_minus_columns_m2": "147.6138",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "raw_fruit_buffer",
+    "name": "原果暂存间",
+    "bbox_mm": [
+      4870,
+      35793,
+      20070,
+      44493
+    ],
+    "x_mm": 4870,
+    "y_mm": 35793,
+    "width_mm": 15200,
+    "depth_mm": 8700,
+    "authority_width_m": "15.2",
+    "authority_depth_m": "8.7",
+    "rotation_deg": 0,
+    "area_m2": "132.24",
+    "required_area_m2": "132.24",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-raw_fruit_buffer@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "132.24",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "132.24",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "secondary_fruit_buffer",
+    "name": "次果暂存间",
+    "bbox_mm": [
+      49800,
+      13943,
+      58200,
+      20843
+    ],
+    "x_mm": 49800,
+    "y_mm": 13943,
+    "width_mm": 8400,
+    "depth_mm": 6900,
+    "authority_width_m": "8.4",
+    "authority_depth_m": "6.9",
+    "rotation_deg": 0,
+    "area_m2": "57.96",
+    "required_area_m2": "57.96",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-secondary_fruit_buffer@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "57.96",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "57.96",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "secondary_precooling_room",
+    "name": "二级预冷间",
+    "bbox_mm": [
+      76880,
+      20843,
+      86680,
+      30893
+    ],
+    "x_mm": 76880,
+    "y_mm": 20843,
+    "width_mm": 9800,
+    "depth_mm": 10050,
+    "authority_width_m": "9.8",
+    "authority_depth_m": "10.05",
+    "rotation_deg": 0,
+    "area_m2": "98.49",
+    "required_area_m2": 84,
+    "dimension_mode": "FIXED_RECTANGLE",
+    "dimension_authority_identity": "precool-room-6-position@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "84",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "98.49",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "shipping_channel",
+    "name": "出货通道",
+    "bbox_mm": [
+      78987,
+      35850,
+      86680,
+      42350
+    ],
+    "x_mm": 78987,
+    "y_mm": 35850,
+    "width_mm": 7693,
+    "depth_mm": 6500,
+    "authority_width_m": "6.5",
+    "authority_depth_m": "7.693",
+    "rotation_deg": 90,
+    "area_m2": "50.0045",
+    "required_area_m2": 50,
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "shipping-pit-module-envelope@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "50",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "50.0045",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-A",
+    "zone_code": "sorting_packaging_room",
+    "name": "分选包装间",
+    "bbox_mm": [
+      31120,
+      20843,
+      76880,
+      34443
+    ],
+    "x_mm": 31120,
+    "y_mm": 20843,
+    "width_mm": 45760,
+    "depth_mm": 13600,
+    "authority_width_m": "45.76",
+    "authority_depth_m": "13.6",
+    "rotation_deg": 0,
+    "area_m2": "622.336",
+    "required_area_m2": "622.34",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-sorting-long-edge-envelope@1.0.0",
+    "area_requirement": {
+      "exact_authority": {
+        "exact_geometry_required_area_m2": "622.336",
+        "formula_identity": "exact-decimal-product@1.0.0",
+        "operand_source_paths": [
+          "/raw_required_area_m2",
+          "/sorting_packaging_area_factor"
+        ],
+        "operands": [
+          "565.76",
+          "1.1"
+        ],
+        "source_authority": "POST-V2.1.1-charles-engineering-rule-adjustments:_pack_sorting_rectangle/Charles-P1C-long-edge/ADR-044",
+        "source_identity": "upstream-sorting-long-edge-envelope@1.0.0",
+        "source_snapshot_hash": "sha256:e5e94c5bc0d25f76142d3bcbc06524352d286c58c56ea87e106c7a88a42e6450",
+        "source_snapshot_json": "{\"aisle_layout\":\"four_side_architectural\",\"cooling_estimation_basis\":{\"authority_source\":\"CHARLES_CONFIRMED_ENGINEERING_REFERENCE\",\"basis_type\":\"ZONE_AREA\",\"reference_factor\":300,\"reference_factor_unit\":\"W/m2\",\"requires_review\":true,\"source_field\":\"required_area_m2\",\"source_unit\":\"m2\",\"source_value\":\"622.34\"},\"daily_throughput_kg_day\":20000,\"design_storage_mass_kg\":0,\"function\":\"分选、称重、包装和在线周转\",\"layout\":{\"aspect_ratio\":\"2.3333\",\"n_long\":7,\"n_short\":3},\"minimum_estimated_cooling_load_kw_r\":\"186.702\",\"n_actual\":21,\"n_long\":7,\"n_need\":20,\"n_short\":3,\"packing_table_area_m2\":\"16.8\",\"person_daily_capacity_kg_day\":\"336\",\"position_count\":21,\"raw_required_area_m2\":\"565.76\",\"required_area_m2\":\"622.34\",\"requires_review\":true,\"sorting_packaging_area_factor\":\"1.1\",\"table_count\":20,\"temperature_band\":\"8~10℃\",\"unused_cells\":1,\"worker_count\":60,\"zone_code\":\"sorting_packaging_room\",\"zone_name\":\"分选包装间\"}"
+      },
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "622.34",
+      "reporting_projection": {
+        "identity": "cold-room-zone-plan-binary64-product-2dp@1.0.0",
+        "projection_method": "PYTHON_BINARY64_ORDERED_PRODUCT_THEN_ROUND_2",
+        "quantum": "0.01",
+        "source_authority": "cold_room_zone_plan@1.0.0:required_area_m2"
+      }
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "622.336",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "changing_room",
+    "name": "更衣室",
+    "bbox_mm": [
+      87126,
+      14519,
+      99726,
+      24219
+    ],
+    "x_mm": 87126,
+    "y_mm": 14519,
+    "width_mm": 12600,
+    "depth_mm": 9700,
+    "authority_width_m": "12.6",
+    "authority_depth_m": "9.7",
+    "rotation_deg": 0,
+    "area_m2": "122.22",
+    "required_area_m2": "40",
+    "dimension_mode": "FLEXIBLE_RECTANGLE",
+    "dimension_authority_identity": "charles-flexible-changing_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "40",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "122.22",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "coating_room",
+    "name": "覆膜间",
+    "bbox_mm": [
+      86680,
+      27550,
+      102980,
+      35850
+    ],
+    "x_mm": 86680,
+    "y_mm": 27550,
+    "width_mm": 16300,
+    "depth_mm": 8300,
+    "authority_width_m": "16.3",
+    "authority_depth_m": "8.3",
+    "rotation_deg": 0,
+    "area_m2": "135.29",
+    "required_area_m2": "80",
+    "dimension_mode": "FLEXIBLE_RECTANGLE",
+    "dimension_authority_identity": "charles-flexible-coating_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "80",
+      "reporting_projection": null
+    },
+    "internal_columns": [
+      "COLUMN-41485",
+      "COLUMN-41486",
+      "COLUMN-41487"
+    ],
+    "column_area_m2": "0.1818",
+    "floor_minus_columns_m2": "135.1082",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "finished_goods_room",
+    "name": "成品间",
+    "bbox_mm": [
+      86680,
+      35850,
+      105280,
+      68250
+    ],
+    "x_mm": 86680,
+    "y_mm": 35850,
+    "width_mm": 18600,
+    "depth_mm": 32400,
+    "authority_width_m": "32.4",
+    "authority_depth_m": "18.6",
+    "rotation_deg": 90,
+    "area_m2": "602.64",
+    "required_area_m2": "602.64",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-finished_goods_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "602.64",
+      "reporting_projection": null
+    },
+    "internal_columns": [
+      "COLUMN-41502",
+      "COLUMN-41976",
+      "COLUMN-41977"
+    ],
+    "column_area_m2": "0.1785",
+    "floor_minus_columns_m2": "602.4615",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "frozen_fruit_room",
+    "name": "冻果间",
+    "bbox_mm": [
+      58200,
+      12643,
+      69000,
+      20843
+    ],
+    "x_mm": 58200,
+    "y_mm": 12643,
+    "width_mm": 10800,
+    "depth_mm": 8200,
+    "authority_width_m": "10.8",
+    "authority_depth_m": "8.2",
+    "rotation_deg": 0,
+    "area_m2": "88.56",
+    "required_area_m2": "88.56",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-frozen_fruit_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "88.56",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "88.56",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "office",
+    "name": "办公室",
+    "bbox_mm": [
+      76880,
+      42350,
+      84626,
+      50096
+    ],
+    "x_mm": 76880,
+    "y_mm": 42350,
+    "width_mm": 7746,
+    "depth_mm": 7746,
+    "authority_width_m": "7.746",
+    "authority_depth_m": "7.746",
+    "rotation_deg": 0,
+    "area_m2": "60.000516",
+    "required_area_m2": "60",
+    "dimension_mode": "FLEXIBLE_RECTANGLE",
+    "dimension_authority_identity": "charles-flexible-office@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "60",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "60.000516",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "packaging_material_storage",
+    "name": "包材库",
+    "bbox_mm": [
+      16620,
+      17143,
+      31120,
+      34443
+    ],
+    "x_mm": 16620,
+    "y_mm": 17143,
+    "width_mm": 14500,
+    "depth_mm": 17300,
+    "authority_width_m": "17.3",
+    "authority_depth_m": "14.5",
+    "rotation_deg": 90,
+    "area_m2": "250.85",
+    "required_area_m2": "250.85",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "packaging-integer-envelope@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "250.85",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "250.85",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "primary_precooling_room",
+    "name": "一级预冷间",
+    "bbox_mm": [
+      20070,
+      34443,
+      34770,
+      44493
+    ],
+    "x_mm": 20070,
+    "y_mm": 34443,
+    "width_mm": 14700,
+    "depth_mm": 10050,
+    "authority_width_m": "14.7",
+    "authority_depth_m": "10.05",
+    "rotation_deg": 0,
+    "area_m2": "147.735",
+    "required_area_m2": 126,
+    "dimension_mode": "FIXED_RECTANGLE",
+    "dimension_authority_identity": "precool-room-6-position@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "126",
+      "reporting_projection": null
+    },
+    "internal_columns": [
+      "COLUMN-41474",
+      "COLUMN-41475"
+    ],
+    "column_area_m2": "0.1212",
+    "floor_minus_columns_m2": "147.6138",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "raw_fruit_buffer",
+    "name": "原果暂存间",
+    "bbox_mm": [
+      4870,
+      35793,
+      20070,
+      44493
+    ],
+    "x_mm": 4870,
+    "y_mm": 35793,
+    "width_mm": 15200,
+    "depth_mm": 8700,
+    "authority_width_m": "15.2",
+    "authority_depth_m": "8.7",
+    "rotation_deg": 0,
+    "area_m2": "132.24",
+    "required_area_m2": "132.24",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-raw_fruit_buffer@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "132.24",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "132.24",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "secondary_fruit_buffer",
+    "name": "次果暂存间",
+    "bbox_mm": [
+      49800,
+      13943,
+      58200,
+      20843
+    ],
+    "x_mm": 49800,
+    "y_mm": 13943,
+    "width_mm": 8400,
+    "depth_mm": 6900,
+    "authority_width_m": "8.4",
+    "authority_depth_m": "6.9",
+    "rotation_deg": 0,
+    "area_m2": "57.96",
+    "required_area_m2": "57.96",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-secondary_fruit_buffer@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "57.96",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "57.96",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "secondary_precooling_room",
+    "name": "二级预冷间",
+    "bbox_mm": [
+      76880,
+      20843,
+      86680,
+      30893
+    ],
+    "x_mm": 76880,
+    "y_mm": 20843,
+    "width_mm": 9800,
+    "depth_mm": 10050,
+    "authority_width_m": "9.8",
+    "authority_depth_m": "10.05",
+    "rotation_deg": 0,
+    "area_m2": "98.49",
+    "required_area_m2": 84,
+    "dimension_mode": "FIXED_RECTANGLE",
+    "dimension_authority_identity": "precool-room-6-position@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "84",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "98.49",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "shipping_channel",
+    "name": "出货通道",
+    "bbox_mm": [
+      78987,
+      35850,
+      86680,
+      42350
+    ],
+    "x_mm": 78987,
+    "y_mm": 35850,
+    "width_mm": 7693,
+    "depth_mm": 6500,
+    "authority_width_m": "6.5",
+    "authority_depth_m": "7.693",
+    "rotation_deg": 90,
+    "area_m2": "50.0045",
+    "required_area_m2": 50,
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "shipping-pit-module-envelope@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "50",
+      "reporting_projection": null
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "50.0045",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  {
+    "candidate": "A13-B",
+    "zone_code": "sorting_packaging_room",
+    "name": "分选包装间",
+    "bbox_mm": [
+      31120,
+      20843,
+      76880,
+      34443
+    ],
+    "x_mm": 31120,
+    "y_mm": 20843,
+    "width_mm": 45760,
+    "depth_mm": 13600,
+    "authority_width_m": "45.76",
+    "authority_depth_m": "13.6",
+    "rotation_deg": 0,
+    "area_m2": "622.336",
+    "required_area_m2": "622.34",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-sorting-long-edge-envelope@1.0.0",
+    "area_requirement": {
+      "exact_authority": {
+        "exact_geometry_required_area_m2": "622.336",
+        "formula_identity": "exact-decimal-product@1.0.0",
+        "operand_source_paths": [
+          "/raw_required_area_m2",
+          "/sorting_packaging_area_factor"
+        ],
+        "operands": [
+          "565.76",
+          "1.1"
+        ],
+        "source_authority": "POST-V2.1.1-charles-engineering-rule-adjustments:_pack_sorting_rectangle/Charles-P1C-long-edge/ADR-044",
+        "source_identity": "upstream-sorting-long-edge-envelope@1.0.0",
+        "source_snapshot_hash": "sha256:e5e94c5bc0d25f76142d3bcbc06524352d286c58c56ea87e106c7a88a42e6450",
+        "source_snapshot_json": "{\"aisle_layout\":\"four_side_architectural\",\"cooling_estimation_basis\":{\"authority_source\":\"CHARLES_CONFIRMED_ENGINEERING_REFERENCE\",\"basis_type\":\"ZONE_AREA\",\"reference_factor\":300,\"reference_factor_unit\":\"W/m2\",\"requires_review\":true,\"source_field\":\"required_area_m2\",\"source_unit\":\"m2\",\"source_value\":\"622.34\"},\"daily_throughput_kg_day\":20000,\"design_storage_mass_kg\":0,\"function\":\"分选、称重、包装和在线周转\",\"layout\":{\"aspect_ratio\":\"2.3333\",\"n_long\":7,\"n_short\":3},\"minimum_estimated_cooling_load_kw_r\":\"186.702\",\"n_actual\":21,\"n_long\":7,\"n_need\":20,\"n_short\":3,\"packing_table_area_m2\":\"16.8\",\"person_daily_capacity_kg_day\":\"336\",\"position_count\":21,\"raw_required_area_m2\":\"565.76\",\"required_area_m2\":\"622.34\",\"requires_review\":true,\"sorting_packaging_area_factor\":\"1.1\",\"table_count\":20,\"temperature_band\":\"8~10℃\",\"unused_cells\":1,\"worker_count\":60,\"zone_code\":\"sorting_packaging_room\",\"zone_name\":\"分选包装间\"}"
+      },
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "622.34",
+      "reporting_projection": {
+        "identity": "cold-room-zone-plan-binary64-product-2dp@1.0.0",
+        "projection_method": "PYTHON_BINARY64_ORDERED_PRODUCT_THEN_ROUND_2",
+        "quantum": "0.01",
+        "source_authority": "cold_room_zone_plan@1.0.0:required_area_m2"
+      }
+    },
+    "internal_columns": [],
+    "column_area_m2": "0",
+    "floor_minus_columns_m2": "622.336",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  }
+]

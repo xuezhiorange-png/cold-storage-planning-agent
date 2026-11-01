@@ -29,6 +29,10 @@ from cold_storage.modules.layout.domain.adjacency import (
     process_graph,
 )
 from cold_storage.modules.layout.domain.autonomous_equipment import positive_intersection
+from cold_storage.modules.layout.domain.current_process_requirements import (
+    current_equipment_counts,
+    current_storage_requirements,
+)
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
 from cold_storage.modules.layout.domain.functional_equipment_layout import (
     build_functional_equipment,
@@ -184,11 +188,7 @@ def assess_process_candidate(
         )
     }
     expected_stock = {
-        "packaging_material_storage": 67,
-        "finished_goods_room": 324,
-        "raw_fruit_buffer": 45,
-        "secondary_fruit_buffer": 21,
-        "frozen_fruit_room": 36,
+        k: r["required_positions"] for k, r in current_storage_requirements(context.plan).items()
     }
     stock = {q["layout"]["room"]: q for q in c["equipment"]["storage"]}
     stock_ok = set(stock) == set(expected_stock) and all(
@@ -216,16 +216,8 @@ def assess_process_candidate(
         "all_eleven_original_nontruck_access": access_ok,
         "single_connected_zero_hole_footprint": footprint,
         "all_equipment_operators_columns_clear": static,
-        "all_original_device_counts": counts
-        == {
-            "packing_line": 6,
-            "case_erector": 5,
-            "ten_door_locker": 11,
-            "PRI_pallet": 18,
-            "SEC_pallet": 12,
-            "case_film_component": 4,
-        },
-        "existing_493_stock_addresses_and_pick_put": stock_ok,
+        "all_original_device_counts": counts == current_equipment_counts(project, context.plan),
+        "current_p1_grid_capacity_and_pick_put": stock_ok,
         "original_53_person_two_shift_conditional_model": bool(
             c["changing_function"]["conditional_complete_sequence_verified"]
         ),
@@ -402,34 +394,54 @@ def _preserve_storage_feedback(
 
 
 def _flow_routes(
-    c: dict[str, Any], parameters: Mapping[str, Any], walls: list[list[int]]
+    c: dict[str, Any],
+    parameters: Mapping[str, Any],
+    walls: list[list[int]],
+    *,
+    adaptive_endpoints: bool = False,
+    endpoint_rank: int = 0,
 ) -> dict[str, Any]:
-    p = ProcessRoutePlanner(c, parameters, walls)
+    p = ProcessRoutePlanner(c, parameters, walls, adaptive_loads=adaptive_endpoints)
     items = p.items
 
     def pal(id_: str, face: str = "N") -> str:
         return p.endpoint(id_, "PALLET-TRANSFER", face, "LOADED_PALLET")
 
-    raw_slots = [q for q in items.values() if q["kind"] == "raw_fruit_buffer_pallet"]
-    front = max(q["bbox_mm"][2] for q in raw_slots)
-    raw_clear = p.rooms["raw_fruit_buffer"]
-    half = parameters["main_aisle_mm"] // 2
-    raw = min(
-        (
-            q
-            for q in raw_slots
-            if q["bbox_mm"][2] == front
-            and raw_clear[1] + half
-            <= (q["bbox_mm"][1] + q["bbox_mm"][3]) // 2
-            <= raw_clear[3] - half
-        ),
-        key=lambda q: -q["bbox_mm"][1],
-    )
-    pri = next(q for q in items.values() if q["kind"] == "PRI_pallet" and q["id"].endswith("C1-P6"))
-    sec = next(q for q in items.values() if q["kind"] == "SEC_pallet" and q["id"].endswith("C1-P6"))
-    raw_ep = pal(raw["id"], "E")
-    pri_ep = pal(pri["id"])
-    sec_ep = pal(sec["id"])
+    if adaptive_endpoints:
+        raw_ep = p.choose_pallet_endpoint(
+            "raw_fruit_buffer", target_room="primary_precooling_room", rank=endpoint_rank
+        )
+        pri_ep = p.choose_pallet_endpoint(
+            "primary_precooling_room", target_room="sorting_packaging_room", rank=endpoint_rank
+        )
+        sec_ep = p.choose_pallet_endpoint(
+            "secondary_precooling_room", target_room="coating_room", rank=endpoint_rank
+        )
+    else:
+        raw_slots = [q for q in items.values() if q["kind"] == "raw_fruit_buffer_pallet"]
+        front = max(q["bbox_mm"][2] for q in raw_slots)
+        raw_clear = p.rooms["raw_fruit_buffer"]
+        half = parameters["main_aisle_mm"] // 2
+        raw = min(
+            (
+                q
+                for q in raw_slots
+                if q["bbox_mm"][2] == front
+                and raw_clear[1] + half
+                <= (q["bbox_mm"][1] + q["bbox_mm"][3]) // 2
+                <= raw_clear[3] - half
+            ),
+            key=lambda q: -q["bbox_mm"][1],
+        )
+        pri = next(
+            q for q in items.values() if q["kind"] == "PRI_pallet" and q["id"].endswith("C1-P6")
+        )
+        sec = next(
+            q for q in items.values() if q["kind"] == "SEC_pallet" and q["id"].endswith("C1-P6")
+        )
+        raw_ep = pal(raw["id"], "E")
+        pri_ep = pal(pri["id"])
+        sec_ep = pal(sec["id"])
     unload = pal("RAW-UNLOAD")
     common = [
         p.route(raw_ep, pri_ep, "PRODUCT-RAW-PRI", "RAW_CRATES_TO_PRIMARY_PRECOOL"),
@@ -449,18 +461,23 @@ def _flow_routes(
         if i + 1 < len(film):
             downstream.append(p.handoff(q["id"], film[i + 1]["id"], "LINK-" + q["id"]))
     downstream.append(p.handoff(film[-1]["id"], "REPALLETIZE", "FILM-OUT-REPAL"))
-    finished = [q for q in items.values() if q["kind"] == "finished_goods_room_pallet"]
-    storage = next(
-        s["layout"]
-        for s in c["equipment"]["storage"]
-        if s["layout"]["room"] == "finished_goods_room"
-    )
-    face = {0: "S", 1: "E", 2: "N", 3: "W"}[storage["turn"]]
-    finish = min(
-        (q for q in finished if q["grid_row"] == 0 and q["grid_column"] >= 1),
-        key=lambda q: abs(q["bbox_mm"][1] - p.rooms["finished_goods_room"][1] - 2500),
-    )
-    finish_ep = pal(finish["id"], face)
+    if adaptive_endpoints:
+        finish_ep = p.choose_pallet_endpoint(
+            "finished_goods_room", target_room="coating_room", rank=endpoint_rank
+        )
+    else:
+        finished = [q for q in items.values() if q["kind"] == "finished_goods_room_pallet"]
+        storage = next(
+            s["layout"]
+            for s in c["equipment"]["storage"]
+            if s["layout"]["room"] == "finished_goods_room"
+        )
+        face = {0: "S", 1: "E", 2: "N", 3: "W"}[storage["turn"]]
+        finish = min(
+            (q for q in finished if q["grid_row"] == 0 and q["grid_column"] >= 1),
+            key=lambda q: abs(q["bbox_mm"][1] - p.rooms["finished_goods_room"][1] - 2500),
+        )
+        finish_ep = pal(finish["id"], face)
     dispatch = pal("DISPATCH-01", "N")
     downstream.extend(
         [
@@ -611,21 +628,28 @@ def _flow_routes(
         source = p.endpoint(machine, prefix + "-CONDITIONAL-SORT-OUT", "E", "FOOD_TOTE_CARRY")
         target = p.endpoint(f"WORK-PACK-{line:02}", prefix + "-BIN-IN", "N", "FOOD_TOTE_CARRY")
         feeding = p.route(source, target, prefix + "-SORT-WORK", prefix + "_SORT_OUT_TO_WORKPLACE")
-        stock = [q for q in items.values() if q["kind"] == room + "_pallet"]
-        # Selection uses the actual legal portal, not an archived room coordinate.
-        door = next(q for q in c["access_results"] if q.get("to_ref") == room)
-        seg = door["portal_to"]["segment"]
-        centre = round((Decimal(str(seg["start"]["x"])) + Decimal(str(seg["end"]["x"]))) * 500)
-        slot = min(
-            (q for q in stock if q["grid_row"] == 0),
-            key=lambda q: abs((q["bbox_mm"][0] + q["bbox_mm"][2]) // 2 - centre),
-        )
+        if adaptive_endpoints:
+            storage_endpoint = p.choose_pallet_endpoint(
+                room, target_room="sorting_packaging_room", rank=endpoint_rank
+            )
+        else:
+            stock = [q for q in items.values() if q["kind"] == room + "_pallet"]
+            # Selection uses the actual legal portal, not an archived room coordinate.
+            door = next(q for q in c["access_results"] if q.get("to_ref") == room)
+            seg = door["portal_to"]["segment"]
+            centre = round((Decimal(str(seg["start"]["x"])) + Decimal(str(seg["end"]["x"]))) * 500)
+            slot = min(
+                (q for q in stock if q["grid_row"] == 0),
+                key=lambda q: abs((q["bbox_mm"][0] + q["bbox_mm"][2]) // 2 - centre),
+            )
+            storage_endpoint = pal(slot["id"])
         delivery = p.route(
             pal(f"WORK-PACK-{line:02}"),
-            pal(slot["id"]),
+            storage_endpoint,
             prefix + "-WORK-STORE",
             prefix + "_WORKPLACE_TO_STORAGE",
         )
+        slot = items[delivery["target_object"]]
         tid = "TRANSFER:" + feeding["id"] + ":" + delivery["id"]
         transfers[tid] = connect_transfer(
             c, parameters, feeding, delivery, p.endpoints, identity=tid
@@ -701,75 +725,21 @@ def _flow_routes(
     }
 
 
-def generate_process_layout(
+def evaluate_process_rooms(
+    seed: Mapping[str, Any],
+    baseline: Mapping[str, Any],
     project: Mapping[str, Any],
     parameters: Mapping[str, Any],
+    context: AutonomousContext,
     *,
+    adaptive_endpoints: bool = False,
+    endpoint_rank: int = 0,
+    revalidate_changing: bool = False,
     progress: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
-    if parameters.get("schema_version") != "autonomous-process-parameters@1.2.0":
-        raise LayoutAuthorityError("PROCESS_PARAMETER_VERSION_REQUIRED")
-    if (
-        parameters["line_workers"] != [10, 10, 10, 8, 8, 7]
-        or parameters["buffer_slots_per_group"] != 7
-    ):
-        raise LayoutAuthorityError("PROCESS_DESIGN_BASIS_MISMATCH")
-    if parameters["main_aisle_mm"] < 2500 or parameters["pallet_mm"] != [1200, 1000]:
-        raise LayoutAuthorityError("PROCESS_AISLE_OR_LOAD_REDUCTION_FORBIDDEN")
-    if not 1 <= parameters["routing_node_budget"] <= 20000:
-        raise LayoutAuthorityError("PROCESS_BOUNDED_ROUTING_REQUIRED")
-    if any(k in parameters for k in ("rooms", "initial_layout", "hints", "equipment_positions")):
-        raise LayoutAuthorityError("PROCESS_COORDINATE_SEEDS_FORBIDDEN")
-    if any(
-        type(n) is not int or n <= 0
-        for key in ("carton_projection_mm", "station_operator_mm")
-        for n in parameters[key]
-    ):
-        raise LayoutAuthorityError("POSITIVE_INTEGER_PHYSICAL_ENVELOPES_REQUIRED")
-    context = bind_autonomous_input(project)
-    base = generate_functional_layout(project, progress=progress)
-    if not base["candidates"]:
-        return _no_candidate(
-            project, parameters, base, "BOUNDED_ROOM_SEARCH_NO_CANDIDATE", base["attempts"]
-        )
-    original = base["candidates"][0]
-    attempts = relocation_capacity_trials(
-        room_rectangles(original),
-        context.plan,
-        project["equipment_specs"],
-        project["building"]["columns"],
-    )
-    preliminary = arrange_process_workplaces(original, parameters)
-    attempts.append(
-        {
-            "variant": "DEVICE_DOCKS_IN_EXISTING_ROOMS",
-            "status": "STATIC_REJECTED" if preliminary["static_conflicts"] else "STATIC_ONLY",
-            "conflicts": preliminary["static_conflicts"],
-            "coating_depth_mm": next(
-                r["depth_mm"] for r in original["rooms"] if r["zone_code"] == "coating_room"
-            ),
-        }
-    )
-    required = coating_service_depth(parameters)
-    if progress:
-        progress("DEVICE_OPERATION_FEEDBACK_AND_ROOM_REGENERATION")
-    regenerated = generate_functional_layout(
-        project, progress=progress, coating_service_depth_mm=required["depth_mm"]
-    )
-    if not regenerated["candidates"]:
-        return _no_candidate(
-            project,
-            parameters,
-            regenerated,
-            "BOUNDED_FEEDBACK_SEARCH_NO_CANDIDATE",
-            attempts + regenerated["attempts"],
-        )
-    repaired, storage_trials = _preserve_storage_feedback(
-        original, regenerated["candidates"][0], project, context
-    )
-    attempts.extend(storage_trials)
-    arranged = arrange_process_workplaces(repaired, parameters)
-    c = arranged["candidate"]
+    """Rebuild device layout, P1 doors and the entire admitted process witness."""
+    arranged = arrange_process_workplaces(seed, parameters)
+    c: dict[str, Any] = arranged["candidate"]
     eq = c["equipment"]
     rooms = room_rectangles(c)
     entrances: dict[str, Any] = {
@@ -790,22 +760,30 @@ def generate_process_layout(
     c["non_truck_access_pass_count"] = sum(
         q.get("status") == "PASS" for q in access if q["flow_kind"] != "TRUCK"
     )
+    if adaptive_endpoints and c["non_truck_access_pass_count"] != len(
+        [r for r in context.binding.access_requirements if r["flow_kind"] != "TRUCK"]
+    ):
+        raise LayoutAuthorityError("ADAPTIVE_P1_ACCESS_INCOMPLETE", details={"access": access})
     # The original changing adapter and portals are not re-designed. If these
     # two portal identities/geometries changed, do not inherit the old motion PASS.
-    old_people = [
-        q for q in regenerated["candidates"][0]["access_results"] if q["flow_kind"] == "PEOPLE"
-    ]
+    old_people = [q for q in seed["access_results"] if q["flow_kind"] == "PEOPLE"]
     new_people = [q for q in access if q["flow_kind"] == "PEOPLE"]
     c["changing_existing_witness_preserved"] = canonical_hash(old_people) == canonical_hash(
         new_people
     )
     c["changing_internal_model_unchanged"] = True
-    if not c["changing_existing_witness_preserved"]:
+    if revalidate_changing or not c["changing_existing_witness_preserved"]:
         from cold_storage.modules.layout.domain.functional_changing_layout import (
             evaluate_changing_entry_exit,
         )
 
         g = eq["layouts"]["changing_room"]["functional_geometry"]
+        if revalidate_changing:
+            from cold_storage.modules.layout.domain.functional_changing_layout import (
+                evaluate_changing_use,
+            )
+
+            c["changing_function"] = evaluate_changing_use(g)
         check = evaluate_changing_entry_exit(g, rooms["changing_room"], access)
         c["changing_function"]["entry_exit"] = check
         c["changing_function"]["conditional_complete_sequence_verified"] = bool(
@@ -825,7 +803,9 @@ def generate_process_layout(
     if progress:
         progress("DEVICE_PORTS_PALLET_SWEEPS_AND_REAL_DOOR_CROSSINGS")
     walls = [list(b) for w in context.walls if (b := routing._rectangle_bounds(w))]
-    flows = _flow_routes(c, parameters, walls)
+    flows = _flow_routes(
+        c, parameters, walls, adaptive_endpoints=adaptive_endpoints, endpoint_rank=endpoint_rank
+    )
     aisle_feedback = realize_coating_aisles(c, flows, arranged["static_conflicts"])
     c["coating_actual_aisle_feedback"] = aisle_feedback
     route_index = {r["id"]: r for r in flows["routes"]}
@@ -850,9 +830,9 @@ def generate_process_layout(
     # Reuse only the original requirement identities; recompute all geometry.
     flows["v11_required_coverage"] = {
         "interior": [
-            coverage_identity(q, "interior") for q in original["equipment_aware_interior_paths"]
+            coverage_identity(q, "interior") for q in baseline["equipment_aware_interior_paths"]
         ],
-        "storage": [coverage_identity(q, "storage") for q in original["storage_portal_interfaces"]],
+        "storage": [coverage_identity(q, "storage") for q in baseline["storage_portal_interfaces"]],
     }
     route_obstacles = [*c["original_building"]["columns"], *eq.get("process_operator_zones", [])]
     route_obstacles.extend(
@@ -900,11 +880,89 @@ def generate_process_layout(
         chain["continuous_transfer_chain"] = not chain["failed_transfers"]
     c.pop("result_hash", None)
     c["result_hash"] = canonical_hash(c)
+    return c
+
+
+def validate_process_parameters(parameters: Mapping[str, Any]) -> None:
+    """Unchanged V1.2 engineering basis, shared by both opt-in generators."""
+    if parameters.get("schema_version") != "autonomous-process-parameters@1.2.0":
+        raise LayoutAuthorityError("PROCESS_PARAMETER_VERSION_REQUIRED")
+    if (
+        parameters["line_workers"] != [10, 10, 10, 8, 8, 7]
+        or parameters["buffer_slots_per_group"] != 7
+    ):
+        raise LayoutAuthorityError("PROCESS_DESIGN_BASIS_MISMATCH")
+    if parameters["main_aisle_mm"] < 2500 or parameters["pallet_mm"] != [1200, 1000]:
+        raise LayoutAuthorityError("PROCESS_AISLE_OR_LOAD_REDUCTION_FORBIDDEN")
+    if not 1 <= parameters["routing_node_budget"] <= 20000:
+        raise LayoutAuthorityError("PROCESS_BOUNDED_ROUTING_REQUIRED")
+    if any(k in parameters for k in ("rooms", "initial_layout", "hints", "equipment_positions")):
+        raise LayoutAuthorityError("PROCESS_COORDINATE_SEEDS_FORBIDDEN")
+    if any(
+        type(n) is not int or n <= 0
+        for key in ("carton_projection_mm", "station_operator_mm")
+        for n in parameters[key]
+    ):
+        raise LayoutAuthorityError("POSITIVE_INTEGER_PHYSICAL_ENVELOPES_REQUIRED")
+
+
+def generate_process_layout(
+    project: Mapping[str, Any],
+    parameters: Mapping[str, Any],
+    *,
+    progress: Callable[[str], None] | None = None,
+) -> dict[str, Any]:
+    validate_process_parameters(parameters)
+    context = bind_autonomous_input(project)
+    base = generate_functional_layout(project, progress=progress)
+    if not base["candidates"]:
+        return _no_candidate(
+            project, parameters, base, "BOUNDED_ROOM_SEARCH_NO_CANDIDATE", base["attempts"]
+        )
+    original = base["candidates"][0]
+    attempts = relocation_capacity_trials(
+        room_rectangles(original),
+        context.plan,
+        project["equipment_specs"],
+        project["building"]["columns"],
+    )
+    preliminary = arrange_process_workplaces(original, parameters)
+    attempts.append(
+        {
+            "variant": "DEVICE_DOCKS_IN_EXISTING_ROOMS",
+            "status": "STATIC_REJECTED" if preliminary["static_conflicts"] else "STATIC_ONLY",
+            "conflicts": preliminary["static_conflicts"],
+            "coating_depth_mm": next(
+                r["depth_mm"] for r in original["rooms"] if r["zone_code"] == "coating_room"
+            ),
+        }
+    )
+    required = coating_service_depth(parameters)
+    if progress:
+        progress("DEVICE_OPERATION_FEEDBACK_AND_ROOM_REGENERATION")
+    regenerated = generate_functional_layout(
+        project, progress=progress, coating_service_depth_mm=required["depth_mm"]
+    )
+    if not regenerated["candidates"]:
+        return _no_candidate(
+            project,
+            parameters,
+            regenerated,
+            "BOUNDED_FEEDBACK_SEARCH_NO_CANDIDATE",
+            attempts + regenerated["attempts"],
+        )
+    repaired, storage_trials = _preserve_storage_feedback(
+        original, regenerated["candidates"][0], project, context
+    )
+    attempts.extend(storage_trials)
+    c = evaluate_process_rooms(repaired, original, project, parameters, context, progress=progress)
+    eq = c["equipment"]
+    flows = c["process_continuity"]
     attempts.append(
         {
             "variant": "ROTATE_FOUR_ERECTORS_PLUS_DISTINCT_BUFFER_AND_WORK_POSITIONS",
             "coating_service_depth": required,
-            "static_conflicts": arranged["static_conflicts"],
+            "static_conflicts": c["remaining_geometry_issues"],
             "actual_nontruck_access_pass": c["non_truck_access_pass_count"],
             "continuous_main_product_chains": flows["continuous_main_product_chain_count"],
             "route_failures": [

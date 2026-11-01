@@ -1,0 +1,73 @@
+{
+  "same_run_candidates_reloaded": [
+    {
+      "days": 7,
+      "candidate": "A13-A",
+      "raw_hash_valid": true,
+      "reloaded_original_admission": "CONDITIONAL_PROCESS_CANDIDATE",
+      "main_lines": 6,
+      "pdf_mm": [
+        841.0000013563367,
+        594.0000047471788
+      ],
+      "png_pixels": [
+        6623,
+        4678
+      ],
+      "result_hash": "sha256:ddfa4a7b0740b4d94149d53c8ebcbe87569bb53cd47f48701ed463af40a05de2"
+    },
+    {
+      "days": 7,
+      "candidate": "A13-B",
+      "raw_hash_valid": true,
+      "reloaded_original_admission": "CONDITIONAL_PROCESS_CANDIDATE",
+      "main_lines": 6,
+      "pdf_mm": [
+        841.0000013563367,
+        594.0000047471788
+      ],
+      "png_pixels": [
+        6623,
+        4678
+      ],
+      "result_hash": "sha256:baa83df0592913b35566bc44671d9235562b42327e783690eada869e70c6dc4c"
+    },
+    {
+      "days": 8,
+      "candidate": "A13-A",
+      "raw_hash_valid": true,
+      "reloaded_original_admission": "CONDITIONAL_PROCESS_CANDIDATE",
+      "main_lines": 6,
+      "pdf_mm": [
+        841.0000013563367,
+        594.0000047471788
+      ],
+      "png_pixels": [
+        6623,
+        4678
+      ],
+      "result_hash": "sha256:d29b9f99d9b9618d908e94d7c299c64aa4837cece2124ecd92866fc4915e222c"
+    },
+    {
+      "days": 8,
+      "candidate": "A13-B",
+      "raw_hash_valid": true,
+      "reloaded_original_admission": "CONDITIONAL_PROCESS_CANDIDATE",
+      "main_lines": 6,
+      "pdf_mm": [
+        841.0000013563367,
+        594.0000047471788
+      ],
+      "png_pixels": [
+        6623,
+        4678
+      ],
+      "result_hash": "sha256:8417fbc6d927b30608012c11aec38232c477ccf8c3a8c1d7ee66ee335ddb8e86"
+    }
+  ],
+  "reconstructed_generation_result_hashes": true,
+  "native_executions": 0,
+  "MAIN": false,
+  "formal_CI": false,
+  "source_of_geometry": "current-input deterministic generator; no history files loaded"
+}

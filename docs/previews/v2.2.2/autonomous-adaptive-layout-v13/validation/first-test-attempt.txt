@@ -1,0 +1,37 @@
+..................................F                                      [100%]
+=================================== FAILURES ===================================
+_____________ test_drawing_and_raw_export_share_actual_coordinates _____________
+
+results = {7: {'task_id': 'V2_2_2_AUTONOMOUS_ADAPTIVE_LAYOUT_REGENERATION_R1', 'calculator_version': 'autonomous-adaptive-proces...0bf', 'source_process_parameter_hash': 'sha256:11dfd0a28365f416e5f29379f0934641bb850d9b38afbf4fc6378f8dbcd61640', ...}}
+project = {'schema_version': 'autonomous-factory-input@1.0.0', 'project_id': 'xinzhao-blueberry-20t-owner', 'business': {'daily_...puts business fields plus Owner confirmed 20000kg/day packaged product; original area/dimension rules unchanged.', ...}
+parameters = {'schema_version': 'autonomous-process-parameters@1.2.0', 'main_aisle_mm': 2500, 'pallet_mm': [1200, 1000], 'carton_projection_mm': [600, 400], ...}
+tmp_path = PosixPath('/private/var/folders/2p/fmk6_mt12l57gnwl95d8nt7c0000gn/T/pytest-of-charles/pytest-150/test_drawing_and_raw_export_sh0')
+
+>   ???
+E   AssertionError: assert {'schema_vers...e7b30bf', ...} == {'schema_vers...e7b30bf', ...}
+E     
+E     Omitting 37 identical items, use -vv to show
+E     Differing items:
+E     {'portal_approach_checks': [{'requirement_identity': 'access:raw_fruit_buffer->primary_precooling_room@1.0.0', 'room':....88', 'y': '28.443'}, 'end': {'x': '76.88', 'y': '30.843'}}, ...}, 'bbox_mm': [76880, 28443, 79380, 30843], ...}, ...]} != {'portal_approach_checks': [{'requirement_identity': 'access:raw_fruit_buffer->primary_precooling_room@1.0.0', 'room':...)}, 'end': {'x': Decimal('76.88'), 'y': Decimal('30.843')}}, ...}, 'bbox_mm': [76880, 28443, 79380, 30843], ...}, ...]}
+E     {'changing_function': {'status':...
+E     
+E     ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests/unit/test_v222_autonomous_adaptive_layout.py:448: AssertionError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:488
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:488
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_v222_autonomous_adaptive_layout.py::test_drawing_and_raw_export_share_actual_coordinates
+1 failed, 34 passed, 5 warnings in 368.61s (0:06:08)
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute

@@ -1,0 +1,52 @@
+{
+  "packaging_material_storage": {
+    "p1_grid_positions": 67,
+    "minimum_positions": 67,
+    "required_positions": 67,
+    "source_zone_hash": "sha256:c238fdd6d413899b3120905e86ae74b8ac45e36881deb9986a1cb01107af4520",
+    "source": "CURRENT_CALCULATOR_P1_GRID_UNMODIFIED",
+    "formula": "max(current position_count, current n_need)",
+    "unit": "pallet_addresses",
+    "new_authority": false
+  },
+  "finished_goods_room": {
+    "p1_grid_positions": 364,
+    "minimum_positions": 360,
+    "required_positions": 364,
+    "source_zone_hash": "sha256:09880ff497068c9b5e585abc59beb7e1498d0663659b8801a1a890bec0ba57f2",
+    "source": "CURRENT_CALCULATOR_P1_GRID_UNMODIFIED",
+    "formula": "max(current position_count, current n_need)",
+    "unit": "pallet_addresses",
+    "new_authority": false
+  },
+  "raw_fruit_buffer": {
+    "p1_grid_positions": 45,
+    "minimum_positions": 37,
+    "required_positions": 45,
+    "source_zone_hash": "sha256:c8773cc7eb743fb61bf98b2ba95aec505f5d40e16b288c3b18d62756ac7ee570",
+    "source": "CURRENT_CALCULATOR_P1_GRID_UNMODIFIED",
+    "formula": "max(current position_count, current n_need)",
+    "unit": "pallet_addresses",
+    "new_authority": false
+  },
+  "secondary_fruit_buffer": {
+    "p1_grid_positions": 21,
+    "minimum_positions": 19,
+    "required_positions": 21,
+    "source_zone_hash": "sha256:2cea8d1cc84786deabe62ed7004a90d337839c3f37b4aafd22de9530ab32d58a",
+    "source": "CURRENT_CALCULATOR_P1_GRID_UNMODIFIED",
+    "formula": "max(current position_count, current n_need)",
+    "unit": "pallet_addresses",
+    "new_authority": false
+  },
+  "frozen_fruit_room": {
+    "p1_grid_positions": 36,
+    "minimum_positions": 34,
+    "required_positions": 36,
+    "source_zone_hash": "sha256:3270492a1399b2c525a2c276af2b6e92bc3f83cce1706f05a1acdcfbb0d7c0a6",
+    "source": "CURRENT_CALCULATOR_P1_GRID_UNMODIFIED",
+    "formula": "max(current position_count, current n_need)",
+    "unit": "pallet_addresses",
+    "new_authority": false
+  }
+}
