@@ -1,0 +1,33 @@
+{
+  "status": "CONDITIONAL_CABINET_CYCLES_VERIFIED",
+  "conditional_complete_sequence_verified": true,
+  "functional_status": "INPUT_REQUIRED",
+  "raw_evidence": {
+    "file": "autonomous-layout-A1.json",
+    "json_pointer": "/changing_function"
+  },
+  "shifts": [
+    {
+      "shift": 1,
+      "initial_inside": 53,
+      "completed_cabinet_cycles": 53,
+      "cycle_geometry_pass": true,
+      "door_events_per_hypothesis": {
+        "ALL_LEFT": 106,
+        "MIRRORED": 106
+      },
+      "conflicts": []
+    },
+    {
+      "shift": 2,
+      "initial_inside": 53,
+      "completed_cabinet_cycles": 53,
+      "cycle_geometry_pass": true,
+      "door_events_per_hypothesis": {
+        "ALL_LEFT": 106,
+        "MIRRORED": 106
+      },
+      "conflicts": []
+    }
+  ]
+}

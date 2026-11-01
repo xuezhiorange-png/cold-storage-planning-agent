@@ -1,0 +1,48 @@
+{
+  "raw_evidence": {
+    "file": "autonomous-layout-A1.json",
+    "json_pointer": "/equipment/storage"
+  },
+  "storage": [
+    {
+      "room": "packaging_material_storage",
+      "positions": 67,
+      "minimum": 67,
+      "retrieved": 67,
+      "returned": 67,
+      "conditional_pick_put_geometry_pass": true
+    },
+    {
+      "room": "finished_goods_room",
+      "positions": 324,
+      "minimum": 315,
+      "retrieved": 324,
+      "returned": 324,
+      "conditional_pick_put_geometry_pass": true
+    },
+    {
+      "room": "raw_fruit_buffer",
+      "positions": 45,
+      "minimum": 37,
+      "retrieved": 45,
+      "returned": 45,
+      "conditional_pick_put_geometry_pass": true
+    },
+    {
+      "room": "secondary_fruit_buffer",
+      "positions": 21,
+      "minimum": 19,
+      "retrieved": 21,
+      "returned": 21,
+      "conditional_pick_put_geometry_pass": true
+    },
+    {
+      "room": "frozen_fruit_room",
+      "positions": 36,
+      "minimum": 34,
+      "retrieved": 36,
+      "returned": 36,
+      "conditional_pick_put_geometry_pass": true
+    }
+  ]
+}

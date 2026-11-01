@@ -1,0 +1,13 @@
+zone_code,name,x_mm,y_mm,width_mm,depth_mm,rotation_deg,area_m2,required_area_m2,column_area_m2
+changing_room,更衣室,87126,14519,12600,9700,0,122.22,40,0
+coating_room,覆膜间,86680,25234,16300,7100,0,115.73,80,0
+finished_goods_room,成品间,86680,32334,18600,32400,90,602.64,602.64,0.3603
+frozen_fruit_room,冻果间,58200,12643,10800,8200,0,88.56,88.56,0
+office,办公室,76880,38834,7746,7746,0,60.000516,60,0
+packaging_material_storage,包材库,16620,17143,14500,17300,90,250.85,250.85,0
+primary_precooling_room,一级预冷间,20070,34443,14700,10050,0,147.735,126,0.1212
+raw_fruit_buffer,原果暂存间,4870,35793,15200,8700,0,132.24,132.24,0
+secondary_fruit_buffer,次果暂存间,49800,13943,8400,6900,0,57.96,57.96,0
+secondary_precooling_room,二级预冷间,76880,20843,9800,10050,0,98.49,84,0
+shipping_channel,出货通道,78987,32334,7693,6500,90,50.0045,50,0.0606
+sorting_packaging_room,分选包装间,31120,20843,45760,13600,0,622.336,622.34,0

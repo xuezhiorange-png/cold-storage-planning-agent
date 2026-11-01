@@ -1,0 +1,244 @@
+[
+  {
+    "iteration": 1,
+    "search": {
+      "version": "autonomous-process-attachment-search@1.0.0",
+      "profile": "LINEAR_BANDED",
+      "node_budget": 10000,
+      "nodes_used": 12,
+      "options_checked": 15074,
+      "max_roles": 12,
+      "global_infeasibility_proven": false,
+      "new_hard_constraints": false,
+      "root_count": 240,
+      "status": "CANDIDATE_FOUND",
+      "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+    },
+    "room_geometry_hash": "sha256:c5fa919234ee90492408c5447c9dd070f2ad309931861b8534466d42cf4d819e",
+    "equipment_failures": [
+      {
+        "code": "COATING_FUNCTIONAL_SIZE_REQUEST",
+        "room": "coating_room",
+        "requested_shape_mm": [
+          16300,
+          7100
+        ]
+      },
+      {
+        "code": "CHANGING_FUNCTIONAL_SIZE_REQUEST",
+        "room": "changing_room",
+        "requested_shape_mm": [
+          12600,
+          9700
+        ]
+      }
+    ],
+    "storage_trials": [
+      {
+        "room": "packaging_material_storage",
+        "candidate": "STORE-T0-X0-Y0",
+        "placed": 67,
+        "minimum": 67,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 67,
+        "returned": 67
+      },
+      {
+        "room": "finished_goods_room",
+        "candidate": "STORE-T0-X100-Y0",
+        "placed": 324,
+        "minimum": 315,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 324,
+        "returned": 324
+      },
+      {
+        "room": "raw_fruit_buffer",
+        "candidate": "STORE-T2-X100-Y0",
+        "placed": 45,
+        "minimum": 37,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 45,
+        "returned": 45
+      },
+      {
+        "room": "secondary_fruit_buffer",
+        "candidate": "STORE-T2-X100-Y0",
+        "placed": 21,
+        "minimum": 19,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 21,
+        "returned": 21
+      },
+      {
+        "room": "frozen_fruit_room",
+        "candidate": "STORE-T2-X100-Y0",
+        "placed": 36,
+        "minimum": 34,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 36,
+        "returned": 36
+      }
+    ],
+    "requested_flexible_shapes": [
+      {
+        "code": "COATING_FUNCTIONAL_SIZE_REQUEST",
+        "room": "coating_room",
+        "requested_shape_mm": [
+          16300,
+          7100
+        ]
+      },
+      {
+        "code": "CHANGING_FUNCTIONAL_SIZE_REQUEST",
+        "room": "changing_room",
+        "requested_shape_mm": [
+          12600,
+          9700
+        ]
+      }
+    ],
+    "status": "FEEDBACK_REQUESTED"
+  },
+  {
+    "iteration": 2,
+    "search": {
+      "version": "autonomous-process-attachment-search@1.0.0",
+      "profile": "LINEAR_BANDED",
+      "node_budget": 10000,
+      "nodes_used": 12,
+      "options_checked": 12587,
+      "max_roles": 12,
+      "global_infeasibility_proven": false,
+      "new_hard_constraints": false,
+      "root_count": 240,
+      "status": "CANDIDATE_FOUND",
+      "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+    },
+    "room_geometry_hash": "sha256:fd0e7984cd8161cd812c8b17b88636c8f172f244371a515a1c0f8df87d9a6e4d",
+    "equipment_failures": [],
+    "storage_trials": [
+      {
+        "room": "packaging_material_storage",
+        "candidate": "STORE-T1-X0-Y0",
+        "placed": 67,
+        "minimum": 67,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 67,
+        "returned": 67
+      },
+      {
+        "room": "finished_goods_room",
+        "candidate": "STORE-T0-X100-Y0",
+        "placed": 324,
+        "minimum": 315,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 324,
+        "returned": 324
+      },
+      {
+        "room": "raw_fruit_buffer",
+        "candidate": "STORE-T1-X0-Y0",
+        "placed": 45,
+        "minimum": 37,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 45,
+        "returned": 45
+      },
+      {
+        "room": "secondary_fruit_buffer",
+        "candidate": "STORE-T2-X100-Y0",
+        "placed": 21,
+        "minimum": 19,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 21,
+        "returned": 21
+      },
+      {
+        "room": "frozen_fruit_room",
+        "candidate": "STORE-T2-X100-Y0",
+        "placed": 36,
+        "minimum": 34,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 36,
+        "returned": 36
+      }
+    ],
+    "requested_flexible_shapes": [],
+    "status": "TOPOLOGY_FEEDBACK_REQUESTED",
+    "topology_feedback": {
+      "status": "NOT_VERIFIED",
+      "code": "BUILDING_FOOTPRINT_DERIVATION_EXHAUSTED",
+      "details": {
+        "component_count": 2
+      }
+    }
+  },
+  {
+    "iteration": 3,
+    "search": {
+      "version": "autonomous-process-attachment-search@1.0.0",
+      "profile": "LINEAR_BANDED",
+      "node_budget": 10000,
+      "nodes_used": 12,
+      "options_checked": 12590,
+      "max_roles": 12,
+      "global_infeasibility_proven": false,
+      "new_hard_constraints": false,
+      "root_count": 240,
+      "status": "CANDIDATE_FOUND",
+      "template_limitations": "Finite event anchors; direct auxiliary attachments; 80 ordered options/role. Profiles are search preferences, not certified V2 composition identities."
+    },
+    "room_geometry_hash": "sha256:43cf47d1ecf0d5cd887edb011dcafa869bcb762117df2b6186b5174fb53f70f6",
+    "equipment_failures": [],
+    "storage_trials": [
+      {
+        "room": "packaging_material_storage",
+        "candidate": "STORE-T1-X0-Y0",
+        "placed": 67,
+        "minimum": 67,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 67,
+        "returned": 67
+      },
+      {
+        "room": "finished_goods_room",
+        "candidate": "STORE-T0-X100-Y0",
+        "placed": 324,
+        "minimum": 315,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 324,
+        "returned": 324
+      },
+      {
+        "room": "raw_fruit_buffer",
+        "candidate": "STORE-T1-X0-Y0",
+        "placed": 45,
+        "minimum": 37,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 45,
+        "returned": 45
+      },
+      {
+        "room": "secondary_fruit_buffer",
+        "candidate": "STORE-T2-X100-Y0",
+        "placed": 21,
+        "minimum": 19,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 21,
+        "returned": 21
+      },
+      {
+        "room": "frozen_fruit_room",
+        "candidate": "STORE-T2-X100-Y0",
+        "placed": 36,
+        "minimum": 34,
+        "main_aisle_column_conflicts": [],
+        "retrieved": 36,
+        "returned": 36
+      }
+    ],
+    "requested_flexible_shapes": [],
+    "status": "JOINT_CANDIDATE_GENERATED"
+  }
+]
