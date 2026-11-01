@@ -1,0 +1,109 @@
+{
+  "same_building_source_hash": true,
+  "input_before_hash": "sha256:d9cd4110874625b5c6b92f5d32a2862de0c919d24dd2d0afae9e01fa2991380b",
+  "input_after_hash": "sha256:5fd9695b8385a36a8f2f6a15078643e00f54434e1b57d5245538a30fde7b30bf",
+  "before_days": 7,
+  "after_days": 8,
+  "before_p1_hash": "sha256:469b89b0599b39f002cdcb1b6475d3d13c2a90db84babaec8b9e7eb1001834aa",
+  "after_p1_hash": "sha256:4d28cd9315b33f3387bbb0a9be16badf1b41455ac9c4b2a63821597716ff16a0",
+  "before_room": {
+    "zone_code": "finished_goods_room",
+    "name": "成品间",
+    "bbox_mm": [
+      86680,
+      33534,
+      105280,
+      65934
+    ],
+    "x_mm": 86680,
+    "y_mm": 33534,
+    "width_mm": 18600,
+    "depth_mm": 32400,
+    "authority_width_m": "32.4",
+    "authority_depth_m": "18.6",
+    "rotation_deg": 90,
+    "area_m2": "602.64",
+    "required_area_m2": "602.64",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-finished_goods_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "602.64",
+      "reporting_projection": null
+    },
+    "internal_columns": [
+      "COLUMN-41502",
+      "COLUMN-41485",
+      "COLUMN-41976",
+      "COLUMN-41486",
+      "COLUMN-41977",
+      "COLUMN-41487"
+    ],
+    "column_area_m2": "0.3603",
+    "floor_minus_columns_m2": "602.2797",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  "after_room": {
+    "zone_code": "finished_goods_room",
+    "name": "成品间",
+    "bbox_mm": [
+      86680,
+      33534,
+      107880,
+      64734
+    ],
+    "x_mm": 86680,
+    "y_mm": 33534,
+    "width_mm": 21200,
+    "depth_mm": 31200,
+    "authority_width_m": "31.2",
+    "authority_depth_m": "21.2",
+    "rotation_deg": 90,
+    "area_m2": "661.44",
+    "required_area_m2": "661.44",
+    "dimension_mode": "DETERMINISTIC_GRID_RECTANGLE",
+    "dimension_authority_identity": "upstream-storage-grid-finished_goods_room@1.0.0",
+    "area_requirement": {
+      "exact_authority": null,
+      "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+      "reported_required_area_m2": "661.44",
+      "reporting_projection": null
+    },
+    "internal_columns": [
+      "COLUMN-41502",
+      "COLUMN-41485",
+      "COLUMN-41976",
+      "COLUMN-41486",
+      "COLUMN-41977",
+      "COLUMN-41487"
+    ],
+    "column_area_m2": "0.3603",
+    "floor_minus_columns_m2": "661.0797",
+    "net_functional_capacity_status": "NOT_EVALUATED_GROSS_P1_AREA_IS_NOT_NET_CAPACITY"
+  },
+  "source_after_result_hash": "sha256:616583ed5507ef5af7aa6b19b057a9a8881aecd7ea5abeec24f5ad28e2a912da",
+  "after_status": "INTERRUPTED_PROCESS_CANDIDATE",
+  "remaining_static_conflicts": [
+    {
+      "code": "RESERVED_AISLE_OCCUPIED",
+      "room": "finished_goods_room",
+      "aisle": "STORAGE-MAIN",
+      "other": "COLUMN-41485"
+    },
+    {
+      "code": "RESERVED_AISLE_OCCUPIED",
+      "room": "finished_goods_room",
+      "aisle": "STORAGE-MAIN",
+      "other": "COLUMN-41486"
+    },
+    {
+      "code": "RESERVED_AISLE_OCCUPIED",
+      "room": "finished_goods_room",
+      "aisle": "STORAGE-MAIN",
+      "other": "COLUMN-41487"
+    }
+  ],
+  "global_infeasibility_proven": false,
+  "note": "New room geometry is computed. Original reserved storage aisle intersects three retained columns; the changed input is not reported as a globally accepted candidate. Six route-only chains do not replace this failed static reservation."
+}

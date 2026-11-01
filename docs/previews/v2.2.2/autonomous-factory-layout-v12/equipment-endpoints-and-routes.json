@@ -1,0 +1,6948 @@
+{
+  "source_candidate_hash": "sha256:9bad1a80516b2916bfd4452177d8377e6ea699d733fa0d00777ede3dd5879d3e",
+  "endpoints": [
+    {
+      "id": "raw_fruit_buffer-PAL-005:PALLET-TRANSFER",
+      "object_id": "raw_fruit_buffer-PAL-005",
+      "room": "raw_fruit_buffer",
+      "role": "PALLET-TRANSFER",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        17070,
+        42293
+      ],
+      "dock_reference_mm": [
+        16770,
+        42293
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        15870,
+        41793,
+        17070,
+        42793
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PRI-C1-P6:PALLET-TRANSFER",
+      "object_id": "PRI-C1-P6",
+      "room": "primary_precooling_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        24370,
+        41243
+      ],
+      "dock_reference_mm": [
+        24370,
+        40943
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        23870,
+        40043,
+        24870,
+        41243
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "SEC-C1-P6:PALLET-TRANSFER",
+      "object_id": "SEC-C1-P6",
+      "room": "secondary_precooling_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        81180,
+        27643
+      ],
+      "dock_reference_mm": [
+        81180,
+        27343
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        80680,
+        26443,
+        81680,
+        27643
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "RAW-UNLOAD:PALLET-TRANSFER",
+      "object_id": "RAW-UNLOAD",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        58320,
+        31399
+      ],
+      "dock_reference_mm": [
+        58320,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        57820,
+        30199,
+        58820,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "RAW-UNLOAD:CRATE-OUT",
+      "object_id": "RAW-UNLOAD",
+      "room": "sorting_packaging_room",
+      "role": "CRATE-OUT",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        58320,
+        31399
+      ],
+      "dock_reference_mm": [
+        58320,
+        31849
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        57820,
+        30199,
+        58820,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "DEPALLETIZE:PALLET-TRANSFER",
+      "object_id": "DEPALLETIZE",
+      "room": "coating_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        89780,
+        29984
+      ],
+      "dock_reference_mm": [
+        89780,
+        29684
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        89280,
+        28784,
+        90280,
+        29984
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "REPALLETIZE:PALLET-TRANSFER",
+      "object_id": "REPALLETIZE",
+      "room": "coating_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        99838,
+        29984
+      ],
+      "dock_reference_mm": [
+        99838,
+        29684
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        99338,
+        28784,
+        100338,
+        29984
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "DEPALLETIZE:E",
+      "object_id": "DEPALLETIZE",
+      "room": "coating_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        90280,
+        29384
+      ],
+      "object_bbox_mm": [
+        89280,
+        28784,
+        90280,
+        29984
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "FILM-INFEED:W",
+      "object_id": "FILM-INFEED",
+      "room": "coating_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        90480,
+        29384
+      ],
+      "object_bbox_mm": [
+        90480,
+        28566,
+        92164,
+        30202
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "FILM-INFEED:E",
+      "object_id": "FILM-INFEED",
+      "room": "coating_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        92164,
+        29384
+      ],
+      "object_bbox_mm": [
+        90480,
+        28566,
+        92164,
+        30202
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "FILM-SEALER:W",
+      "object_id": "FILM-SEALER",
+      "room": "coating_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        92164,
+        29384
+      ],
+      "object_bbox_mm": [
+        92164,
+        28374,
+        94088,
+        30394
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "FILM-SEALER:E",
+      "object_id": "FILM-SEALER",
+      "room": "coating_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        94088,
+        29384
+      ],
+      "object_bbox_mm": [
+        92164,
+        28374,
+        94088,
+        30394
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "FILM-FILM:W",
+      "object_id": "FILM-FILM",
+      "room": "coating_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        94088,
+        29384
+      ],
+      "object_bbox_mm": [
+        94088,
+        28374,
+        97118,
+        30394
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "FILM-FILM:E",
+      "object_id": "FILM-FILM",
+      "room": "coating_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        97118,
+        29384
+      ],
+      "object_bbox_mm": [
+        94088,
+        28374,
+        97118,
+        30394
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "FILM-OUTFEED:W",
+      "object_id": "FILM-OUTFEED",
+      "room": "coating_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        97118,
+        29384
+      ],
+      "object_bbox_mm": [
+        97118,
+        28566,
+        99138,
+        30202
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "FILM-OUTFEED:E",
+      "object_id": "FILM-OUTFEED",
+      "room": "coating_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        99138,
+        29384
+      ],
+      "object_bbox_mm": [
+        97118,
+        28566,
+        99138,
+        30202
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "REPALLETIZE:W",
+      "object_id": "REPALLETIZE",
+      "room": "coating_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        99338,
+        29384
+      ],
+      "object_bbox_mm": [
+        99338,
+        28784,
+        100338,
+        29984
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "finished_goods_room-PAL-024:PALLET-TRANSFER",
+      "object_id": "finished_goods_room-PAL-024",
+      "room": "finished_goods_room",
+      "role": "PALLET-TRANSFER",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        89680,
+        36534
+      ],
+      "dock_reference_mm": [
+        89980,
+        36534
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        89680,
+        36034,
+        90880,
+        37034
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "DISPATCH-01:PALLET-TRANSFER",
+      "object_id": "DISPATCH-01",
+      "room": "shipping_channel",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        80987,
+        36334
+      ],
+      "dock_reference_mm": [
+        80987,
+        36034
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        80487,
+        35134,
+        81487,
+        36334
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-N-01:PALLET-TRANSFER",
+      "object_id": "BUF-N-01",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        34320,
+        31399
+      ],
+      "dock_reference_mm": [
+        34320,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33820,
+        30199,
+        34820,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-N-02:PALLET-TRANSFER",
+      "object_id": "BUF-N-02",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        35520,
+        31399
+      ],
+      "dock_reference_mm": [
+        35520,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        35020,
+        30199,
+        36020,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-N-03:PALLET-TRANSFER",
+      "object_id": "BUF-N-03",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        36720,
+        31399
+      ],
+      "dock_reference_mm": [
+        36720,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        36220,
+        30199,
+        37220,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-N-04:PALLET-TRANSFER",
+      "object_id": "BUF-N-04",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        37920,
+        31399
+      ],
+      "dock_reference_mm": [
+        37920,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        37420,
+        30199,
+        38420,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-N-05:PALLET-TRANSFER",
+      "object_id": "BUF-N-05",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        39120,
+        31399
+      ],
+      "dock_reference_mm": [
+        39120,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        38620,
+        30199,
+        39620,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-N-06:PALLET-TRANSFER",
+      "object_id": "BUF-N-06",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        40320,
+        31399
+      ],
+      "dock_reference_mm": [
+        40320,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        39820,
+        30199,
+        40820,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-N-07:PALLET-TRANSFER",
+      "object_id": "BUF-N-07",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        41520,
+        31399
+      ],
+      "dock_reference_mm": [
+        41520,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        41020,
+        30199,
+        42020,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-S-01:PALLET-TRANSFER",
+      "object_id": "BUF-S-01",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        42720,
+        31399
+      ],
+      "dock_reference_mm": [
+        42720,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        42220,
+        30199,
+        43220,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-S-02:PALLET-TRANSFER",
+      "object_id": "BUF-S-02",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        43920,
+        31399
+      ],
+      "dock_reference_mm": [
+        43920,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        43420,
+        30199,
+        44420,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-S-03:PALLET-TRANSFER",
+      "object_id": "BUF-S-03",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        45120,
+        31399
+      ],
+      "dock_reference_mm": [
+        45120,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        44620,
+        30199,
+        45620,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-S-04:PALLET-TRANSFER",
+      "object_id": "BUF-S-04",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        46320,
+        31399
+      ],
+      "dock_reference_mm": [
+        46320,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        45820,
+        30199,
+        46820,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-S-05:PALLET-TRANSFER",
+      "object_id": "BUF-S-05",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        47520,
+        31399
+      ],
+      "dock_reference_mm": [
+        47520,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        47020,
+        30199,
+        48020,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-S-06:PALLET-TRANSFER",
+      "object_id": "BUF-S-06",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        48720,
+        31399
+      ],
+      "dock_reference_mm": [
+        48720,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        48220,
+        30199,
+        49220,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "BUF-S-07:PALLET-TRANSFER",
+      "object_id": "BUF-S-07",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        49920,
+        31399
+      ],
+      "dock_reference_mm": [
+        49920,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        49420,
+        30199,
+        50420,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-01:RAW-IN",
+      "object_id": "PACK-01",
+      "room": "sorting_packaging_room",
+      "role": "RAW-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        23693
+      ],
+      "dock_reference_mm": [
+        33270,
+        23693
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        23393,
+        61722,
+        23994
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-01:PRODUCT-OUT",
+      "object_id": "PACK-01",
+      "room": "sorting_packaging_room",
+      "role": "PRODUCT-OUT",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        23693
+      ],
+      "dock_reference_mm": [
+        62172,
+        23693
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        23393,
+        61722,
+        23994
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-01:BOX-IN",
+      "object_id": "PACK-01",
+      "room": "sorting_packaging_room",
+      "role": "BOX-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        23693
+      ],
+      "dock_reference_mm": [
+        33270,
+        23693
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        23393,
+        61722,
+        23994
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-01:CASE-IN",
+      "object_id": "WORK-PACK-01",
+      "room": "sorting_packaging_room",
+      "role": "CASE-IN",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        51120,
+        31399
+      ],
+      "dock_reference_mm": [
+        51120,
+        31849
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        50620,
+        30199,
+        51620,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-01:PALLET-TRANSFER",
+      "object_id": "WORK-PACK-01",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        51120,
+        31399
+      ],
+      "dock_reference_mm": [
+        51120,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        50620,
+        30199,
+        51620,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-01:W",
+      "object_id": "PACK-01",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        23693
+      ],
+      "object_bbox_mm": [
+        33720,
+        23393,
+        61722,
+        23994
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-01:E",
+      "object_id": "PACK-01",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        23693
+      ],
+      "object_bbox_mm": [
+        33720,
+        23393,
+        61722,
+        23994
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-02:RAW-IN",
+      "object_id": "PACK-02",
+      "room": "sorting_packaging_room",
+      "role": "RAW-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        25294
+      ],
+      "dock_reference_mm": [
+        33270,
+        25294
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        24994,
+        61722,
+        25595
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-02:PRODUCT-OUT",
+      "object_id": "PACK-02",
+      "room": "sorting_packaging_room",
+      "role": "PRODUCT-OUT",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        25294
+      ],
+      "dock_reference_mm": [
+        62172,
+        25294
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        24994,
+        61722,
+        25595
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-02:BOX-IN",
+      "object_id": "PACK-02",
+      "room": "sorting_packaging_room",
+      "role": "BOX-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        25294
+      ],
+      "dock_reference_mm": [
+        33270,
+        25294
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        24994,
+        61722,
+        25595
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-02:CASE-IN",
+      "object_id": "WORK-PACK-02",
+      "room": "sorting_packaging_room",
+      "role": "CASE-IN",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        52320,
+        31399
+      ],
+      "dock_reference_mm": [
+        52320,
+        31849
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        51820,
+        30199,
+        52820,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-02:PALLET-TRANSFER",
+      "object_id": "WORK-PACK-02",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        52320,
+        31399
+      ],
+      "dock_reference_mm": [
+        52320,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        51820,
+        30199,
+        52820,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-02:W",
+      "object_id": "PACK-02",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        25294
+      ],
+      "object_bbox_mm": [
+        33720,
+        24994,
+        61722,
+        25595
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-02:E",
+      "object_id": "PACK-02",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        25294
+      ],
+      "object_bbox_mm": [
+        33720,
+        24994,
+        61722,
+        25595
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-03:RAW-IN",
+      "object_id": "PACK-03",
+      "room": "sorting_packaging_room",
+      "role": "RAW-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        25945
+      ],
+      "dock_reference_mm": [
+        33270,
+        25945
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        25645,
+        61722,
+        26246
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-03:PRODUCT-OUT",
+      "object_id": "PACK-03",
+      "room": "sorting_packaging_room",
+      "role": "PRODUCT-OUT",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        25945
+      ],
+      "dock_reference_mm": [
+        62172,
+        25945
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        25645,
+        61722,
+        26246
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-03:BOX-IN",
+      "object_id": "PACK-03",
+      "room": "sorting_packaging_room",
+      "role": "BOX-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        25945
+      ],
+      "dock_reference_mm": [
+        33270,
+        25945
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        25645,
+        61722,
+        26246
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-03:CASE-IN",
+      "object_id": "WORK-PACK-03",
+      "room": "sorting_packaging_room",
+      "role": "CASE-IN",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        53520,
+        31399
+      ],
+      "dock_reference_mm": [
+        53520,
+        31849
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        53020,
+        30199,
+        54020,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-03:PALLET-TRANSFER",
+      "object_id": "WORK-PACK-03",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        53520,
+        31399
+      ],
+      "dock_reference_mm": [
+        53520,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        53020,
+        30199,
+        54020,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-03:W",
+      "object_id": "PACK-03",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        25945
+      ],
+      "object_bbox_mm": [
+        33720,
+        25645,
+        61722,
+        26246
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-03:E",
+      "object_id": "PACK-03",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        25945
+      ],
+      "object_bbox_mm": [
+        33720,
+        25645,
+        61722,
+        26246
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-04:RAW-IN",
+      "object_id": "PACK-04",
+      "room": "sorting_packaging_room",
+      "role": "RAW-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        27546
+      ],
+      "dock_reference_mm": [
+        33270,
+        27546
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        27246,
+        61722,
+        27847
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-04:PRODUCT-OUT",
+      "object_id": "PACK-04",
+      "room": "sorting_packaging_room",
+      "role": "PRODUCT-OUT",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        27546
+      ],
+      "dock_reference_mm": [
+        62172,
+        27546
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        27246,
+        61722,
+        27847
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-04:BOX-IN",
+      "object_id": "PACK-04",
+      "room": "sorting_packaging_room",
+      "role": "BOX-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        27546
+      ],
+      "dock_reference_mm": [
+        33270,
+        27546
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        27246,
+        61722,
+        27847
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-04:CASE-IN",
+      "object_id": "WORK-PACK-04",
+      "room": "sorting_packaging_room",
+      "role": "CASE-IN",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        54720,
+        31399
+      ],
+      "dock_reference_mm": [
+        54720,
+        31849
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        54220,
+        30199,
+        55220,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-04:PALLET-TRANSFER",
+      "object_id": "WORK-PACK-04",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        54720,
+        31399
+      ],
+      "dock_reference_mm": [
+        54720,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        54220,
+        30199,
+        55220,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-04:W",
+      "object_id": "PACK-04",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        27546
+      ],
+      "object_bbox_mm": [
+        33720,
+        27246,
+        61722,
+        27847
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-04:E",
+      "object_id": "PACK-04",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        27546
+      ],
+      "object_bbox_mm": [
+        33720,
+        27246,
+        61722,
+        27847
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-05:RAW-IN",
+      "object_id": "PACK-05",
+      "room": "sorting_packaging_room",
+      "role": "RAW-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        28197
+      ],
+      "dock_reference_mm": [
+        33270,
+        28197
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        27897,
+        61722,
+        28498
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-05:PRODUCT-OUT",
+      "object_id": "PACK-05",
+      "room": "sorting_packaging_room",
+      "role": "PRODUCT-OUT",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        28197
+      ],
+      "dock_reference_mm": [
+        62172,
+        28197
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        27897,
+        61722,
+        28498
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-05:BOX-IN",
+      "object_id": "PACK-05",
+      "room": "sorting_packaging_room",
+      "role": "BOX-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        28197
+      ],
+      "dock_reference_mm": [
+        33270,
+        28197
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        27897,
+        61722,
+        28498
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-05:CASE-IN",
+      "object_id": "WORK-PACK-05",
+      "room": "sorting_packaging_room",
+      "role": "CASE-IN",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        55920,
+        31399
+      ],
+      "dock_reference_mm": [
+        55920,
+        31849
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        55420,
+        30199,
+        56420,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-05:PALLET-TRANSFER",
+      "object_id": "WORK-PACK-05",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        55920,
+        31399
+      ],
+      "dock_reference_mm": [
+        55920,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        55420,
+        30199,
+        56420,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-05:W",
+      "object_id": "PACK-05",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        28197
+      ],
+      "object_bbox_mm": [
+        33720,
+        27897,
+        61722,
+        28498
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-05:E",
+      "object_id": "PACK-05",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        28197
+      ],
+      "object_bbox_mm": [
+        33720,
+        27897,
+        61722,
+        28498
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-06:RAW-IN",
+      "object_id": "PACK-06",
+      "room": "sorting_packaging_room",
+      "role": "RAW-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        29798
+      ],
+      "dock_reference_mm": [
+        33270,
+        29798
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        29498,
+        61722,
+        30099
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-06:PRODUCT-OUT",
+      "object_id": "PACK-06",
+      "room": "sorting_packaging_room",
+      "role": "PRODUCT-OUT",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        29798
+      ],
+      "dock_reference_mm": [
+        62172,
+        29798
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        29498,
+        61722,
+        30099
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-06:BOX-IN",
+      "object_id": "PACK-06",
+      "room": "sorting_packaging_room",
+      "role": "BOX-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        29798
+      ],
+      "dock_reference_mm": [
+        33270,
+        29798
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        33720,
+        29498,
+        61722,
+        30099
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-06:CASE-IN",
+      "object_id": "WORK-PACK-06",
+      "room": "sorting_packaging_room",
+      "role": "CASE-IN",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        57120,
+        31399
+      ],
+      "dock_reference_mm": [
+        57120,
+        31849
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        56620,
+        30199,
+        57620,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "WORK-PACK-06:PALLET-TRANSFER",
+      "object_id": "WORK-PACK-06",
+      "room": "sorting_packaging_room",
+      "role": "PALLET-TRANSFER",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        57120,
+        31399
+      ],
+      "dock_reference_mm": [
+        57120,
+        31099
+      ],
+      "carrier": "LOADED_PALLET",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        56620,
+        30199,
+        57620,
+        31399
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-06:W",
+      "object_id": "PACK-06",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        33720,
+        29798
+      ],
+      "object_bbox_mm": [
+        33720,
+        29498,
+        61722,
+        30099
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "PACK-06:E",
+      "object_id": "PACK-06",
+      "room": "sorting_packaging_room",
+      "role": "DECLARED_INTERNAL_CARTON_MOUTH",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        61722,
+        29798
+      ],
+      "object_bbox_mm": [
+        33720,
+        29498,
+        61722,
+        30099
+      ],
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "manufacturer_mouth_clearance_mm": null,
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "packaging_material_storage-PAL-006:BLANKS",
+      "object_id": "packaging_material_storage-PAL-006",
+      "room": "packaging_material_storage",
+      "role": "BLANKS",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        26120,
+        24843
+      ],
+      "dock_reference_mm": [
+        25620,
+        24843
+      ],
+      "carrier": "BLANK_BUNDLE",
+      "carried_pallet": true,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        24920,
+        24343,
+        26120,
+        25343
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "ERECT-01:BLANK-IN",
+      "object_id": "ERECT-01",
+      "room": "sorting_packaging_room",
+      "role": "BLANK-IN",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        68225,
+        23643
+      ],
+      "dock_reference_mm": [
+        68975,
+        23643
+      ],
+      "carrier": "BLANK_BUNDLE",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        64422,
+        20893,
+        68225,
+        26393
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "ERECT-01:CASE-OUT",
+      "object_id": "ERECT-01",
+      "room": "sorting_packaging_room",
+      "role": "CASE-OUT",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        66323,
+        26393
+      ],
+      "dock_reference_mm": [
+        66323,
+        26843
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        64422,
+        20893,
+        68225,
+        26393
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "ERECT-02:BLANK-IN",
+      "object_id": "ERECT-02",
+      "room": "sorting_packaging_room",
+      "role": "BLANK-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        70025,
+        23643
+      ],
+      "dock_reference_mm": [
+        69275,
+        23643
+      ],
+      "carrier": "BLANK_BUNDLE",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        70025,
+        20893,
+        73828,
+        26393
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "ERECT-02:CASE-OUT",
+      "object_id": "ERECT-02",
+      "room": "sorting_packaging_room",
+      "role": "CASE-OUT",
+      "face": "N",
+      "normal": [
+        0,
+        1
+      ],
+      "contact_mm": [
+        71926,
+        26393
+      ],
+      "dock_reference_mm": [
+        71926,
+        26843
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        70025,
+        20893,
+        73828,
+        26393
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "ERECT-03:BLANK-IN",
+      "object_id": "ERECT-03",
+      "room": "sorting_packaging_room",
+      "role": "BLANK-IN",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        68225,
+        31643
+      ],
+      "dock_reference_mm": [
+        68975,
+        31643
+      ],
+      "carrier": "BLANK_BUNDLE",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        64422,
+        28893,
+        68225,
+        34393
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "ERECT-03:CASE-OUT",
+      "object_id": "ERECT-03",
+      "room": "sorting_packaging_room",
+      "role": "CASE-OUT",
+      "face": "S",
+      "normal": [
+        0,
+        -1
+      ],
+      "contact_mm": [
+        66323,
+        28893
+      ],
+      "dock_reference_mm": [
+        66323,
+        28443
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        64422,
+        28893,
+        68225,
+        34393
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "ERECT-04:BLANK-IN",
+      "object_id": "ERECT-04",
+      "room": "sorting_packaging_room",
+      "role": "BLANK-IN",
+      "face": "W",
+      "normal": [
+        -1,
+        0
+      ],
+      "contact_mm": [
+        70025,
+        31643
+      ],
+      "dock_reference_mm": [
+        69275,
+        31643
+      ],
+      "carrier": "BLANK_BUNDLE",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        70025,
+        28893,
+        73828,
+        34393
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "ERECT-04:CASE-OUT",
+      "object_id": "ERECT-04",
+      "room": "sorting_packaging_room",
+      "role": "CASE-OUT",
+      "face": "S",
+      "normal": [
+        0,
+        -1
+      ],
+      "contact_mm": [
+        71926,
+        28893
+      ],
+      "dock_reference_mm": [
+        71926,
+        28443
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        70025,
+        28893,
+        73828,
+        34393
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "ERECT-05:BLANK-IN",
+      "object_id": "ERECT-05",
+      "room": "packaging_material_storage",
+      "role": "BLANK-IN",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        26020,
+        31741
+      ],
+      "dock_reference_mm": [
+        26770,
+        31741
+      ],
+      "carrier": "BLANK_BUNDLE",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        20520,
+        30540,
+        26020,
+        34343
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    {
+      "id": "ERECT-05:CASE-OUT",
+      "object_id": "ERECT-05",
+      "room": "packaging_material_storage",
+      "role": "CASE-OUT",
+      "face": "E",
+      "normal": [
+        1,
+        0
+      ],
+      "contact_mm": [
+        26020,
+        33141
+      ],
+      "dock_reference_mm": [
+        26470,
+        33141
+      ],
+      "carrier": "CARTON_CARRY",
+      "carried_pallet": false,
+      "load_dimensions_compatible": true,
+      "interface_basis": "DESIGN_ASSUMPTION_NOT_VENDOR_CONFIRMED",
+      "object_bbox_mm": [
+        20520,
+        30540,
+        26020,
+        34343
+      ],
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    }
+  ],
+  "product_chains": [
+    {
+      "id": "PRODUCT-CHAIN-1",
+      "line": "PACK-01",
+      "service_group": "N",
+      "stages": [
+        {
+          "route_id": "PRODUCT-RAW-PRI",
+          "source_object": "raw_fruit_buffer-PAL-005",
+          "target_object": "PRI-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-PRI-PACKING",
+          "source_object": "PRI-C1-P6",
+          "target_object": "RAW-UNLOAD",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "RAW-LINE-1",
+          "source_object": "RAW-UNLOAD",
+          "target_object": "PACK-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PROCESS-PACK-01",
+          "source_object": "PACK-01",
+          "target_object": "PACK-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PACK-PALLET-1",
+          "source_object": "PACK-01",
+          "target_object": "WORK-PACK-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINE-BUFFER-1",
+          "source_object": "WORK-PACK-01",
+          "target_object": "BUF-N-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "BUFFER-SEC-BUF-N-01",
+          "source_object": "BUF-N-01",
+          "target_object": "SEC-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-SEC-DEPAL",
+          "source_object": "SEC-C1-P6",
+          "target_object": "DEPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-DEPAL-INFEED",
+          "source_object": "DEPALLETIZE",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-OUTFEED",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-OUT-REPAL",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "REPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-REPAL-FINISHED",
+          "source_object": "REPALLETIZE",
+          "target_object": "finished_goods_room-PAL-024",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-FINISHED-DISPATCH",
+          "source_object": "finished_goods_room-PAL-024",
+          "target_object": "DISPATCH-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        }
+      ],
+      "failed_segments": [],
+      "continuous_object_chain": true,
+      "length_mm": 278246,
+      "status": "CONTINUOUS_CONDITIONAL_CHAIN",
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+    },
+    {
+      "id": "PRODUCT-CHAIN-2",
+      "line": "PACK-02",
+      "service_group": "N",
+      "stages": [
+        {
+          "route_id": "PRODUCT-RAW-PRI",
+          "source_object": "raw_fruit_buffer-PAL-005",
+          "target_object": "PRI-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-PRI-PACKING",
+          "source_object": "PRI-C1-P6",
+          "target_object": "RAW-UNLOAD",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "RAW-LINE-2",
+          "source_object": "RAW-UNLOAD",
+          "target_object": "PACK-02",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PROCESS-PACK-02",
+          "source_object": "PACK-02",
+          "target_object": "PACK-02",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PACK-PALLET-2",
+          "source_object": "PACK-02",
+          "target_object": "WORK-PACK-02",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINE-BUFFER-2",
+          "source_object": "WORK-PACK-02",
+          "target_object": "BUF-N-02",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "BUFFER-SEC-BUF-N-02",
+          "source_object": "BUF-N-02",
+          "target_object": "SEC-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-SEC-DEPAL",
+          "source_object": "SEC-C1-P6",
+          "target_object": "DEPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-DEPAL-INFEED",
+          "source_object": "DEPALLETIZE",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-OUTFEED",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-OUT-REPAL",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "REPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-REPAL-FINISHED",
+          "source_object": "REPALLETIZE",
+          "target_object": "finished_goods_room-PAL-024",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-FINISHED-DISPATCH",
+          "source_object": "finished_goods_room-PAL-024",
+          "target_object": "DISPATCH-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        }
+      ],
+      "failed_segments": [],
+      "continuous_object_chain": true,
+      "length_mm": 272644,
+      "status": "CONTINUOUS_CONDITIONAL_CHAIN",
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+    },
+    {
+      "id": "PRODUCT-CHAIN-3",
+      "line": "PACK-03",
+      "service_group": "N",
+      "stages": [
+        {
+          "route_id": "PRODUCT-RAW-PRI",
+          "source_object": "raw_fruit_buffer-PAL-005",
+          "target_object": "PRI-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-PRI-PACKING",
+          "source_object": "PRI-C1-P6",
+          "target_object": "RAW-UNLOAD",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "RAW-LINE-3",
+          "source_object": "RAW-UNLOAD",
+          "target_object": "PACK-03",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PROCESS-PACK-03",
+          "source_object": "PACK-03",
+          "target_object": "PACK-03",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PACK-PALLET-3",
+          "source_object": "PACK-03",
+          "target_object": "WORK-PACK-03",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINE-BUFFER-3",
+          "source_object": "WORK-PACK-03",
+          "target_object": "BUF-N-03",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "BUFFER-SEC-BUF-N-03",
+          "source_object": "BUF-N-03",
+          "target_object": "SEC-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-SEC-DEPAL",
+          "source_object": "SEC-C1-P6",
+          "target_object": "DEPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-DEPAL-INFEED",
+          "source_object": "DEPALLETIZE",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-OUTFEED",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-OUT-REPAL",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "REPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-REPAL-FINISHED",
+          "source_object": "REPALLETIZE",
+          "target_object": "finished_goods_room-PAL-024",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-FINISHED-DISPATCH",
+          "source_object": "finished_goods_room-PAL-024",
+          "target_object": "DISPATCH-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        }
+      ],
+      "failed_segments": [],
+      "continuous_object_chain": true,
+      "length_mm": 268942,
+      "status": "CONTINUOUS_CONDITIONAL_CHAIN",
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+    },
+    {
+      "id": "PRODUCT-CHAIN-4",
+      "line": "PACK-04",
+      "service_group": "S",
+      "stages": [
+        {
+          "route_id": "PRODUCT-RAW-PRI",
+          "source_object": "raw_fruit_buffer-PAL-005",
+          "target_object": "PRI-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-PRI-PACKING",
+          "source_object": "PRI-C1-P6",
+          "target_object": "RAW-UNLOAD",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "RAW-LINE-4",
+          "source_object": "RAW-UNLOAD",
+          "target_object": "PACK-04",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PROCESS-PACK-04",
+          "source_object": "PACK-04",
+          "target_object": "PACK-04",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PACK-PALLET-4",
+          "source_object": "PACK-04",
+          "target_object": "WORK-PACK-04",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINE-BUFFER-4",
+          "source_object": "WORK-PACK-04",
+          "target_object": "BUF-S-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "BUFFER-SEC-BUF-S-01",
+          "source_object": "BUF-S-01",
+          "target_object": "SEC-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-SEC-DEPAL",
+          "source_object": "SEC-C1-P6",
+          "target_object": "DEPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-DEPAL-INFEED",
+          "source_object": "DEPALLETIZE",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-OUTFEED",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-OUT-REPAL",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "REPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-REPAL-FINISHED",
+          "source_object": "REPALLETIZE",
+          "target_object": "finished_goods_room-PAL-024",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-FINISHED-DISPATCH",
+          "source_object": "finished_goods_room-PAL-024",
+          "target_object": "DISPATCH-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        }
+      ],
+      "failed_segments": [],
+      "continuous_object_chain": true,
+      "length_mm": 253740,
+      "status": "CONTINUOUS_CONDITIONAL_CHAIN",
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+    },
+    {
+      "id": "PRODUCT-CHAIN-5",
+      "line": "PACK-05",
+      "service_group": "S",
+      "stages": [
+        {
+          "route_id": "PRODUCT-RAW-PRI",
+          "source_object": "raw_fruit_buffer-PAL-005",
+          "target_object": "PRI-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-PRI-PACKING",
+          "source_object": "PRI-C1-P6",
+          "target_object": "RAW-UNLOAD",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "RAW-LINE-5",
+          "source_object": "RAW-UNLOAD",
+          "target_object": "PACK-05",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PROCESS-PACK-05",
+          "source_object": "PACK-05",
+          "target_object": "PACK-05",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PACK-PALLET-5",
+          "source_object": "PACK-05",
+          "target_object": "WORK-PACK-05",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINE-BUFFER-5",
+          "source_object": "WORK-PACK-05",
+          "target_object": "BUF-S-02",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "BUFFER-SEC-BUF-S-02",
+          "source_object": "BUF-S-02",
+          "target_object": "SEC-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-SEC-DEPAL",
+          "source_object": "SEC-C1-P6",
+          "target_object": "DEPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-DEPAL-INFEED",
+          "source_object": "DEPALLETIZE",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-OUTFEED",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-OUT-REPAL",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "REPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-REPAL-FINISHED",
+          "source_object": "REPALLETIZE",
+          "target_object": "finished_goods_room-PAL-024",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-FINISHED-DISPATCH",
+          "source_object": "finished_goods_room-PAL-024",
+          "target_object": "DISPATCH-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        }
+      ],
+      "failed_segments": [],
+      "continuous_object_chain": true,
+      "length_mm": 250038,
+      "status": "CONTINUOUS_CONDITIONAL_CHAIN",
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+    },
+    {
+      "id": "PRODUCT-CHAIN-6",
+      "line": "PACK-06",
+      "service_group": "S",
+      "stages": [
+        {
+          "route_id": "PRODUCT-RAW-PRI",
+          "source_object": "raw_fruit_buffer-PAL-005",
+          "target_object": "PRI-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-PRI-PACKING",
+          "source_object": "PRI-C1-P6",
+          "target_object": "RAW-UNLOAD",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "RAW-LINE-6",
+          "source_object": "RAW-UNLOAD",
+          "target_object": "PACK-06",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PROCESS-PACK-06",
+          "source_object": "PACK-06",
+          "target_object": "PACK-06",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PACK-PALLET-6",
+          "source_object": "PACK-06",
+          "target_object": "WORK-PACK-06",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINE-BUFFER-6",
+          "source_object": "WORK-PACK-06",
+          "target_object": "BUF-S-03",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "BUFFER-SEC-BUF-S-03",
+          "source_object": "BUF-S-03",
+          "target_object": "SEC-C1-P6",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-SEC-DEPAL",
+          "source_object": "SEC-C1-P6",
+          "target_object": "DEPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-DEPAL-INFEED",
+          "source_object": "DEPALLETIZE",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-INFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-INFEED",
+          "source_object": "FILM-INFEED",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-SEALER",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-SEALER",
+          "source_object": "FILM-SEALER",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-FILM",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "LINK-FILM-FILM",
+          "source_object": "FILM-FILM",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "INTERNAL-FILM-OUTFEED",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "FILM-OUTFEED",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "FILM-OUT-REPAL",
+          "source_object": "FILM-OUTFEED",
+          "target_object": "REPALLETIZE",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-REPAL-FINISHED",
+          "source_object": "REPALLETIZE",
+          "target_object": "finished_goods_room-PAL-024",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        },
+        {
+          "route_id": "PRODUCT-FINISHED-DISPATCH",
+          "source_object": "finished_goods_room-PAL-024",
+          "target_object": "DISPATCH-01",
+          "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+        }
+      ],
+      "failed_segments": [],
+      "continuous_object_chain": true,
+      "length_mm": 244436,
+      "status": "CONTINUOUS_CONDITIONAL_CHAIN",
+      "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE"
+    }
+  ],
+  "case_supply": {
+    "erector_count": 5,
+    "blank_supply_routes": [
+      "BLANK-ERECT-01",
+      "BLANK-ERECT-02",
+      "BLANK-ERECT-03",
+      "BLANK-ERECT-04",
+      "BLANK-ERECT-05"
+    ],
+    "all_five_blank_supplies_verified": true,
+    "bounded_assignment_count": 1800,
+    "line_assignments": [
+      {
+        "line": "PACK-01",
+        "erector": "ERECT-01",
+        "route_id": "EMPTY-CASE-ERECT-01-LINE-1",
+        "length_mm": 42505
+      },
+      {
+        "line": "PACK-02",
+        "erector": "ERECT-02",
+        "route_id": "EMPTY-CASE-ERECT-02-LINE-2",
+        "length_mm": 49709
+      },
+      {
+        "line": "PACK-03",
+        "erector": "ERECT-03",
+        "route_id": "EMPTY-CASE-ERECT-03-LINE-3",
+        "length_mm": 44757
+      },
+      {
+        "line": "PACK-04",
+        "erector": "ERECT-05",
+        "route_id": "EMPTY-CASE-ERECT-05-LINE-4",
+        "length_mm": 12395
+      },
+      {
+        "line": "PACK-05",
+        "erector": "ERECT-05",
+        "route_id": "EMPTY-CASE-ERECT-05-LINE-5",
+        "length_mm": 12852
+      },
+      {
+        "line": "PACK-06",
+        "erector": "ERECT-04",
+        "route_id": "EMPTY-CASE-ERECT-04-LINE-6",
+        "length_mm": 48915
+      }
+    ],
+    "status": "FIVE_ERECTORS_SIX_LINES_CONNECTED"
+  },
+  "routes_file": "autonomous-layout-A12.json",
+  "routes_json_pointer": "/process_continuity/routes",
+  "route_summaries": [
+    {
+      "id": "PRODUCT-RAW-PRI",
+      "source_endpoint": "raw_fruit_buffer-PAL-005:PALLET-TRANSFER",
+      "target_endpoint": "PRI-C1-P6:PALLET-TRANSFER",
+      "purpose": "RAW_CRATES_TO_PRIMARY_PRECOOL",
+      "centerline_mm": [
+        [
+          16770,
+          42293
+        ],
+        [
+          18320,
+          42293
+        ],
+        [
+          18320,
+          43243
+        ],
+        [
+          18820,
+          43243
+        ],
+        [
+          21320,
+          43243
+        ],
+        [
+          21320,
+          43143
+        ],
+        [
+          24370,
+          43143
+        ],
+        [
+          24370,
+          40943
+        ]
+      ],
+      "length_mm": 10850,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PRODUCT-PRI-PACKING",
+      "source_endpoint": "PRI-C1-P6:PALLET-TRANSFER",
+      "target_endpoint": "RAW-UNLOAD:PALLET-TRANSFER",
+      "purpose": "PRIMARY_PRECOOL_TO_RAW_UNLOAD",
+      "centerline_mm": [
+        [
+          24370,
+          40943
+        ],
+        [
+          24370,
+          43143
+        ],
+        [
+          32419,
+          43143
+        ],
+        [
+          32419,
+          35693
+        ],
+        [
+          32945,
+          35693
+        ],
+        [
+          32945,
+          33193
+        ],
+        [
+          32945,
+          32649
+        ],
+        [
+          58320,
+          32649
+        ],
+        [
+          58320,
+          31099
+        ]
+      ],
+      "length_mm": 48194,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PRODUCT-SEC-DEPAL",
+      "source_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "target_endpoint": "DEPALLETIZE:PALLET-TRANSFER",
+      "purpose": "SECONDARY_PRECOOL_TO_DEPALLETIZE",
+      "centerline_mm": [
+        [
+          81180,
+          27343
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          29643
+        ],
+        [
+          85430,
+          29643
+        ],
+        [
+          87930,
+          29643
+        ],
+        [
+          87930,
+          31452
+        ],
+        [
+          89780,
+          31452
+        ],
+        [
+          89780,
+          29684
+        ]
+      ],
+      "length_mm": 14477,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "FILM-DEPAL-INFEED",
+      "source_endpoint": "DEPALLETIZE:E",
+      "target_endpoint": "FILM-INFEED:W",
+      "purpose": "CARTON_SHORT_HANDOFF",
+      "centerline_mm": [
+        [
+          90280,
+          29384
+        ],
+        [
+          90480,
+          29384
+        ]
+      ],
+      "length_mm": 200,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "INTERNAL-FILM-INFEED",
+      "source_endpoint": "FILM-INFEED:W",
+      "target_endpoint": "FILM-INFEED:E",
+      "purpose": "CARTON_MACHINE_INTERNAL",
+      "centerline_mm": [
+        [
+          90480,
+          29384
+        ],
+        [
+          92164,
+          29384
+        ]
+      ],
+      "length_mm": 1684,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "LINK-FILM-INFEED",
+      "source_endpoint": "FILM-INFEED:E",
+      "target_endpoint": "FILM-SEALER:W",
+      "purpose": "CARTON_SHORT_HANDOFF",
+      "centerline_mm": [
+        [
+          92164,
+          29384
+        ],
+        [
+          92164,
+          29384
+        ]
+      ],
+      "length_mm": 0,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "INTERNAL-FILM-SEALER",
+      "source_endpoint": "FILM-SEALER:W",
+      "target_endpoint": "FILM-SEALER:E",
+      "purpose": "CARTON_MACHINE_INTERNAL",
+      "centerline_mm": [
+        [
+          92164,
+          29384
+        ],
+        [
+          94088,
+          29384
+        ]
+      ],
+      "length_mm": 1924,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "LINK-FILM-SEALER",
+      "source_endpoint": "FILM-SEALER:E",
+      "target_endpoint": "FILM-FILM:W",
+      "purpose": "CARTON_SHORT_HANDOFF",
+      "centerline_mm": [
+        [
+          94088,
+          29384
+        ],
+        [
+          94088,
+          29384
+        ]
+      ],
+      "length_mm": 0,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "INTERNAL-FILM-FILM",
+      "source_endpoint": "FILM-FILM:W",
+      "target_endpoint": "FILM-FILM:E",
+      "purpose": "CARTON_MACHINE_INTERNAL",
+      "centerline_mm": [
+        [
+          94088,
+          29384
+        ],
+        [
+          97118,
+          29384
+        ]
+      ],
+      "length_mm": 3030,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "LINK-FILM-FILM",
+      "source_endpoint": "FILM-FILM:E",
+      "target_endpoint": "FILM-OUTFEED:W",
+      "purpose": "CARTON_SHORT_HANDOFF",
+      "centerline_mm": [
+        [
+          97118,
+          29384
+        ],
+        [
+          97118,
+          29384
+        ]
+      ],
+      "length_mm": 0,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "INTERNAL-FILM-OUTFEED",
+      "source_endpoint": "FILM-OUTFEED:W",
+      "target_endpoint": "FILM-OUTFEED:E",
+      "purpose": "CARTON_MACHINE_INTERNAL",
+      "centerline_mm": [
+        [
+          97118,
+          29384
+        ],
+        [
+          99138,
+          29384
+        ]
+      ],
+      "length_mm": 2020,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "FILM-OUT-REPAL",
+      "source_endpoint": "FILM-OUTFEED:E",
+      "target_endpoint": "REPALLETIZE:W",
+      "purpose": "CARTON_SHORT_HANDOFF",
+      "centerline_mm": [
+        [
+          99138,
+          29384
+        ],
+        [
+          99338,
+          29384
+        ]
+      ],
+      "length_mm": 200,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PRODUCT-REPAL-FINISHED",
+      "source_endpoint": "REPALLETIZE:PALLET-TRANSFER",
+      "target_endpoint": "finished_goods_room-PAL-024:PALLET-TRANSFER",
+      "purpose": "FILMED_PALLET_TO_FINISHED_STORE",
+      "centerline_mm": [
+        [
+          99838,
+          29684
+        ],
+        [
+          99838,
+          31452
+        ],
+        [
+          99838,
+          32284
+        ],
+        [
+          87930,
+          32284
+        ],
+        [
+          87930,
+          34784
+        ],
+        [
+          87930,
+          36534
+        ],
+        [
+          88430,
+          36534
+        ],
+        [
+          89980,
+          36534
+        ]
+      ],
+      "length_mm": 20808,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PRODUCT-FINISHED-DISPATCH",
+      "source_endpoint": "finished_goods_room-PAL-024:PALLET-TRANSFER",
+      "target_endpoint": "DISPATCH-01:PALLET-TRANSFER",
+      "purpose": "FINISHED_STORE_TO_DISPATCH",
+      "centerline_mm": [
+        [
+          89980,
+          36534
+        ],
+        [
+          88430,
+          36534
+        ],
+        [
+          88430,
+          36784
+        ],
+        [
+          87930,
+          36784
+        ],
+        [
+          85430,
+          36784
+        ],
+        [
+          85352,
+          36784
+        ],
+        [
+          85352,
+          37001
+        ],
+        [
+          82648,
+          37001
+        ],
+        [
+          82648,
+          36034
+        ],
+        [
+          80987,
+          36034
+        ]
+      ],
+      "length_mm": 10427,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-N-01",
+      "source_endpoint": "BUF-N-01:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          34320,
+          31099
+        ],
+        [
+          34320,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 57716,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-N-02",
+      "source_endpoint": "BUF-N-02:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          35520,
+          31099
+        ],
+        [
+          35520,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 56516,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-N-03",
+      "source_endpoint": "BUF-N-03:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          36720,
+          31099
+        ],
+        [
+          36720,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 55316,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-N-04",
+      "source_endpoint": "BUF-N-04:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          37920,
+          31099
+        ],
+        [
+          37920,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 54116,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-N-05",
+      "source_endpoint": "BUF-N-05:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          39120,
+          31099
+        ],
+        [
+          39120,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 52916,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-N-06",
+      "source_endpoint": "BUF-N-06:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          40320,
+          31099
+        ],
+        [
+          40320,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 51716,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-N-07",
+      "source_endpoint": "BUF-N-07:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          41520,
+          31099
+        ],
+        [
+          41520,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 50516,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-S-01",
+      "source_endpoint": "BUF-S-01:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          42720,
+          31099
+        ],
+        [
+          42720,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 49316,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-S-02",
+      "source_endpoint": "BUF-S-02:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          43920,
+          31099
+        ],
+        [
+          43920,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 48116,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-S-03",
+      "source_endpoint": "BUF-S-03:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          45120,
+          31099
+        ],
+        [
+          45120,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 46916,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-S-04",
+      "source_endpoint": "BUF-S-04:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          46320,
+          31099
+        ],
+        [
+          46320,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 45716,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-S-05",
+      "source_endpoint": "BUF-S-05:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          47520,
+          31099
+        ],
+        [
+          47520,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 44516,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-S-06",
+      "source_endpoint": "BUF-S-06:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          48720,
+          31099
+        ],
+        [
+          48720,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 43316,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BUFFER-SEC-BUF-S-07",
+      "source_endpoint": "BUF-S-07:PALLET-TRANSFER",
+      "target_endpoint": "SEC-C1-P6:PALLET-TRANSFER",
+      "purpose": "BUFFER_POSITION_TO_SECONDARY_PRECOOL",
+      "centerline_mm": [
+        [
+          49920,
+          31099
+        ],
+        [
+          49920,
+          32649
+        ],
+        [
+          63171,
+          32649
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          75079,
+          27643
+        ],
+        [
+          75079,
+          29643
+        ],
+        [
+          75630,
+          29643
+        ],
+        [
+          78130,
+          29643
+        ],
+        [
+          78130,
+          29543
+        ],
+        [
+          81180,
+          29543
+        ],
+        [
+          81180,
+          27343
+        ]
+      ],
+      "length_mm": 42116,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "RAW-LINE-1",
+      "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
+      "target_endpoint": "PACK-01:RAW-IN",
+      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "centerline_mm": [
+        [
+          58320,
+          31849
+        ],
+        [
+          58320,
+          32649
+        ],
+        [
+          32470,
+          32649
+        ],
+        [
+          32470,
+          23693
+        ],
+        [
+          33270,
+          23693
+        ]
+      ],
+      "length_mm": 36406,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PROCESS-PACK-01",
+      "source_endpoint": "PACK-01:W",
+      "target_endpoint": "PACK-01:E",
+      "purpose": "PACKING_MACHINE_INTERNAL",
+      "centerline_mm": [
+        [
+          33720,
+          23693
+        ],
+        [
+          61722,
+          23693
+        ]
+      ],
+      "length_mm": 28002,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PACK-PALLET-1",
+      "source_endpoint": "PACK-01:PRODUCT-OUT",
+      "target_endpoint": "WORK-PACK-01:CASE-IN",
+      "purpose": "PACKED_CARTONS_TO_LINE_PALLET_WORKPLACE",
+      "centerline_mm": [
+        [
+          62172,
+          23693
+        ],
+        [
+          62972,
+          23693
+        ],
+        [
+          62972,
+          32649
+        ],
+        [
+          51120,
+          32649
+        ],
+        [
+          51120,
+          31849
+        ]
+      ],
+      "length_mm": 22408,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "LINE-BUFFER-1",
+      "source_endpoint": "WORK-PACK-01:PALLET-TRANSFER",
+      "target_endpoint": "BUF-N-01:PALLET-TRANSFER",
+      "purpose": "FULL_PALLET_TO_ASSIGNED_BUFFER",
+      "centerline_mm": [
+        [
+          51120,
+          31099
+        ],
+        [
+          51120,
+          32649
+        ],
+        [
+          34320,
+          32649
+        ],
+        [
+          34320,
+          31099
+        ]
+      ],
+      "length_mm": 19900,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "RAW-LINE-2",
+      "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
+      "target_endpoint": "PACK-02:RAW-IN",
+      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "centerline_mm": [
+        [
+          58320,
+          31849
+        ],
+        [
+          58320,
+          32649
+        ],
+        [
+          32470,
+          32649
+        ],
+        [
+          32470,
+          25294
+        ],
+        [
+          33270,
+          25294
+        ]
+      ],
+      "length_mm": 34805,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PROCESS-PACK-02",
+      "source_endpoint": "PACK-02:W",
+      "target_endpoint": "PACK-02:E",
+      "purpose": "PACKING_MACHINE_INTERNAL",
+      "centerline_mm": [
+        [
+          33720,
+          25294
+        ],
+        [
+          61722,
+          25294
+        ]
+      ],
+      "length_mm": 28002,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PACK-PALLET-2",
+      "source_endpoint": "PACK-02:PRODUCT-OUT",
+      "target_endpoint": "WORK-PACK-02:CASE-IN",
+      "purpose": "PACKED_CARTONS_TO_LINE_PALLET_WORKPLACE",
+      "centerline_mm": [
+        [
+          62172,
+          25294
+        ],
+        [
+          62972,
+          25294
+        ],
+        [
+          62972,
+          32649
+        ],
+        [
+          52320,
+          32649
+        ],
+        [
+          52320,
+          31849
+        ]
+      ],
+      "length_mm": 19607,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "LINE-BUFFER-2",
+      "source_endpoint": "WORK-PACK-02:PALLET-TRANSFER",
+      "target_endpoint": "BUF-N-02:PALLET-TRANSFER",
+      "purpose": "FULL_PALLET_TO_ASSIGNED_BUFFER",
+      "centerline_mm": [
+        [
+          52320,
+          31099
+        ],
+        [
+          52320,
+          32649
+        ],
+        [
+          35520,
+          32649
+        ],
+        [
+          35520,
+          31099
+        ]
+      ],
+      "length_mm": 19900,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "RAW-LINE-3",
+      "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
+      "target_endpoint": "PACK-03:RAW-IN",
+      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "centerline_mm": [
+        [
+          58320,
+          31849
+        ],
+        [
+          58320,
+          32649
+        ],
+        [
+          32470,
+          32649
+        ],
+        [
+          32470,
+          25945
+        ],
+        [
+          33270,
+          25945
+        ]
+      ],
+      "length_mm": 34154,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PROCESS-PACK-03",
+      "source_endpoint": "PACK-03:W",
+      "target_endpoint": "PACK-03:E",
+      "purpose": "PACKING_MACHINE_INTERNAL",
+      "centerline_mm": [
+        [
+          33720,
+          25945
+        ],
+        [
+          61722,
+          25945
+        ]
+      ],
+      "length_mm": 28002,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PACK-PALLET-3",
+      "source_endpoint": "PACK-03:PRODUCT-OUT",
+      "target_endpoint": "WORK-PACK-03:CASE-IN",
+      "purpose": "PACKED_CARTONS_TO_LINE_PALLET_WORKPLACE",
+      "centerline_mm": [
+        [
+          62172,
+          25945
+        ],
+        [
+          62972,
+          25945
+        ],
+        [
+          62972,
+          32649
+        ],
+        [
+          53520,
+          32649
+        ],
+        [
+          53520,
+          31849
+        ]
+      ],
+      "length_mm": 17756,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "LINE-BUFFER-3",
+      "source_endpoint": "WORK-PACK-03:PALLET-TRANSFER",
+      "target_endpoint": "BUF-N-03:PALLET-TRANSFER",
+      "purpose": "FULL_PALLET_TO_ASSIGNED_BUFFER",
+      "centerline_mm": [
+        [
+          53520,
+          31099
+        ],
+        [
+          53520,
+          32649
+        ],
+        [
+          36720,
+          32649
+        ],
+        [
+          36720,
+          31099
+        ]
+      ],
+      "length_mm": 19900,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "RAW-LINE-4",
+      "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
+      "target_endpoint": "PACK-04:RAW-IN",
+      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "centerline_mm": [
+        [
+          58320,
+          31849
+        ],
+        [
+          58320,
+          32649
+        ],
+        [
+          32470,
+          32649
+        ],
+        [
+          32470,
+          27546
+        ],
+        [
+          33270,
+          27546
+        ]
+      ],
+      "length_mm": 32553,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PROCESS-PACK-04",
+      "source_endpoint": "PACK-04:W",
+      "target_endpoint": "PACK-04:E",
+      "purpose": "PACKING_MACHINE_INTERNAL",
+      "centerline_mm": [
+        [
+          33720,
+          27546
+        ],
+        [
+          61722,
+          27546
+        ]
+      ],
+      "length_mm": 28002,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PACK-PALLET-4",
+      "source_endpoint": "PACK-04:PRODUCT-OUT",
+      "target_endpoint": "WORK-PACK-04:CASE-IN",
+      "purpose": "PACKED_CARTONS_TO_LINE_PALLET_WORKPLACE",
+      "centerline_mm": [
+        [
+          62172,
+          27546
+        ],
+        [
+          62972,
+          27546
+        ],
+        [
+          62972,
+          32649
+        ],
+        [
+          54720,
+          32649
+        ],
+        [
+          54720,
+          31849
+        ]
+      ],
+      "length_mm": 14955,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "LINE-BUFFER-4",
+      "source_endpoint": "WORK-PACK-04:PALLET-TRANSFER",
+      "target_endpoint": "BUF-S-01:PALLET-TRANSFER",
+      "purpose": "FULL_PALLET_TO_ASSIGNED_BUFFER",
+      "centerline_mm": [
+        [
+          54720,
+          31099
+        ],
+        [
+          54720,
+          32649
+        ],
+        [
+          42720,
+          32649
+        ],
+        [
+          42720,
+          31099
+        ]
+      ],
+      "length_mm": 15100,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "RAW-LINE-5",
+      "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
+      "target_endpoint": "PACK-05:RAW-IN",
+      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "centerline_mm": [
+        [
+          58320,
+          31849
+        ],
+        [
+          58320,
+          32649
+        ],
+        [
+          32470,
+          32649
+        ],
+        [
+          32470,
+          28197
+        ],
+        [
+          33270,
+          28197
+        ]
+      ],
+      "length_mm": 31902,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PROCESS-PACK-05",
+      "source_endpoint": "PACK-05:W",
+      "target_endpoint": "PACK-05:E",
+      "purpose": "PACKING_MACHINE_INTERNAL",
+      "centerline_mm": [
+        [
+          33720,
+          28197
+        ],
+        [
+          61722,
+          28197
+        ]
+      ],
+      "length_mm": 28002,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PACK-PALLET-5",
+      "source_endpoint": "PACK-05:PRODUCT-OUT",
+      "target_endpoint": "WORK-PACK-05:CASE-IN",
+      "purpose": "PACKED_CARTONS_TO_LINE_PALLET_WORKPLACE",
+      "centerline_mm": [
+        [
+          62172,
+          28197
+        ],
+        [
+          62972,
+          28197
+        ],
+        [
+          62972,
+          32649
+        ],
+        [
+          55920,
+          32649
+        ],
+        [
+          55920,
+          31849
+        ]
+      ],
+      "length_mm": 13104,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "LINE-BUFFER-5",
+      "source_endpoint": "WORK-PACK-05:PALLET-TRANSFER",
+      "target_endpoint": "BUF-S-02:PALLET-TRANSFER",
+      "purpose": "FULL_PALLET_TO_ASSIGNED_BUFFER",
+      "centerline_mm": [
+        [
+          55920,
+          31099
+        ],
+        [
+          55920,
+          32649
+        ],
+        [
+          43920,
+          32649
+        ],
+        [
+          43920,
+          31099
+        ]
+      ],
+      "length_mm": 15100,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "RAW-LINE-6",
+      "source_endpoint": "RAW-UNLOAD:CRATE-OUT",
+      "target_endpoint": "PACK-06:RAW-IN",
+      "purpose": "RAW_CRATE_TO_ACTUAL_PACKING_INLET",
+      "centerline_mm": [
+        [
+          58320,
+          31849
+        ],
+        [
+          58320,
+          32649
+        ],
+        [
+          32470,
+          32649
+        ],
+        [
+          32470,
+          29798
+        ],
+        [
+          33270,
+          29798
+        ]
+      ],
+      "length_mm": 30301,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PROCESS-PACK-06",
+      "source_endpoint": "PACK-06:W",
+      "target_endpoint": "PACK-06:E",
+      "purpose": "PACKING_MACHINE_INTERNAL",
+      "centerline_mm": [
+        [
+          33720,
+          29798
+        ],
+        [
+          61722,
+          29798
+        ]
+      ],
+      "length_mm": 28002,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "PACK-PALLET-6",
+      "source_endpoint": "PACK-06:PRODUCT-OUT",
+      "target_endpoint": "WORK-PACK-06:CASE-IN",
+      "purpose": "PACKED_CARTONS_TO_LINE_PALLET_WORKPLACE",
+      "centerline_mm": [
+        [
+          62172,
+          29798
+        ],
+        [
+          62972,
+          29798
+        ],
+        [
+          62972,
+          32649
+        ],
+        [
+          57120,
+          32649
+        ],
+        [
+          57120,
+          31849
+        ]
+      ],
+      "length_mm": 10303,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "LINE-BUFFER-6",
+      "source_endpoint": "WORK-PACK-06:PALLET-TRANSFER",
+      "target_endpoint": "BUF-S-03:PALLET-TRANSFER",
+      "purpose": "FULL_PALLET_TO_ASSIGNED_BUFFER",
+      "centerline_mm": [
+        [
+          57120,
+          31099
+        ],
+        [
+          57120,
+          32649
+        ],
+        [
+          45120,
+          32649
+        ],
+        [
+          45120,
+          31099
+        ]
+      ],
+      "length_mm": 15100,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BLANK-ERECT-01",
+      "source_endpoint": "packaging_material_storage-PAL-006:BLANKS",
+      "target_endpoint": "ERECT-01:BLANK-IN",
+      "purpose": "PAPER_BLANK_SUPPLY",
+      "centerline_mm": [
+        [
+          25620,
+          24843
+        ],
+        [
+          27370,
+          24843
+        ],
+        [
+          27370,
+          27643
+        ],
+        [
+          29870,
+          27643
+        ],
+        [
+          32370,
+          27643
+        ],
+        [
+          32469,
+          27643
+        ],
+        [
+          32469,
+          31350
+        ],
+        [
+          32569,
+          31350
+        ],
+        [
+          32569,
+          32650
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          62973,
+          27643
+        ],
+        [
+          69125,
+          27643
+        ],
+        [
+          69125,
+          23643
+        ],
+        [
+          68975,
+          23643
+        ]
+      ],
+      "length_mm": 60469,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-01-LINE-1",
+      "source_endpoint": "ERECT-01:CASE-OUT",
+      "target_endpoint": "PACK-01:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          26843
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          23693
+        ],
+        [
+          62973,
+          23693
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          23693
+        ],
+        [
+          33270,
+          23693
+        ]
+      ],
+      "length_mm": 42505,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-01-LINE-2",
+      "source_endpoint": "ERECT-01:CASE-OUT",
+      "target_endpoint": "PACK-02:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          26843
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          27642
+        ],
+        [
+          62973,
+          27642
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          25294
+        ],
+        [
+          33270,
+          25294
+        ]
+      ],
+      "length_mm": 44106,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-01-LINE-3",
+      "source_endpoint": "ERECT-01:CASE-OUT",
+      "target_endpoint": "PACK-03:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          26843
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          25945
+        ],
+        [
+          62973,
+          25945
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          25945
+        ],
+        [
+          33270,
+          25945
+        ]
+      ],
+      "length_mm": 44757,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-01-LINE-4",
+      "source_endpoint": "ERECT-01:CASE-OUT",
+      "target_endpoint": "PACK-04:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          26843
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          62973,
+          27643
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          27546
+        ],
+        [
+          33270,
+          27546
+        ]
+      ],
+      "length_mm": 45564,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-01-LINE-5",
+      "source_endpoint": "ERECT-01:CASE-OUT",
+      "target_endpoint": "PACK-05:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          26843
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          27644
+        ],
+        [
+          62973,
+          27644
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          28197
+        ],
+        [
+          33270,
+          28197
+        ]
+      ],
+      "length_mm": 44913,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-01-LINE-6",
+      "source_endpoint": "ERECT-01:CASE-OUT",
+      "target_endpoint": "PACK-06:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          26843
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          29798
+        ],
+        [
+          62973,
+          29798
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          29798
+        ],
+        [
+          33270,
+          29798
+        ]
+      ],
+      "length_mm": 43312,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BLANK-ERECT-02",
+      "source_endpoint": "packaging_material_storage-PAL-006:BLANKS",
+      "target_endpoint": "ERECT-02:BLANK-IN",
+      "purpose": "PAPER_BLANK_SUPPLY",
+      "centerline_mm": [
+        [
+          25620,
+          24843
+        ],
+        [
+          27370,
+          24843
+        ],
+        [
+          27370,
+          27643
+        ],
+        [
+          29870,
+          27643
+        ],
+        [
+          32370,
+          27643
+        ],
+        [
+          32469,
+          27643
+        ],
+        [
+          32469,
+          31350
+        ],
+        [
+          32569,
+          31350
+        ],
+        [
+          32569,
+          32650
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          62973,
+          27643
+        ],
+        [
+          69125,
+          27643
+        ],
+        [
+          69125,
+          23643
+        ],
+        [
+          69275,
+          23643
+        ]
+      ],
+      "length_mm": 60469,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-02-LINE-1",
+      "source_endpoint": "ERECT-02:CASE-OUT",
+      "target_endpoint": "PACK-01:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          26843
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          23693
+        ],
+        [
+          62973,
+          23693
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          23693
+        ],
+        [
+          33270,
+          23693
+        ]
+      ],
+      "length_mm": 48108,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-02-LINE-2",
+      "source_endpoint": "ERECT-02:CASE-OUT",
+      "target_endpoint": "PACK-02:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          26843
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          27642
+        ],
+        [
+          62973,
+          27642
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          25294
+        ],
+        [
+          33270,
+          25294
+        ]
+      ],
+      "length_mm": 49709,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-02-LINE-3",
+      "source_endpoint": "ERECT-02:CASE-OUT",
+      "target_endpoint": "PACK-03:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          26843
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          25945
+        ],
+        [
+          62973,
+          25945
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          25945
+        ],
+        [
+          33270,
+          25945
+        ]
+      ],
+      "length_mm": 50360,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-02-LINE-4",
+      "source_endpoint": "ERECT-02:CASE-OUT",
+      "target_endpoint": "PACK-04:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          26843
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          62973,
+          27643
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          27546
+        ],
+        [
+          33270,
+          27546
+        ]
+      ],
+      "length_mm": 51167,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-02-LINE-5",
+      "source_endpoint": "ERECT-02:CASE-OUT",
+      "target_endpoint": "PACK-05:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          26843
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          27644
+        ],
+        [
+          62973,
+          27644
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          28197
+        ],
+        [
+          33270,
+          28197
+        ]
+      ],
+      "length_mm": 50516,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-02-LINE-6",
+      "source_endpoint": "ERECT-02:CASE-OUT",
+      "target_endpoint": "PACK-06:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          26843
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          29798
+        ],
+        [
+          62973,
+          29798
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          29798
+        ],
+        [
+          33270,
+          29798
+        ]
+      ],
+      "length_mm": 48915,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BLANK-ERECT-03",
+      "source_endpoint": "packaging_material_storage-PAL-006:BLANKS",
+      "target_endpoint": "ERECT-03:BLANK-IN",
+      "purpose": "PAPER_BLANK_SUPPLY",
+      "centerline_mm": [
+        [
+          25620,
+          24843
+        ],
+        [
+          27370,
+          24843
+        ],
+        [
+          27370,
+          27643
+        ],
+        [
+          29870,
+          27643
+        ],
+        [
+          32370,
+          27643
+        ],
+        [
+          32469,
+          27643
+        ],
+        [
+          32469,
+          31350
+        ],
+        [
+          32569,
+          31350
+        ],
+        [
+          32569,
+          32650
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          62973,
+          27643
+        ],
+        [
+          69125,
+          27643
+        ],
+        [
+          69125,
+          31643
+        ],
+        [
+          68975,
+          31643
+        ]
+      ],
+      "length_mm": 60469,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-03-LINE-1",
+      "source_endpoint": "ERECT-03:CASE-OUT",
+      "target_endpoint": "PACK-01:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          28443
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          23693
+        ],
+        [
+          62973,
+          23693
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          23693
+        ],
+        [
+          33270,
+          23693
+        ]
+      ],
+      "length_mm": 42505,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-03-LINE-2",
+      "source_endpoint": "ERECT-03:CASE-OUT",
+      "target_endpoint": "PACK-02:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          28443
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          27642
+        ],
+        [
+          62973,
+          27642
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          25294
+        ],
+        [
+          33270,
+          25294
+        ]
+      ],
+      "length_mm": 44106,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-03-LINE-3",
+      "source_endpoint": "ERECT-03:CASE-OUT",
+      "target_endpoint": "PACK-03:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          28443
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          25945
+        ],
+        [
+          62973,
+          25945
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          25945
+        ],
+        [
+          33270,
+          25945
+        ]
+      ],
+      "length_mm": 44757,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-03-LINE-4",
+      "source_endpoint": "ERECT-03:CASE-OUT",
+      "target_endpoint": "PACK-04:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          28443
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          62973,
+          27643
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          27546
+        ],
+        [
+          33270,
+          27546
+        ]
+      ],
+      "length_mm": 45564,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-03-LINE-5",
+      "source_endpoint": "ERECT-03:CASE-OUT",
+      "target_endpoint": "PACK-05:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          28443
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          27644
+        ],
+        [
+          62973,
+          27644
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          28197
+        ],
+        [
+          33270,
+          28197
+        ]
+      ],
+      "length_mm": 44913,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-03-LINE-6",
+      "source_endpoint": "ERECT-03:CASE-OUT",
+      "target_endpoint": "PACK-06:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          66323,
+          28443
+        ],
+        [
+          66323,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          29798
+        ],
+        [
+          62973,
+          29798
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          29798
+        ],
+        [
+          33270,
+          29798
+        ]
+      ],
+      "length_mm": 43312,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BLANK-ERECT-04",
+      "source_endpoint": "packaging_material_storage-PAL-006:BLANKS",
+      "target_endpoint": "ERECT-04:BLANK-IN",
+      "purpose": "PAPER_BLANK_SUPPLY",
+      "centerline_mm": [
+        [
+          25620,
+          24843
+        ],
+        [
+          27370,
+          24843
+        ],
+        [
+          27370,
+          27643
+        ],
+        [
+          29870,
+          27643
+        ],
+        [
+          32370,
+          27643
+        ],
+        [
+          32469,
+          27643
+        ],
+        [
+          32469,
+          31350
+        ],
+        [
+          32569,
+          31350
+        ],
+        [
+          32569,
+          32650
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          62973,
+          27643
+        ],
+        [
+          69125,
+          27643
+        ],
+        [
+          69125,
+          31643
+        ],
+        [
+          69275,
+          31643
+        ]
+      ],
+      "length_mm": 60469,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-04-LINE-1",
+      "source_endpoint": "ERECT-04:CASE-OUT",
+      "target_endpoint": "PACK-01:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          28443
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          23693
+        ],
+        [
+          62973,
+          23693
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          23693
+        ],
+        [
+          33270,
+          23693
+        ]
+      ],
+      "length_mm": 48108,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-04-LINE-2",
+      "source_endpoint": "ERECT-04:CASE-OUT",
+      "target_endpoint": "PACK-02:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          28443
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          27642
+        ],
+        [
+          62973,
+          27642
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          25294
+        ],
+        [
+          33270,
+          25294
+        ]
+      ],
+      "length_mm": 49709,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-04-LINE-3",
+      "source_endpoint": "ERECT-04:CASE-OUT",
+      "target_endpoint": "PACK-03:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          28443
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          25945
+        ],
+        [
+          62973,
+          25945
+        ],
+        [
+          62973,
+          22142
+        ],
+        [
+          32470,
+          22142
+        ],
+        [
+          32470,
+          25945
+        ],
+        [
+          33270,
+          25945
+        ]
+      ],
+      "length_mm": 50360,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-04-LINE-4",
+      "source_endpoint": "ERECT-04:CASE-OUT",
+      "target_endpoint": "PACK-04:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          28443
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          62973,
+          27643
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          27546
+        ],
+        [
+          33270,
+          27546
+        ]
+      ],
+      "length_mm": 51167,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-04-LINE-5",
+      "source_endpoint": "ERECT-04:CASE-OUT",
+      "target_endpoint": "PACK-05:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          28443
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          27644
+        ],
+        [
+          62973,
+          27644
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          28197
+        ],
+        [
+          33270,
+          28197
+        ]
+      ],
+      "length_mm": 50516,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-04-LINE-6",
+      "source_endpoint": "ERECT-04:CASE-OUT",
+      "target_endpoint": "PACK-06:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          71926,
+          28443
+        ],
+        [
+          71926,
+          27643
+        ],
+        [
+          63171,
+          27643
+        ],
+        [
+          63171,
+          29798
+        ],
+        [
+          62973,
+          29798
+        ],
+        [
+          62973,
+          31350
+        ],
+        [
+          60071,
+          31350
+        ],
+        [
+          60071,
+          32650
+        ],
+        [
+          32470,
+          32650
+        ],
+        [
+          32470,
+          29798
+        ],
+        [
+          33270,
+          29798
+        ]
+      ],
+      "length_mm": 48915,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "BLANK-ERECT-05",
+      "source_endpoint": "packaging_material_storage-PAL-006:BLANKS",
+      "target_endpoint": "ERECT-05:BLANK-IN",
+      "purpose": "PAPER_BLANK_SUPPLY",
+      "centerline_mm": [
+        [
+          25620,
+          24843
+        ],
+        [
+          27370,
+          24843
+        ],
+        [
+          27370,
+          31741
+        ],
+        [
+          27270,
+          31741
+        ],
+        [
+          26770,
+          31741
+        ]
+      ],
+      "length_mm": 9248,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-05-LINE-1",
+      "source_endpoint": "ERECT-05:CASE-OUT",
+      "target_endpoint": "PACK-01:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          26470,
+          33141
+        ],
+        [
+          27270,
+          33141
+        ],
+        [
+          29870,
+          33141
+        ],
+        [
+          29870,
+          27643
+        ],
+        [
+          32370,
+          27643
+        ],
+        [
+          32370,
+          23693
+        ],
+        [
+          32470,
+          23693
+        ],
+        [
+          33270,
+          23693
+        ]
+      ],
+      "length_mm": 16248,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-05-LINE-2",
+      "source_endpoint": "ERECT-05:CASE-OUT",
+      "target_endpoint": "PACK-02:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          26470,
+          33141
+        ],
+        [
+          27270,
+          33141
+        ],
+        [
+          29870,
+          33141
+        ],
+        [
+          29870,
+          27643
+        ],
+        [
+          32370,
+          27643
+        ],
+        [
+          32370,
+          25294
+        ],
+        [
+          32470,
+          25294
+        ],
+        [
+          33270,
+          25294
+        ]
+      ],
+      "length_mm": 14647,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-05-LINE-3",
+      "source_endpoint": "ERECT-05:CASE-OUT",
+      "target_endpoint": "PACK-03:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          26470,
+          33141
+        ],
+        [
+          27270,
+          33141
+        ],
+        [
+          29870,
+          33141
+        ],
+        [
+          29870,
+          27643
+        ],
+        [
+          32370,
+          27643
+        ],
+        [
+          32370,
+          25945
+        ],
+        [
+          32470,
+          25945
+        ],
+        [
+          33270,
+          25945
+        ]
+      ],
+      "length_mm": 13996,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-05-LINE-4",
+      "source_endpoint": "ERECT-05:CASE-OUT",
+      "target_endpoint": "PACK-04:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          26470,
+          33141
+        ],
+        [
+          27270,
+          33141
+        ],
+        [
+          29870,
+          33141
+        ],
+        [
+          29870,
+          27643
+        ],
+        [
+          32370,
+          27643
+        ],
+        [
+          32370,
+          27546
+        ],
+        [
+          32470,
+          27546
+        ],
+        [
+          33270,
+          27546
+        ]
+      ],
+      "length_mm": 12395,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-05-LINE-5",
+      "source_endpoint": "ERECT-05:CASE-OUT",
+      "target_endpoint": "PACK-05:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          26470,
+          33141
+        ],
+        [
+          27270,
+          33141
+        ],
+        [
+          29870,
+          33141
+        ],
+        [
+          29870,
+          27643
+        ],
+        [
+          32370,
+          27643
+        ],
+        [
+          32370,
+          28197
+        ],
+        [
+          32470,
+          28197
+        ],
+        [
+          33270,
+          28197
+        ]
+      ],
+      "length_mm": 12852,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    },
+    {
+      "id": "EMPTY-CASE-ERECT-05-LINE-6",
+      "source_endpoint": "ERECT-05:CASE-OUT",
+      "target_endpoint": "PACK-06:BOX-IN",
+      "purpose": "ERECTED_CASE_TO_PACKING_LINE",
+      "centerline_mm": [
+        [
+          26470,
+          33141
+        ],
+        [
+          27270,
+          33141
+        ],
+        [
+          29870,
+          33141
+        ],
+        [
+          29870,
+          27643
+        ],
+        [
+          32370,
+          27643
+        ],
+        [
+          32370,
+          29798
+        ],
+        [
+          32470,
+          29798
+        ],
+        [
+          33270,
+          29798
+        ]
+      ],
+      "length_mm": 14453,
+      "status": "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+    }
+  ]
+}

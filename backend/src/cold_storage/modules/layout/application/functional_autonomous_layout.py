@@ -41,7 +41,10 @@ VERSION = "autonomous-functional-feedback@1.1.0"
 
 
 def generate_functional_layout(
-    project: Mapping[str, Any], *, progress: Callable[[str], None] | None = None
+    project: Mapping[str, Any],
+    *,
+    progress: Callable[[str], None] | None = None,
+    coating_service_depth_mm: int | None = None,
 ) -> dict[str, Any]:
     specs = project["equipment_specs"]
     facts = project.get("owner_facts", {})
@@ -133,7 +136,12 @@ def generate_functional_layout(
                     != "FLEXIBLE_RECTANGLE"
                 ):
                     raise LayoutAuthorityError("FUNCTIONAL_FEEDBACK_CANNOT_RESIZE_FIXED_AUTHORITY")
-                shapes[code] = [tuple(req["requested_shape_mm"])]
+                requested = tuple(req["requested_shape_mm"])
+                if code == "coating_room" and coating_service_depth_mm is not None:
+                    if not 7100 <= coating_service_depth_mm <= 12000:
+                        raise LayoutAuthorityError("BOUNDED_COATING_SERVICE_DEPTH_REQUIRED")
+                    requested = (requested[0], max(requested[1], coating_service_depth_mm))
+                shapes[code] = [requested]
             continue
         rows = _room_rows(rooms, project, context)
         _zone_authority_checks(

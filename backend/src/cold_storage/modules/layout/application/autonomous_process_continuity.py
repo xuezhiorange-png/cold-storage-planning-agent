@@ -1,0 +1,505 @@
+"""Opt-in V1.2 device-to-device composition using deterministic existing geometry.
+
+No solver, Store, production default or MCP entry point selects this module.
+Unsuccessful bounded arrangements and routes remain part of the output.
+"""
+
+from __future__ import annotations
+
+import itertools
+from collections.abc import Callable, Mapping
+from decimal import Decimal
+from typing import Any
+
+from cold_storage.modules.layout.application.autonomous_factory_layout import bind_autonomous_input
+from cold_storage.modules.layout.application.functional_autonomous_layout import (
+    generate_functional_layout,
+)
+from cold_storage.modules.layout.domain import access_routing as routing
+from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
+from cold_storage.modules.layout.domain.functional_portal_layout import joint_portals
+from cold_storage.modules.layout.domain.process_endpoint_routes import (
+    ProcessRoutePlanner,
+    room_rectangles,
+)
+from cold_storage.modules.layout.domain.process_flow_arrangement import (
+    arrange_process_workplaces,
+    coating_service_depth,
+    relocation_capacity_trials,
+)
+
+VERSION = "autonomous-process-continuity@1.2.0"
+VERIFIED = "CONDITIONAL_DEVICE_ROUTE_VERIFIED"
+
+
+def _no_candidate(
+    project: Mapping[str, Any],
+    parameters: Mapping[str, Any],
+    source: dict[str, Any],
+    status: str,
+    attempts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    result = {
+        **source,
+        "calculator_version": VERSION,
+        "status": status,
+        "candidates": [],
+        "candidate_count": 0,
+        "source_input_hash": canonical_hash(project),
+        "process_parameter_hash": canonical_hash(parameters),
+        "attempts": attempts,
+    }
+    result.pop("result_hash", None)
+    result["result_hash"] = canonical_hash(result)
+    return result
+
+
+def _flow_routes(
+    c: dict[str, Any], parameters: Mapping[str, Any], walls: list[list[int]]
+) -> dict[str, Any]:
+    p = ProcessRoutePlanner(c, parameters, walls)
+    items = p.items
+
+    def pal(id_: str, face: str = "N") -> str:
+        return p.endpoint(id_, "PALLET-TRANSFER", face, "LOADED_PALLET")
+
+    raw_slots = [q for q in items.values() if q["kind"] == "raw_fruit_buffer_pallet"]
+    front = max(q["bbox_mm"][2] for q in raw_slots)
+    raw_clear = p.rooms["raw_fruit_buffer"]
+    half = parameters["main_aisle_mm"] // 2
+    raw = min(
+        (
+            q
+            for q in raw_slots
+            if q["bbox_mm"][2] == front
+            and raw_clear[1] + half
+            <= (q["bbox_mm"][1] + q["bbox_mm"][3]) // 2
+            <= raw_clear[3] - half
+        ),
+        key=lambda q: -q["bbox_mm"][1],
+    )
+    pri = next(q for q in items.values() if q["kind"] == "PRI_pallet" and q["id"].endswith("C1-P6"))
+    sec = next(q for q in items.values() if q["kind"] == "SEC_pallet" and q["id"].endswith("C1-P6"))
+    raw_ep = pal(raw["id"], "E")
+    pri_ep = pal(pri["id"])
+    sec_ep = pal(sec["id"])
+    unload = pal("RAW-UNLOAD")
+    common = [
+        p.route(raw_ep, pri_ep, "PRODUCT-RAW-PRI", "RAW_CRATES_TO_PRIMARY_PRECOOL"),
+        p.route(pri_ep, unload, "PRODUCT-PRI-PACKING", "PRIMARY_PRECOOL_TO_RAW_UNLOAD"),
+    ]
+    raw_crates = p.endpoint("RAW-UNLOAD", "CRATE-OUT", "N", "CARTON_CARRY")
+    depal = pal("DEPALLETIZE")
+    repal = pal("REPALLETIZE")
+    downstream = [p.route(sec_ep, depal, "PRODUCT-SEC-DEPAL", "SECONDARY_PRECOOL_TO_DEPALLETIZE")]
+    film = sorted(
+        (q for q in items.values() if q["kind"] == "case_film_component"),
+        key=lambda q: q["bbox_mm"][0],
+    )
+    downstream.append(p.handoff("DEPALLETIZE", film[0]["id"], "FILM-DEPAL-INFEED"))
+    for i, q in enumerate(film):
+        downstream.append(p.handoff(q["id"], q["id"], "INTERNAL-" + q["id"], internal=True))
+        if i + 1 < len(film):
+            downstream.append(p.handoff(q["id"], film[i + 1]["id"], "LINK-" + q["id"]))
+    downstream.append(p.handoff(film[-1]["id"], "REPALLETIZE", "FILM-OUT-REPAL"))
+    finished = [q for q in items.values() if q["kind"] == "finished_goods_room_pallet"]
+    storage = next(
+        s["layout"]
+        for s in c["equipment"]["storage"]
+        if s["layout"]["room"] == "finished_goods_room"
+    )
+    face = {0: "S", 1: "E", 2: "N", 3: "W"}[storage["turn"]]
+    finish = min(
+        (q for q in finished if q["grid_row"] == 0 and q["grid_column"] >= 1),
+        key=lambda q: abs(q["bbox_mm"][1] - p.rooms["finished_goods_room"][1] - 2500),
+    )
+    finish_ep = pal(finish["id"], face)
+    dispatch = pal("DISPATCH-01", "N")
+    downstream.extend(
+        [
+            p.route(repal, finish_ep, "PRODUCT-REPAL-FINISHED", "FILMED_PALLET_TO_FINISHED_STORE"),
+            p.route(finish_ep, dispatch, "PRODUCT-FINISHED-DISPATCH", "FINISHED_STORE_TO_DISPATCH"),
+        ]
+    )
+    buffers = []
+    for group in ("N", "S"):
+        for i in range(1, 8):
+            ident = f"BUF-{group}-{i:02}"
+            ep = pal(ident)
+            buffers.append(
+                p.route(ep, sec_ep, "BUFFER-SEC-" + ident, "BUFFER_POSITION_TO_SECONDARY_PRECOOL")
+            )
+    chains = []
+    packing_inputs = []
+    packing_outputs = []
+    for i in range(1, 7):
+        machine = f"PACK-{i:02}"
+        inp = p.endpoint(machine, "RAW-IN", "W", "CARTON_CARRY")
+        out = p.endpoint(machine, "PRODUCT-OUT", "E", "CARTON_CARRY")
+        packing_inputs.append(p.endpoint(machine, "BOX-IN", "W", "CARTON_CARRY"))
+        work = f"WORK-PACK-{i:02}"
+        case_work = p.endpoint(work, "CASE-IN", "N", "CARTON_CARRY")
+        work_ep = pal(work)
+        group = "N" if i <= 3 else "S"
+        bid = f"BUF-{group}-{(i - 1) % 3 + 1:02}"
+        be = p.endpoints[bid + ":PALLET-TRANSFER"]["id"]
+        a = p.route(raw_crates, inp, "RAW-LINE-" + str(i), "RAW_CRATE_TO_ACTUAL_PACKING_INLET")
+        machine_process = p.handoff(machine, machine, "PROCESS-" + machine, internal=True)
+        machine_process.update(
+            purpose="PACKING_MACHINE_INTERNAL",
+            physical_input_endpoint=inp,
+            physical_output_endpoint=out,
+            note="Declared equipment-internal transfer; no vendor performance approval",
+        )
+        b = p.route(
+            out, case_work, "PACK-PALLET-" + str(i), "PACKED_CARTONS_TO_LINE_PALLET_WORKPLACE"
+        )
+        packing_outputs.append(b)
+        d = p.route(work_ep, be, "LINE-BUFFER-" + str(i), "FULL_PALLET_TO_ASSIGNED_BUFFER")
+        e = next(q for q in buffers if q["id"] == "BUFFER-SEC-" + bid)
+        legs = [*common, a, machine_process, b, d, e, *downstream]
+        failed = [
+            q["id"] for q in legs if q["status"] not in (VERIFIED, "PROCESSING_INTERFACE_ASSUMED")
+        ]
+        chains.append(
+            {
+                "id": "PRODUCT-CHAIN-" + str(i),
+                "line": machine,
+                "service_group": group,
+                "stages": [
+                    {
+                        "route_id": q["id"],
+                        "source_object": q["source_object"],
+                        "target_object": q["target_object"],
+                        "status": q["status"],
+                    }
+                    for q in legs
+                ],
+                "failed_segments": failed,
+                "continuous_object_chain": all(
+                    a["target_object"] == b["source_object"]
+                    for a, b in zip(legs, legs[1:], strict=False)
+                ),
+                "length_mm": sum(q["length_mm"] for q in legs),
+                "status": "CONTINUOUS_CONDITIONAL_CHAIN"
+                if not failed
+                else "INTERRUPTED_BOUNDED_SEARCH",
+                "packing_process": "DESIGN_CONDITION_NOT_MACHINE_ACCEPTANCE",
+            }
+        )
+    # All five erectors receive blanks from a real front stock position. Their
+    # output-to-line assignments are selected by verified path length, not XY.
+    package = [q for q in items.values() if q["kind"] == "packaging_material_storage_pallet"]
+    edge = max(q["bbox_mm"][2] for q in package)
+    blank = min(
+        (q for q in package if q["bbox_mm"][2] == edge),
+        key=lambda q: abs(q["bbox_mm"][1] - p.rooms["packaging_material_storage"][1] - 7000),
+    )
+    blank_ep = p.endpoint(blank["id"], "BLANKS", "E", "BLANK_BUNDLE")
+    erectors = sorted(
+        (q for q in items.values() if q["kind"] == "case_erector"), key=lambda q: q["id"]
+    )
+    blank_routes = []
+    deliveries = []
+    for machine in erectors:
+        mid = machine["id"]
+        inp = p.endpoint(
+            mid,
+            "BLANK-IN",
+            machine.get("magazine_face", "E"),
+            "BLANK_BUNDLE",
+            offset_tangent=-700 if mid == "ERECT-05" else 0,
+        )
+        output = p.endpoint(
+            mid,
+            "CASE-OUT",
+            machine.get("output_face", "E"),
+            "CARTON_CARRY",
+            offset_tangent=700 if mid == "ERECT-05" else 0,
+        )
+        blank_routes.append(p.route(blank_ep, inp, "BLANK-" + mid, "PAPER_BLANK_SUPPLY"))
+        deliveries.append(
+            [
+                p.route(
+                    output, dest, f"EMPTY-CASE-{mid}-LINE-{i + 1}", "ERECTED_CASE_TO_PACKING_LINE"
+                )
+                for i, dest in enumerate(packing_inputs)
+            ]
+        )
+    choices = []
+    for assignment in itertools.product(range(5), repeat=6):
+        if len(set(assignment)) != 5 or any(assignment.count(k) > 2 for k in range(5)):
+            continue
+        routes = [deliveries[e][i] for i, e in enumerate(assignment)]
+        if all(q["status"] == VERIFIED for q in [*routes, *blank_routes]):
+            choices.append((sum(q["length_mm"] for q in routes), assignment))
+    selected = min(choices) if choices else None
+    assignments = (
+        [
+            {
+                "line": f"PACK-{i + 1:02}",
+                "erector": erectors[e]["id"],
+                "route_id": deliveries[e][i]["id"],
+                "length_mm": deliveries[e][i]["length_mm"],
+            }
+            for i, e in enumerate(selected[1])
+        ]
+        if selected
+        else []
+    )
+    verified = [q for q in p.routes if q["status"] == VERIFIED]
+    return {
+        "schema_version": VERSION,
+        "endpoints": list(p.endpoints.values()),
+        "routes": p.routes,
+        "product_chains": chains,
+        "continuous_main_product_chain_count": sum(
+            q["status"] == "CONTINUOUS_CONDITIONAL_CHAIN" and q["continuous_object_chain"]
+            for q in chains
+        ),
+        "case_supply": {
+            "erector_count": 5,
+            "blank_supply_routes": [q["id"] for q in blank_routes],
+            "all_five_blank_supplies_verified": all(q["status"] == VERIFIED for q in blank_routes),
+            "bounded_assignment_count": len(choices),
+            "line_assignments": assignments,
+            "status": "FIVE_ERECTORS_SIX_LINES_CONNECTED"
+            if selected
+            else "INTERRUPTED_BOUNDED_ASSIGNMENT",
+        },
+        "buffer_routes": [q["id"] for q in buffers],
+        "buffer_count": 14,
+        "line_pallet_workplace_count": 6,
+        "buffer_verified_count": sum(q["status"] == VERIFIED for q in buffers),
+        "verified_route_count": len(verified),
+        "failed_route_count": len(p.routes) - len(verified),
+        "shared_space_policy": (
+            "TIME_SEPARATION_REQUIRED; occupied waiting pallets retained; "
+            "no simultaneous traffic or throughput PASS"
+        ),
+        "capacity_conditions": parameters["source_conditions"],
+        "vehicle_kinematics": "INPUT_REQUIRED",
+        "assumptions": parameters["assumptions"],
+        "native_calls": 0,
+    }
+
+
+def generate_process_layout(
+    project: Mapping[str, Any],
+    parameters: Mapping[str, Any],
+    *,
+    progress: Callable[[str], None] | None = None,
+) -> dict[str, Any]:
+    if parameters.get("schema_version") != "autonomous-process-parameters@1.2.0":
+        raise LayoutAuthorityError("PROCESS_PARAMETER_VERSION_REQUIRED")
+    if (
+        parameters["line_workers"] != [10, 10, 10, 8, 8, 7]
+        or parameters["buffer_slots_per_group"] != 7
+    ):
+        raise LayoutAuthorityError("PROCESS_DESIGN_BASIS_MISMATCH")
+    if parameters["main_aisle_mm"] < 2500 or parameters["pallet_mm"] != [1200, 1000]:
+        raise LayoutAuthorityError("PROCESS_AISLE_OR_LOAD_REDUCTION_FORBIDDEN")
+    if not 1 <= parameters["routing_node_budget"] <= 20000:
+        raise LayoutAuthorityError("PROCESS_BOUNDED_ROUTING_REQUIRED")
+    if any(k in parameters for k in ("rooms", "initial_layout", "hints", "equipment_positions")):
+        raise LayoutAuthorityError("PROCESS_COORDINATE_SEEDS_FORBIDDEN")
+    if any(
+        type(n) is not int or n <= 0
+        for key in ("carton_projection_mm", "station_operator_mm")
+        for n in parameters[key]
+    ):
+        raise LayoutAuthorityError("POSITIVE_INTEGER_PHYSICAL_ENVELOPES_REQUIRED")
+    context = bind_autonomous_input(project)
+    base = generate_functional_layout(project, progress=progress)
+    if not base["candidates"]:
+        return _no_candidate(
+            project, parameters, base, "BOUNDED_ROOM_SEARCH_NO_CANDIDATE", base["attempts"]
+        )
+    original = base["candidates"][0]
+    attempts = relocation_capacity_trials(
+        room_rectangles(original),
+        context.plan,
+        project["equipment_specs"],
+        project["building"]["columns"],
+    )
+    preliminary = arrange_process_workplaces(original, parameters)
+    attempts.append(
+        {
+            "variant": "DEVICE_DOCKS_IN_EXISTING_ROOMS",
+            "status": "STATIC_REJECTED" if preliminary["static_conflicts"] else "STATIC_ONLY",
+            "conflicts": preliminary["static_conflicts"],
+            "coating_depth_mm": next(
+                r["depth_mm"] for r in original["rooms"] if r["zone_code"] == "coating_room"
+            ),
+        }
+    )
+    required = coating_service_depth(parameters)
+    if progress:
+        progress("DEVICE_OPERATION_FEEDBACK_AND_ROOM_REGENERATION")
+    regenerated = generate_functional_layout(
+        project, progress=progress, coating_service_depth_mm=required["depth_mm"]
+    )
+    if not regenerated["candidates"]:
+        return _no_candidate(
+            project,
+            parameters,
+            regenerated,
+            "BOUNDED_FEEDBACK_SEARCH_NO_CANDIDATE",
+            attempts + regenerated["attempts"],
+        )
+    arranged = arrange_process_workplaces(regenerated["candidates"][0], parameters)
+    c = arranged["candidate"]
+    eq = c["equipment"]
+    rooms = room_rectangles(c)
+    entrances: dict[str, Any] = {
+        "main_entrance": tuple(tuple(p) for p in project["building"]["openings"][1]["segment_mm"]),
+        "truck_entrance": tuple(tuple(p) for p in project["building"]["openings"][0]["segment_mm"]),
+    }
+    access, corridors, approaches = joint_portals(
+        rooms,
+        context.binding.access_requirements,
+        context.binding.spatial_relationships,
+        eq,
+        context.boundary,
+        context.columns + context.walls,
+        entrances,
+    )
+    c["access_results"] = access
+    c["portal_approach_checks"] = approaches
+    c["non_truck_access_pass_count"] = sum(
+        q.get("status") == "PASS" for q in access if q["flow_kind"] != "TRUCK"
+    )
+    # The original changing adapter and portals are not re-designed. If these
+    # two portal identities/geometries changed, do not inherit the old motion PASS.
+    old_people = [
+        q for q in regenerated["candidates"][0]["access_results"] if q["flow_kind"] == "PEOPLE"
+    ]
+    new_people = [q for q in access if q["flow_kind"] == "PEOPLE"]
+    c["changing_existing_witness_preserved"] = canonical_hash(old_people) == canonical_hash(
+        new_people
+    )
+    c["changing_internal_model_unchanged"] = True
+    if not c["changing_existing_witness_preserved"]:
+        from cold_storage.modules.layout.domain.functional_changing_layout import (
+            evaluate_changing_entry_exit,
+        )
+
+        g = eq["layouts"]["changing_room"]["functional_geometry"]
+        check = evaluate_changing_entry_exit(g, rooms["changing_room"], access)
+        c["changing_function"]["entry_exit"] = check
+        c["changing_function"]["conditional_complete_sequence_verified"] = bool(
+            c["changing_function"]["initial_53_people_verified"]
+            and all(s["cycle_geometry_pass"] for s in c["changing_function"]["shifts"])
+            and check["entry_exit_verified"]
+        )
+        c["changing_function"]["entry_exit_revalidation"] = "EXISTING_UNMODIFIED_ADAPTER_REEXECUTED"
+    try:
+        fp = routing.derive_building_footprint(rooms, corridors)
+        c["building_footprint"] = {
+            "status": "SINGLE_CONNECTED_ZERO_HOLE_UNION",
+            "points_mm": [list(p) for p in fp],
+        }
+    except LayoutAuthorityError as error:
+        c["building_footprint"] = {"status": "NOT_VERIFIED", "code": error.code}
+    if progress:
+        progress("DEVICE_PORTS_PALLET_SWEEPS_AND_REAL_DOOR_CROSSINGS")
+    walls = [list(b) for w in context.walls if (b := routing._rectangle_bounds(w))]
+    flows = _flow_routes(c, parameters, walls)
+    c["schema_version"] = VERSION
+    c["source_process_parameter_hash"] = canonical_hash(parameters)
+    flows["carrier_parameters"] = parameters["carriers"]
+    flows["carton_projection_mm"] = parameters["carton_projection_mm"]
+    c["process_continuity"] = flows
+    c["equipment_aware_interior_paths"] = []  # V1.1 routes referred to moved bodies.
+    c[
+        "storage_portal_interfaces"
+    ] = []  # Original ordered stock motion retained; new device routes are separate.
+    c["metrics"].update(
+        portal_approach_conflict_count=sum(q["status"] != "BODY_FREE_APPROACH" for q in approaches),
+        verified_interior_route_count=0,
+        verified_device_route_count=flows["verified_route_count"],
+        continuous_product_chain_count=flows["continuous_main_product_chain_count"],
+    )
+    c["remaining_geometry_issues"] = arranged["static_conflicts"]
+    c["process_workplace_groups"] = arranged["group_mapping"]
+    c["status"] = (
+        "CONDITIONAL_PROCESS_CANDIDATE"
+        if flows["continuous_main_product_chain_count"]
+        and not arranged["static_conflicts"]
+        and c["non_truck_access_pass_count"] == 11
+        and c["building_footprint"]["status"] == "SINGLE_CONNECTED_ZERO_HOLE_UNION"
+        else "INTERRUPTED_PROCESS_CANDIDATE"
+    )
+    c.pop("result_hash", None)
+    c["result_hash"] = canonical_hash(c)
+    attempts.append(
+        {
+            "variant": "ROTATE_FOUR_ERECTORS_PLUS_DISTINCT_BUFFER_AND_WORK_POSITIONS",
+            "coating_service_depth": required,
+            "static_conflicts": arranged["static_conflicts"],
+            "actual_nontruck_access_pass": c["non_truck_access_pass_count"],
+            "continuous_main_product_chains": flows["continuous_main_product_chain_count"],
+            "route_failures": [
+                {"id": q["id"], "failure": q.get("failure", q["status"])}
+                for q in flows["routes"]
+                if q["status"] != VERIFIED
+            ],
+        }
+    )
+    old = {q["id"]: q for q in original["equipment"]["items"]}
+    changes = [
+        {
+            "id": q["id"],
+            "kind": q["kind"],
+            "old_bbox_mm": old.get(q["id"], {}).get("bbox_mm"),
+            "new_bbox_mm": q["bbox_mm"],
+            "reason": "DETERMINISTIC_DEVICE_PORT_AND_WORKPLACE_FEEDBACK",
+        }
+        for q in eq["items"]
+        if old.get(q["id"], {}).get("bbox_mm") != q["bbox_mm"]
+    ]
+    result = {
+        "task_id": "V2_2_2_AUTONOMOUS_PROCESS_FLOW_CONTINUITY_R1",
+        "calculator_version": VERSION,
+        "source_input_hash": canonical_hash(project),
+        "process_parameter_hash": canonical_hash(parameters),
+        "p1_handoff_hash": context.binding.p1_handoff_hash,
+        "zone_plan": context.plan,
+        "baseline": {
+            "result_hash": original["result_hash"],
+            "rooms": original["rooms"],
+            "equipment_endpoint_route_count": 0,
+            "note": (
+                "V1.1 only proved room interior/portal interfaces; "
+                "full equipment logistics was NOT_EVALUATED"
+            ),
+        },
+        "attempts": attempts,
+        "candidates": [c],
+        "candidate_count": 1,
+        "equipment_changes": changes,
+        "room_changes": [
+            {
+                "zone_code": q["zone_code"],
+                "original_bbox_mm": old_room["bbox_mm"],
+                "new_bbox_mm": q["bbox_mm"],
+                "added_area_m2": str(Decimal(q["area_m2"]) - Decimal(old_room["area_m2"])),
+            }
+            for q in c["rooms"]
+            for old_room in original["rooms"]
+            if q["zone_code"] == old_room["zone_code"] and q["bbox_mm"] != old_room["bbox_mm"]
+        ],
+        "room_search_runs": [
+            {"purpose": "A1_BASELINE", "attempts": base["attempts"]},
+            {"purpose": "PHYSICAL_WORKPLACE_FEEDBACK", "attempts": regenerated["attempts"]},
+        ],
+        "status": c["status"],
+        "source_layout_coordinates_loaded": False,
+        "native_calls": 0,
+        "MAIN": False,
+        "grant_claim_accessed": False,
+        "production_default_changed": False,
+        "global_infeasibility_proven": False,
+    }
+    result["result_hash"] = canonical_hash(result)
+    return result

@@ -1,0 +1,126 @@
+[
+  {
+    "variant": "SECOND_ERECTOR_IN_MATERIAL_STORE",
+    "offset_mm": 100,
+    "equipment_bbox_mm": [
+      20520,
+      17243,
+      26020,
+      21046
+    ],
+    "minimum_positions": 67,
+    "placed_positions": 63,
+    "status": "CAPACITY_REJECTED",
+    "authority_changed": false
+  },
+  {
+    "variant": "SECOND_ERECTOR_IN_MATERIAL_STORE",
+    "offset_mm": 300,
+    "equipment_bbox_mm": [
+      20520,
+      17443,
+      26020,
+      21246
+    ],
+    "minimum_positions": 67,
+    "placed_positions": 63,
+    "status": "CAPACITY_REJECTED",
+    "authority_changed": false
+  },
+  {
+    "variant": "SECOND_ERECTOR_IN_MATERIAL_STORE",
+    "offset_mm": 600,
+    "equipment_bbox_mm": [
+      20520,
+      17743,
+      26020,
+      21546
+    ],
+    "minimum_positions": 67,
+    "placed_positions": 63,
+    "status": "CAPACITY_REJECTED",
+    "authority_changed": false
+  },
+  {
+    "variant": "SECOND_ERECTOR_IN_MATERIAL_STORE",
+    "offset_mm": 900,
+    "equipment_bbox_mm": [
+      20520,
+      18043,
+      26020,
+      21846
+    ],
+    "minimum_positions": 67,
+    "placed_positions": 63,
+    "status": "CAPACITY_REJECTED",
+    "authority_changed": false
+  },
+  {
+    "variant": "SECOND_ERECTOR_IN_MATERIAL_STORE",
+    "offset_mm": 1200,
+    "equipment_bbox_mm": [
+      20520,
+      18343,
+      26020,
+      22146
+    ],
+    "minimum_positions": 67,
+    "placed_positions": 63,
+    "status": "CAPACITY_REJECTED",
+    "authority_changed": false
+  },
+  {
+    "variant": "SECOND_ERECTOR_IN_MATERIAL_STORE",
+    "offset_mm": 1500,
+    "equipment_bbox_mm": [
+      20520,
+      18643,
+      26020,
+      22446
+    ],
+    "minimum_positions": 67,
+    "placed_positions": 63,
+    "status": "CAPACITY_REJECTED",
+    "authority_changed": false
+  },
+  {
+    "variant": "DEVICE_DOCKS_IN_EXISTING_ROOMS",
+    "status": "STATIC_REJECTED",
+    "conflicts": [
+      {
+        "code": "RESERVED_AISLE_OCCUPIED",
+        "room": "coating_room",
+        "aisle": "FILM-SOUTH",
+        "other": "DEPALLETIZE-OPERATOR"
+      },
+      {
+        "code": "RESERVED_AISLE_OCCUPIED",
+        "room": "coating_room",
+        "aisle": "FILM-SOUTH",
+        "other": "REPALLETIZE-OPERATOR"
+      }
+    ],
+    "coating_depth_mm": 7100
+  },
+  {
+    "variant": "ROTATE_FOUR_ERECTORS_PLUS_DISTINCT_BUFFER_AND_WORK_POSITIONS",
+    "coating_service_depth": {
+      "depth_mm": 8300,
+      "formula": "2*(main aisle + pallet half-depth + operator depth + gap + boundary margin)",
+      "input_mm": {
+        "aisle": 2500,
+        "pallet_depth": 1200,
+        "operator_depth": 900,
+        "gap": 100,
+        "boundary_margin": 50
+      },
+      "source_type": "demo",
+      "validity_status": "unverified",
+      "requires_review": true
+    },
+    "static_conflicts": [],
+    "actual_nontruck_access_pass": 11,
+    "continuous_main_product_chains": 6,
+    "route_failures": []
+  }
+]

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>自主布局V1.2</title>
+<style>body{font:15px/1.6 system-ui;
+color:#243e4b;
+margin:24px auto;
+max-width:1600px;
+padding:0 16px}a{color:#197d79}button{padding:9px 14px;
+margin:3px;
+background:#edf3f3;
+border:1px solid #b6cbd0;
+color:#243e4b;
+cursor:pointer}.plan{overflow:auto;
+border:1px solid #d2dfe3}img{width:100%;
+min-width:1100px}table{border-collapse:collapse;
+width:100%}td,th{padding:8px;
+text-align:left;
+border-bottom:1px solid #d2dfe3}p{max-width:1120px}</style>
+<h1>自主布局V1.2 · 设备到设备物流</h1>
+<p>实际生成12区、设备端点、14待冷缓冲与6线托位。
+6条完整条件产品链；
+FIVE_ERECTORS_SIX_LINES_CONNECTED。
+图中仅显示已验证路径。
+条件矩形转向不是实际车辆运动学，厂区工程批准及连续产能未成立。
+</p>
+<p>
+<a href="autonomous-layout-A12.pdf">A1 1:200 PDF</a> ·
+<a href="autonomous-layout-A12.png">高清PNG</a> ·
+<a href="autonomous-layout-A12.svg">可缩放SVG</a> ·
+<a href="equipment-endpoints-and-routes.json">端点和路径索引</a> ·
+<a href="autonomous-layout-A12.json">原始候选及全部见证</a> ·
+<a href="layout-comparison.md">A1对照</a>
+</p>
+<div>
+<button data-file="autonomous-layout-A12.svg">整厂平面</button>
+<button data-file="main-product-logistics.svg">主产品设备链</button>
+<button data-file="six-line-case-supply.svg">五台折箱机/六线供箱</button>
+</div>
+<div class="plan">
+<img id="drawing" src="autonomous-layout-A12.svg" alt="真实比例自主布局">
+</div>
+<h2>各线端到端条件路径</h2>
+<table>
+<tr>
+<th>包装线</th>
+<th>中心线长度</th>
+<th>状态</th>
+</tr><tr><td>PACK-01</td><td>278.246m</td><td>CONTINUOUS_CONDITIONAL_CHAIN</td></tr><tr><td>PACK-02</td><td>272.644m</td><td>CONTINUOUS_CONDITIONAL_CHAIN</td></tr><tr><td>PACK-03</td><td>268.942m</td><td>CONTINUOUS_CONDITIONAL_CHAIN</td></tr><tr><td>PACK-04</td><td>253.740m</td><td>CONTINUOUS_CONDITIONAL_CHAIN</td></tr><tr><td>PACK-05</td><td>250.038m</td><td>CONTINUOUS_CONDITIONAL_CHAIN</td></tr><tr><td>PACK-06</td><td>244.436m</td><td>CONTINUOUS_CONDITIONAL_CHAIN</td></tr></table>
+<p>14缓冲位与6线工作位不重复计数；
+N/S为服务组，在本方案独立北侧工作带重新组织。
+包材货位仍满足67位。
+全部源、目标、门洞、转向及障碍身份可在JSON复核；
+未以旧房间中心连线代替设备路径。
+</p>
+<p>柜机门面、搬运包络和操作空间为未批准假设。
+共享通道需调度，逐条几何通过不代表同时交通通过。
+4.8kg/3.2kg及生产节拍保持B3/B4条件，未重新计算产能。
+H5真实功能仍INPUT_REQUIRED。
+Truck、完整P2D、工程批准和工厂适用性均未成立。
+</p>
+<script>document.querySelectorAll('button').forEach(b=>b.onclick=()=>document.getElementById('drawing').src=b.dataset.file)</script>
+</html>
