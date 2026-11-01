@@ -1,0 +1,163 @@
+{
+  "task_id": "V2_2_2_AUTONOMOUS_FACTORY_LAYOUT_GENERATION_V1",
+  "base_head": "b8e6e19f83a44b0bbba76ced2538372a8cb23763",
+  "regression_A": {
+    "status": "PASS",
+    "test": "test_generation_works_without_historical_files",
+    "runtime_inputs": "only structure/business/equipment-spec JSON in temporary working directory",
+    "audit": "before application import; forbidden V2/V3/historical-candidate reads raise",
+    "actual_candidate_count": 2,
+    "actual_room_counts": [
+      12,
+      12
+    ],
+    "evidence": "evidence/regression-AB-final.xml"
+  },
+  "regression_B": {
+    "status": "PASS",
+    "changed_input": {
+      "finished_storage_days": [
+        7,
+        8
+      ]
+    },
+    "baseline": {
+      "p1_area_m2": 602.64,
+      "geometries": [
+        {
+          "profile": "LINEAR_BANDED",
+          "bbox_mm": [
+            86680,
+            32115,
+            105280,
+            64515
+          ],
+          "width_mm": 18600,
+          "depth_mm": 32400,
+          "area_m2": "602.64"
+        },
+        {
+          "profile": "PROCESS_SPINE_WITH_PERIPHERAL_BANKS",
+          "bbox_mm": [
+            67970,
+            36293,
+            100370,
+            54893
+          ],
+          "width_mm": 32400,
+          "depth_mm": 18600,
+          "area_m2": "602.64"
+        }
+      ]
+    },
+    "changed": {
+      "p1_area_m2": 661.44,
+      "geometries": [
+        {
+          "profile": "LINEAR_BANDED",
+          "bbox_mm": [
+            86680,
+            32115,
+            107880,
+            63315
+          ],
+          "width_mm": 21200,
+          "depth_mm": 31200,
+          "area_m2": "661.44"
+        },
+        {
+          "profile": "PROCESS_SPINE_WITH_PERIPHERAL_BANKS",
+          "bbox_mm": [
+            67970,
+            36293,
+            99170,
+            57493
+          ],
+          "width_mm": 31200,
+          "depth_mm": 21200,
+          "area_m2": "661.44"
+        }
+      ]
+    },
+    "baseline_result_hash": "sha256:23af2f2ee4ca8441b6c96e5f21aaf64ed6dc603d5086de3f74db0cb34705d59f",
+    "changed_result_hash": "sha256:f54e0c34bb088eafc1e8dc2eb2772e1152cf0c6ee055a22024efa5b2e96c66fa",
+    "evidence": "regressions/storage-days-8/layout-generation-results.json"
+  },
+  "local_whitelist": {
+    "tests": 829,
+    "passed": 813,
+    "skipped": 16,
+    "failures": 0,
+    "errors": 0
+  },
+  "final_regression_AB": {
+    "tests": 2,
+    "passed": 2,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  },
+  "final_artifact_and_guard_checks": {
+    "tests": 2,
+    "passed": 2,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  },
+  "CI_contracts": {
+    "passed": 65,
+    "failures": 0,
+    "evidence": "evidence/ci-contracts.txt.gz"
+  },
+  "static_checks": {
+    "ruff": "PASS",
+    "format": "1159 files unchanged",
+    "mypy": "531 source files PASS"
+  },
+  "protected_baseline": {
+    "only_existing_tracked_file_changed": [
+      ".github/workflows/ci-fast.yml"
+    ],
+    "change": "Append new test and pin backend Python3.12; preserve all inherited tests",
+    "P1_StageB_comparators_MCP_old_runners_historical_evidence": "UNCHANGED"
+  },
+  "local_generation_native_solves": 0,
+  "MAIN": false,
+  "real_grant_claim_accessed": false,
+  "formal_CI_requested": false,
+  "fast_CI_scope": "inherited workflow includes old synthetic Native tests; not claimed zero Native for entire remote CI",
+  "render_QA": {
+    "both_PDF_page_mm": [
+      841,
+      594
+    ],
+    "scale": "1:200",
+    "scale_bar_paper_mm": 100,
+    "scale_bar_world_mm": 20000,
+    "PNG_pixels": [
+      6623,
+      4678
+    ],
+    "text_outside_page": 0,
+    "visual_previews": [
+      "evidence/final-A.png",
+      "evidence/final-B.png"
+    ]
+  },
+  "unresolved": [
+    "B personnel entrance route not found within bounded search",
+    "B occupied-room/corridor union zero-hole not verified",
+    "equipment-aware interior material paths and some portal approaches unresolved",
+    "packaging stock bodies 66 vs original minimum67",
+    "full Truck/land Site/P2D/full-equipment operation not evaluated"
+  ],
+  "first_remote_CI": {
+    "run_id": 41282997356,
+    "status": "FAILURE",
+    "backend_passed": 2144,
+    "new_module_passed": 23,
+    "architecture_failures": 2,
+    "reason": "Python3.14 AST schema differs; original functions and digest checks retained",
+    "evidence": "evidence/ci-first-run-41282997356.json"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "run_id": 41282997356,
+  "head": "713984cb6b0ef006634be788c5268ddbff5a9fb8",
+  "status": "FAILURE",
+  "backend_tests": 2144,
+  "backend_failures": 0,
+  "architecture_failures": [
+    "test_r1_historical_search_ast_unchanged_from_r1_start",
+    "test_shared_parser_relocation_preserves_the_complete_function_ast"
+  ],
+  "ci_python": "3.14.4",
+  "local_designated_python": "3.12.13",
+  "cause": "PYTHON_AST_SERIALIZATION_VERSION_DIFFERENCE",
+  "fix": "Pin only ci-fast backend environment via uv sync --locked --python 3.12; retain both original AST digests and production source",
+  "excerpt": [
+    "2026-11-01T07:01:01.2426364Z Using CPython 3.14.4 interpreter at: /usr/bin/python3",
+    "2026-11-01T07:32:04.8280552Z 2144 passed, 1 deselected, 7 warnings in 1853.96s (0:30:53)",
+    "2026-11-01T07:32:18.7054547Z E       AssertionError: assert '9817ec0cb229...79995d0376bfe' == 'd6ba8525ae18...4cb1fe44300d3'",
+    "2026-11-01T07:32:18.7055229Z E         - d6ba8525ae18e7a420ea4cad6aa5188c408b1228f0c0a16223c4cb1fe44300d3",
+    "2026-11-01T07:32:18.7055681Z E         + 9817ec0cb22977f6402f619e5ee37532f9c915b799b46e12bcf79995d0376bfe",
+    "2026-11-01T07:32:18.7056143Z tests/architecture/test_v222_p1a_hard_obstacle_authority_boundary.py:52: AssertionError",
+    "2026-11-01T07:32:18.7059386Z E       AssertionError: assert '2dd5b6bd5cc2...b4ec151837710' == 'da84ad9ccf1f...9403f3e8455e6'",
+    "2026-11-01T07:32:18.7060114Z E         - da84ad9ccf1f0ae3d6b24fe1f0348fd7ea1637328edd6f78ba39403f3e8455e6",
+    "2026-11-01T07:32:18.7060517Z E         + 2dd5b6bd5cc2dff326361a1bd44be1a837350682a9bc9919a0db4ec151837710",
+    "2026-11-01T07:32:18.7060973Z tests/architecture/test_v222_p1a_hard_obstacle_authority_boundary.py:59: AssertionError",
+    "2026-11-01T07:32:18.7080865Z 2 failed, 788 passed, 16 skipped, 11 warnings in 8.67s"
+  ]
+}

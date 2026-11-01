@@ -1,0 +1,12 @@
+[
+  {
+    "python": "3.12.13 (main, May 10 2026, 19:20:41) [Clang 22.1.3 ]",
+    "historical_search_ast_sha256": "d6ba8525ae18e7a420ea4cad6aa5188c408b1228f0c0a16223c4cb1fe44300d3",
+    "shared_parser_ast_sha256": "da84ad9ccf1f0ae3d6b24fe1f0348fd7ea1637328edd6f78ba39403f3e8455e6"
+  },
+  {
+    "python": "3.14.5 (main, May 10 2026, 19:20:57) [Clang 22.1.3 ]",
+    "historical_search_ast_sha256": "9817ec0cb22977f6402f619e5ee37532f9c915b799b46e12bcf79995d0376bfe",
+    "shared_parser_ast_sha256": "2dd5b6bd5cc2dff326361a1bd44be1a837350682a9bc9919a0db4ec151837710"
+  }
+]
