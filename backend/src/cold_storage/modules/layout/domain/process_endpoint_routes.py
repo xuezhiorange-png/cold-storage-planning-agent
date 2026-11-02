@@ -32,6 +32,14 @@ from cold_storage.modules.layout.domain.process_transfer_interfaces import (
 NORMALS = MappingProxyType({"W": (-1, 0), "E": (1, 0), "S": (0, -1), "N": (0, 1)})
 
 
+class ProcessEndpointUnavailable(ValueError):
+    """Original rejection, with current physical objects for bounded feedback."""
+
+    def __init__(self, message: str, details: Mapping[str, Any]) -> None:
+        super().__init__(message)
+        self.details = dict(details)
+
+
 def room_rectangles(candidate: Mapping[str, Any]) -> dict[str, Any]:
     from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 
@@ -160,7 +168,15 @@ class ProcessRoutePlanner:
             row["carrier_envelope_unchanged"] = [spec["tangent_mm"], spec["normal_mm"]]
         return identity
 
-    def choose_pallet_endpoint(self, room: str, *, target_room: str, rank: int = 0) -> str:
+    def choose_pallet_endpoint(
+        self,
+        room: str,
+        *,
+        target_room: str,
+        rank: int = 0,
+        carrier: str = "LOADED_PALLET",
+        role: str = "PALLET-TRANSFER",
+    ) -> str:
         """Choose a real accessible front load, not a previous run's slot ID."""
         storage = next(
             (
@@ -177,7 +193,10 @@ class ProcessRoutePlanner:
             and (q["kind"].endswith("_pallet") or q["kind"] in ("PRI_pallet", "SEC_pallet"))
         ]
         if not candidates:
-            raise ValueError("NO_CURRENT_PALLET_BODY:" + room)
+            raise ProcessEndpointUnavailable(
+                "NO_CURRENT_PALLET_BODY:" + room,
+                {"room": room, "room_bbox_mm": self.rooms[room], "target_room": target_room},
+            )
         if storage:
             face = {0: "S", 1: "E", 2: "N", 3: "W"}[storage["turn"]]
             front = min(q["grid_row"] for q in candidates)
@@ -205,25 +224,44 @@ class ProcessRoutePlanner:
             None,
         )
         if access is None:
-            raise ValueError("NO_CURRENT_MATERIAL_ACCESS:" + room)
+            raise ProcessEndpointUnavailable(
+                "NO_CURRENT_MATERIAL_ACCESS:" + room,
+                {
+                    "room": room,
+                    "room_bbox_mm": self.rooms[room],
+                    "target_room": target_room,
+                    "required_main_aisle_mm": self.parameters["main_aisle_mm"],
+                },
+            )
         portal = access["portal_from" if access["from_ref"] == room else "portal_to"]["segment"]
         centre = [
             round(sum(Decimal(str(portal[k][a])) for k in ("start", "end")) * 500)
             for a in ("x", "y")
         ]
         viable = []
+        tested = []
         for q in candidates:
-            id_ = self.endpoint(q["id"], "PALLET-TRANSFER", face, "LOADED_PALLET")
+            id_ = self.endpoint(q["id"], role, face, carrier)
             ep = self.endpoints[id_]
             dock = self._dock(
                 ep, self.obstacles(room, {q["id"]}), int(self.parameters["main_aisle_mm"])
             )
+            tested.append({"endpoint": dict(ep), "load_bbox_mm": q["bbox_mm"], "dock": dock})
             if dock["status"] == "DOCK_AND_TURN_VERIFIED":
                 viable.append(
                     (sum(abs(ep["dock_reference_mm"][i] - centre[i]) for i in (0, 1)), q["id"], id_)
                 )
         if not viable:
-            raise ValueError("NO_CURRENT_ACCESSIBLE_PALLET_ENDPOINT:" + room)
+            raise ProcessEndpointUnavailable(
+                "NO_CURRENT_ACCESSIBLE_PALLET_ENDPOINT:" + room,
+                {
+                    "room": room,
+                    "room_bbox_mm": self.rooms[room],
+                    "target_room": target_room,
+                    "required_main_aisle_mm": self.parameters["main_aisle_mm"],
+                    "tested_endpoints": tested,
+                },
+            )
         viable.sort()
         return viable[min(rank, len(viable) - 1)][2]
 
@@ -480,7 +518,10 @@ class ProcessRoutePlanner:
         source = self.endpoints[source_id]
         target = self.endpoints[target_id]
         if source["carrier"] != target["carrier"]:
-            raise ValueError("CARRIER_INTERFACE_MISMATCH")
+            raise ProcessEndpointUnavailable(
+                "CARRIER_INTERFACE_MISMATCH",
+                {"room": source["room"], "source": source, "target": target, "route_id": identity},
+            )
         carrier = source["carrier"]
         spec = self.parameters["carriers"][carrier]
         turn = 2 * math.ceil(math.hypot(spec["tangent_mm"], spec["normal_mm"]) / 2)

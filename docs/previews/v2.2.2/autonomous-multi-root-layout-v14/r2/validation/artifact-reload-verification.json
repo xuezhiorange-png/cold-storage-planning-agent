@@ -1,0 +1,95 @@
+{
+  "original_result_hashes_reconstructed": true,
+  "export_did_not_mutate_calculation": true,
+  "candidates": [
+    {
+      "days": 7,
+      "candidate_hash": "sha256:ab73f0c17621476e873927d2bdabe01866a648169b7e64e46658fd5bf30a0a24",
+      "original_admission_replayed": true,
+      "equipment_counts": {
+        "PRI_pallet": 18,
+        "SEC_pallet": 12,
+        "case_erector": 5,
+        "case_film_component": 4,
+        "dispatch_pallet_workplace": 1,
+        "finished_goods_room_pallet": 324,
+        "forced_air_fan_allowance": 5,
+        "frozen_fruit_room_pallet": 36,
+        "packaging_material_storage_pallet": 67,
+        "packing_line": 6,
+        "packing_pallet_workplace": 6,
+        "pallet_handoff": 2,
+        "precooling_buffer": 14,
+        "raw_crate_handoff": 1,
+        "raw_fruit_buffer_pallet": 45,
+        "secondary_fruit_buffer_pallet": 21,
+        "ten_door_locker": 11
+      },
+      "stock": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "all_original_engineering_checks": {
+        "original_project_and_building_binding": true,
+        "original_authority_and_12_rooms": true,
+        "original_MUST_and_room_nonoverlap": true,
+        "all_eleven_original_nontruck_access": true,
+        "single_connected_zero_hole_footprint": true,
+        "all_equipment_operators_columns_clear": true,
+        "all_original_device_counts": true,
+        "current_p1_grid_capacity_and_pick_put": true,
+        "original_53_person_two_shift_conditional_model": true,
+        "no_unresolved_layout_feedback": true
+      },
+      "new_qualified_organisation": false
+    },
+    {
+      "days": 8,
+      "candidate_hash": "sha256:514fff61d29c0d122ffdaef449a7adfd4824ce3791a10ca5cc4ffee328ea2a43",
+      "original_admission_replayed": true,
+      "equipment_counts": {
+        "PRI_pallet": 18,
+        "SEC_pallet": 12,
+        "case_erector": 5,
+        "case_film_component": 4,
+        "dispatch_pallet_workplace": 1,
+        "finished_goods_room_pallet": 364,
+        "forced_air_fan_allowance": 5,
+        "frozen_fruit_room_pallet": 36,
+        "packaging_material_storage_pallet": 67,
+        "packing_line": 6,
+        "packing_pallet_workplace": 6,
+        "pallet_handoff": 2,
+        "precooling_buffer": 14,
+        "raw_crate_handoff": 1,
+        "raw_fruit_buffer_pallet": 45,
+        "secondary_fruit_buffer_pallet": 21,
+        "ten_door_locker": 11
+      },
+      "stock": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 364,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "all_original_engineering_checks": {
+        "original_project_and_building_binding": true,
+        "original_authority_and_12_rooms": true,
+        "original_MUST_and_room_nonoverlap": true,
+        "all_eleven_original_nontruck_access": true,
+        "single_connected_zero_hole_footprint": true,
+        "all_equipment_operators_columns_clear": true,
+        "all_original_device_counts": true,
+        "current_p1_grid_capacity_and_pick_put": true,
+        "original_53_person_two_shift_conditional_model": true,
+        "no_unresolved_layout_feedback": true
+      },
+      "new_qualified_organisation": false
+    }
+  ],
+  "native_calls": 0
+}

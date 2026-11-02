@@ -1,0 +1,58 @@
+{
+  "task_id": "V2_2_2_AUTONOMOUS_MULTI_ROOT_FACTORY_SEARCH_R1",
+  "base_head": "3b1db476e09f8fa748c512e5ecd8912f2a8f4776",
+  "local_junit": [
+    {
+      "file": "final-new-architecture.xml",
+      "cases": 844,
+      "passed": 828,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 16
+    },
+    {
+      "file": "prior-autonomous-regression.xml",
+      "cases": 185,
+      "passed": 185,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "file": "extra-boundary-tests.xml",
+      "cases": 2,
+      "passed": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "native_scope": "ALL_LOCAL_LAYOUT_AND_WHITE_LIST_TEST_PYTHON_PROCESSES_GUARDED; INTENTIONAL_BLOCKED_API_NEGATIVE_CHECKS_ARE_NOT_SOLVES",
+  "new_native_solves": 0,
+  "real_MAIN": false,
+  "real_Grant_Claim": false,
+  "full_CI_requested": false,
+  "whitelist": [
+    "tests/unit/test_v222_autonomous_multi_root_layout.py",
+    "tests/unit/test_v222_autonomous_factory_layout.py",
+    "tests/unit/test_v222_autonomous_functional_layout.py",
+    "tests/unit/test_v222_autonomous_process_continuity.py",
+    "tests/unit/test_v222_autonomous_adaptive_layout.py",
+    "tests/architecture",
+    "tests/unit/test_ci_partition_execution.py",
+    "scripts/ci/tests"
+  ],
+  "local_test_budget": "18 total root calls and 6000 DFS nodes per case; actual delivery separately executed 64 calls/20000 node caps",
+  "initial_architecture_failure": "Public mutable configuration constants; changed to immutable MappingProxyType. Original failure log retained; final complete architecture run passed.",
+  "automatic_ci_scope": "Existing fast workflow retains prior synthetic Native tests; do not call entire CI zero-Native.",
+  "software_checks": "Ruff/Format/Mypy/YAML checked; exact-head remote CI receipt supplied separately after push",
+  "new_module_unique_executed_cases": 38,
+  "new_module_case_names_match_current_collection": true,
+  "static_checks": {
+    "ruff": "PASS",
+    "format_files": 1187,
+    "mypy_src_and_entry_files": 552,
+    "mypy_ci_scripts": 2,
+    "yaml": "PASS"
+  }
+}

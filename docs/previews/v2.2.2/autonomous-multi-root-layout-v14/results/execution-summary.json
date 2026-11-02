@@ -1,0 +1,1123 @@
+[
+  {
+    "days": 7,
+    "source_input_hash": "sha256:d9cd4110874625b5c6b92f5d32a2862de0c919d24dd2d0afae9e01fa2991380b",
+    "result_hash": "sha256:fa1c492278ef16beef4790c8d4d4cd93c17fa1facf70026a23c0b1ca4e0eb724",
+    "root_search_calls_including_bootstrap": 64,
+    "actual_complete_room_roots": 98,
+    "root_relationship_classes_before_admission": 20,
+    "room_dfs_nodes": 13415,
+    "full_pipeline_attempts_including_reference": 5,
+    "retained_current_input_reference_candidates": 1,
+    "new_qualified_root_candidates": 0,
+    "status": "NO_NEW_ORGANISATION_WITHIN_BOUNDED_SEARCH",
+    "root_failure_counts": {
+      "INTERRUPTED_PROCESS_CANDIDATE": 2,
+      "CURRENT_P1_STORAGE_REJECTED": 46,
+      "EQUIPMENT_OR_RESERVED_PASSAGE_REJECTED": 36,
+      "ORIGINAL_PORTAL_OR_ZERO_HOLE_PRECHECK_REJECTED": 14
+    },
+    "full_failures": [
+      {
+        "root_id": "ROOT-001",
+        "main_lines": 0,
+        "failures": [
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+            "id": "interior"
+          },
+          {
+            "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+            "id": "storage"
+          },
+          {
+            "code": "ORIGINAL_ENGINEERING_CONSTRAINT_REJECTED",
+            "id": "all_eleven_original_nontruck_access"
+          }
+        ]
+      },
+      {
+        "root_id": "ROOT-002",
+        "main_lines": 0,
+        "failures": [
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-REPAL-FINISHED"
+          },
+          {
+            "code": "REQUIRED_ROUTE_NOT_VERIFIED",
+            "id": "PRODUCT-FINISHED-DISPATCH"
+          },
+          {
+            "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+            "id": "interior"
+          },
+          {
+            "code": "V11_REQUIRED_FUNCTION_NOT_RECOVERED_OR_STALE",
+            "id": "storage"
+          },
+          {
+            "code": "ORIGINAL_ENGINEERING_CONSTRAINT_REJECTED",
+            "id": "all_eleven_original_nontruck_access"
+          }
+        ]
+      }
+    ],
+    "early_interfaces": [],
+    "budget": {
+      "failed_necessary_gate_full_diagnostics": 2,
+      "full_pipeline_attempts_used": 5,
+      "limits": {
+        "accepted_limit": 2,
+        "feedback_children": 8,
+        "feedback_depth": 4,
+        "full_pipeline_limit": 12,
+        "nodes_per_root_search": 400,
+        "root_search_limit": 64,
+        "roots_per_search": 2,
+        "total_room_node_budget": 20000
+      },
+      "profile_search_allocations": {
+        "CENTRAL_PROCESS_CORE": 20,
+        "LINEAR_BANDED": 21,
+        "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 20
+      },
+      "remaining_descriptors": 502,
+      "room_nodes_used": 13415,
+      "root_search_calls_used": 64,
+      "stop_reason": "ROOT_SEARCH_LIMIT"
+    },
+    "operation_counts": {
+      "necessary_portal_prechecks": 16,
+      "process_route_grid_nodes": 14246,
+      "selected_stock_event_grid_nodes": 107651,
+      "selected_stock_motion_attempts": 47675,
+      "stock_layout_trials": 1001
+    },
+    "accounting_scope": {
+      "equipment_counts": "ACTUAL_LAYOUT_TRIALS_AND_SELECTED_ORDERED_STOCK_WITNESSES",
+      "reference_operations": "REPORTED_SEPARATELY_IN_REFERENCE_EXECUTION",
+      "room_nodes": "ACTUAL_ATTACHMENT_DFS_NODES_INCLUDING_REFERENCE_BOOTSTRAP",
+      "route_nodes": "ACTUAL_REPORTED_FULL_PIPELINE_TRANSPORT_GRID_NODES",
+      "stage_a_b_work_or_lease_issued": false,
+      "uninstrumented_operations": "NOT_INFERRED_NOT_TOTAL_CPU_WORK",
+      "work_counting_rules_changed": false
+    }
+  },
+  {
+    "days": 8,
+    "source_input_hash": "sha256:5fd9695b8385a36a8f2f6a15078643e00f54434e1b57d5245538a30fde7b30bf",
+    "result_hash": "sha256:8c698d1d870d222194e04ad42c6316d19c897883ea762b7a6865b010c266b28c",
+    "root_search_calls_including_bootstrap": 64,
+    "actual_complete_room_roots": 82,
+    "root_relationship_classes_before_admission": 23,
+    "room_dfs_nodes": 9546,
+    "full_pipeline_attempts_including_reference": 2,
+    "retained_current_input_reference_candidates": 1,
+    "new_qualified_root_candidates": 0,
+    "status": "NO_NEW_ORGANISATION_WITHIN_BOUNDED_SEARCH",
+    "root_failure_counts": {
+      "CURRENT_P1_STORAGE_REJECTED": 43,
+      "EQUIPMENT_OR_RESERVED_PASSAGE_REJECTED": 38,
+      "CURRENT_PROCESS_INTERFACE_REJECTED": 1
+    },
+    "full_failures": [],
+    "early_interfaces": [
+      {
+        "root_id": "ROOT-026",
+        "error": "ADAPTIVE_P1_ACCESS_INCOMPLETE",
+        "details": {
+          "details": {
+            "access": [
+              {
+                "access_class": "MATERIAL_LOGISTICS",
+                "canonical_hash": "sha256:53840e4d7780c416dd92157dc7bdc01672863752725f00d4e801c3948cfeb01b",
+                "centerline": [
+                  {
+                    "x": "19.51",
+                    "y": "41.65"
+                  },
+                  {
+                    "x": "19.51",
+                    "y": "41.65"
+                  }
+                ],
+                "clear_width_m": "2.4",
+                "codes": [],
+                "corridor_allowed": true,
+                "corridor_envelope": [],
+                "direct_allowed": true,
+                "edge_alignment_verified": true,
+                "edge_orientation_requirement": null,
+                "flow_kind": "MATERIAL",
+                "from_ref": "raw_fruit_buffer",
+                "portal_clear_width_m": "2.4",
+                "portal_from": {
+                  "access_ref": "raw_fruit_buffer",
+                  "clear_width_m": "2.4",
+                  "edge_class": "SHORT_EDGE",
+                  "identity": "portal:access:raw_fruit_buffer->primary_precooling_room@1.0.0:raw_fruit_buffer@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "19.51",
+                      "y": "42.85"
+                    },
+                    "start": {
+                      "x": "19.51",
+                      "y": "40.45"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "portal_required": true,
+                "portal_to": {
+                  "access_ref": "primary_precooling_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "SHORT_EDGE",
+                  "identity": "portal:access:raw_fruit_buffer->primary_precooling_room@1.0.0:primary_precooling_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "19.51",
+                      "y": "42.85"
+                    },
+                    "start": {
+                      "x": "19.51",
+                      "y": "40.45"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+                "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+                "requires_review": true,
+                "route_length_m": "0",
+                "route_shape": "STRAIGHT",
+                "route_shape_constraint": "NOT_FROZEN",
+                "selection_basis": "LEGAL_SHARED_EDGE_OFFSET_AND_BODY_FREE_APPROACH",
+                "status": "PASS",
+                "to_ref": "primary_precooling_room",
+                "topology": "DIRECT_SHARED_EDGE",
+                "transport_mode": "MANUAL_PALLET_JACK",
+                "turn_count": 0
+              },
+              {
+                "access_class": "MATERIAL_LOGISTICS",
+                "canonical_hash": "sha256:60cfcc416cdd8add9a604564c9d6acc8f6bcad7a23be294ae14b7604b6c290d0",
+                "centerline": [
+                  {
+                    "x": "32.385",
+                    "y": "32.85"
+                  },
+                  {
+                    "x": "32.385",
+                    "y": "32.85"
+                  }
+                ],
+                "clear_width_m": "2.4",
+                "codes": [],
+                "corridor_allowed": true,
+                "corridor_envelope": [],
+                "direct_allowed": true,
+                "edge_alignment_verified": true,
+                "edge_orientation_requirement": null,
+                "flow_kind": "MATERIAL",
+                "from_ref": "primary_precooling_room",
+                "portal_clear_width_m": "2.4",
+                "portal_from": {
+                  "access_ref": "primary_precooling_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:primary_precooling_room->sorting_packaging_room@1.0.0:primary_precooling_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "33.585",
+                      "y": "32.85"
+                    },
+                    "start": {
+                      "x": "31.185",
+                      "y": "32.85"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "portal_required": true,
+                "portal_to": {
+                  "access_ref": "sorting_packaging_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:primary_precooling_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "33.585",
+                      "y": "32.85"
+                    },
+                    "start": {
+                      "x": "31.185",
+                      "y": "32.85"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+                "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+                "requires_review": true,
+                "route_length_m": "0",
+                "route_shape": "STRAIGHT",
+                "route_shape_constraint": "NOT_FROZEN",
+                "selection_basis": "LEGAL_SHARED_EDGE_OFFSET_AND_BODY_FREE_APPROACH",
+                "status": "PASS",
+                "to_ref": "sorting_packaging_room",
+                "topology": "DIRECT_SHARED_EDGE",
+                "transport_mode": "MANUAL_PALLET_JACK",
+                "turn_count": 0
+              },
+              {
+                "access_class": "MATERIAL_LOGISTICS",
+                "canonical_hash": "sha256:5a10c265bb6cb916402959032a23a864d5c8fc5276ee586d04483ea887b8f2c2",
+                "centerline": [
+                  {
+                    "x": "53.44",
+                    "y": "32.85"
+                  },
+                  {
+                    "x": "53.44",
+                    "y": "32.85"
+                  }
+                ],
+                "clear_width_m": "2.4",
+                "codes": [],
+                "corridor_allowed": true,
+                "corridor_envelope": [],
+                "direct_allowed": true,
+                "edge_alignment_verified": true,
+                "edge_orientation_requirement": null,
+                "flow_kind": "MATERIAL",
+                "from_ref": "sorting_packaging_room",
+                "portal_clear_width_m": "2.4",
+                "portal_from": {
+                  "access_ref": "sorting_packaging_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:sorting_packaging_room->secondary_precooling_room@1.0.0:sorting_packaging_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "54.64",
+                      "y": "32.85"
+                    },
+                    "start": {
+                      "x": "52.24",
+                      "y": "32.85"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "portal_required": true,
+                "portal_to": {
+                  "access_ref": "secondary_precooling_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "SHORT_EDGE",
+                  "identity": "portal:access:sorting_packaging_room->secondary_precooling_room@1.0.0:secondary_precooling_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "54.64",
+                      "y": "32.85"
+                    },
+                    "start": {
+                      "x": "52.24",
+                      "y": "32.85"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+                "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+                "requires_review": true,
+                "route_length_m": "0",
+                "route_shape": "STRAIGHT",
+                "route_shape_constraint": "NOT_FROZEN",
+                "selection_basis": "LEGAL_SHARED_EDGE_OFFSET_AND_BODY_FREE_APPROACH",
+                "status": "PASS",
+                "to_ref": "secondary_precooling_room",
+                "topology": "DIRECT_SHARED_EDGE",
+                "transport_mode": "MANUAL_PALLET_JACK",
+                "turn_count": 0
+              },
+              {
+                "access_class": "MATERIAL_LOGISTICS",
+                "canonical_hash": "sha256:e5cdcd7959a2902eb601e02df3fe05d6776917ae6c6b1daafe14433a74f764e3",
+                "centerline": [
+                  {
+                    "x": "58.34",
+                    "y": "34.1"
+                  },
+                  {
+                    "x": "58.34",
+                    "y": "34.1"
+                  }
+                ],
+                "clear_width_m": "2.4",
+                "codes": [],
+                "corridor_allowed": true,
+                "corridor_envelope": [],
+                "direct_allowed": true,
+                "edge_alignment_verified": true,
+                "edge_orientation_requirement": null,
+                "flow_kind": "MATERIAL",
+                "from_ref": "secondary_precooling_room",
+                "portal_clear_width_m": "2.4",
+                "portal_from": {
+                  "access_ref": "secondary_precooling_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:secondary_precooling_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "58.34",
+                      "y": "35.3"
+                    },
+                    "start": {
+                      "x": "58.34",
+                      "y": "32.9"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "portal_required": true,
+                "portal_to": {
+                  "access_ref": "coating_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "SHORT_EDGE",
+                  "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "58.34",
+                      "y": "35.3"
+                    },
+                    "start": {
+                      "x": "58.34",
+                      "y": "32.9"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+                "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+                "requires_review": true,
+                "route_length_m": "0",
+                "route_shape": "STRAIGHT",
+                "route_shape_constraint": "NOT_FROZEN",
+                "selection_basis": "LEGAL_SHARED_EDGE_OFFSET_AND_BODY_FREE_APPROACH",
+                "status": "PASS",
+                "to_ref": "coating_room",
+                "topology": "DIRECT_SHARED_EDGE",
+                "transport_mode": "MANUAL_PALLET_JACK",
+                "turn_count": 0
+              },
+              {
+                "access_class": "MATERIAL_LOGISTICS",
+                "canonical_hash": "sha256:28a12c73062fd3cab402d3864f68d5961d116024e912870e63296f879ecbb387",
+                "centerline": [
+                  {
+                    "x": "66.49",
+                    "y": "41.15"
+                  },
+                  {
+                    "x": "66.49",
+                    "y": "41.15"
+                  }
+                ],
+                "clear_width_m": "2.4",
+                "codes": [],
+                "corridor_allowed": true,
+                "corridor_envelope": [],
+                "direct_allowed": true,
+                "edge_alignment_verified": true,
+                "edge_orientation_requirement": null,
+                "flow_kind": "MATERIAL",
+                "from_ref": "coating_room",
+                "portal_clear_width_m": "2.4",
+                "portal_from": {
+                  "access_ref": "coating_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "67.69",
+                      "y": "41.15"
+                    },
+                    "start": {
+                      "x": "65.29",
+                      "y": "41.15"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "portal_required": true,
+                "portal_to": {
+                  "access_ref": "finished_goods_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "SHORT_EDGE",
+                  "identity": "portal:access:coating_room->finished_goods_room@1.0.0:finished_goods_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "67.69",
+                      "y": "41.15"
+                    },
+                    "start": {
+                      "x": "65.29",
+                      "y": "41.15"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+                "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+                "requires_review": true,
+                "route_length_m": "0",
+                "route_shape": "STRAIGHT",
+                "route_shape_constraint": "NOT_FROZEN",
+                "selection_basis": "LEGAL_SHARED_EDGE_OFFSET_AND_BODY_FREE_APPROACH",
+                "status": "PASS",
+                "to_ref": "finished_goods_room",
+                "topology": "DIRECT_SHARED_EDGE",
+                "transport_mode": "MANUAL_PALLET_JACK",
+                "turn_count": 0
+              },
+              {
+                "access_class": "MATERIAL_LOGISTICS",
+                "canonical_hash": "sha256:3ad686aabc2dbe780bbeaf024e808fd418c5c208ce6a3f45978b838a8b6e9792",
+                "centerline": [
+                  {
+                    "x": "79.54",
+                    "y": "44.996"
+                  },
+                  {
+                    "x": "79.54",
+                    "y": "44.996"
+                  }
+                ],
+                "clear_width_m": "2.4",
+                "codes": [],
+                "corridor_allowed": true,
+                "corridor_envelope": [],
+                "direct_allowed": true,
+                "edge_alignment_verified": true,
+                "edge_orientation_requirement": null,
+                "flow_kind": "MATERIAL",
+                "from_ref": "finished_goods_room",
+                "portal_from": {
+                  "access_ref": "finished_goods_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:finished_goods_room->shipping_channel@1.0.0:finished_goods_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "79.54",
+                      "y": "46.196"
+                    },
+                    "start": {
+                      "x": "79.54",
+                      "y": "43.796"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "portal_required": true,
+                "portal_to": {
+                  "access_ref": "shipping_channel",
+                  "clear_width_m": "2.4",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:finished_goods_room->shipping_channel@1.0.0:shipping_channel@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "79.54",
+                      "y": "46.196"
+                    },
+                    "start": {
+                      "x": "79.54",
+                      "y": "43.796"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+                "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+                "requires_review": true,
+                "route_length_m": "0",
+                "route_shape": "STRAIGHT",
+                "route_shape_constraint": "NOT_FROZEN",
+                "status": "PASS",
+                "to_ref": "shipping_channel",
+                "topology": "DIRECT_SHARED_EDGE",
+                "turn_count": 0
+              },
+              {
+                "access_class": "MATERIAL_LOGISTICS",
+                "canonical_hash": "sha256:57cde9ce16ddd7d8c4e6e53afd9de460e7f568619f2553cb96219911241155d3",
+                "centerline": [
+                  {
+                    "x": "76.32",
+                    "y": "26.05"
+                  },
+                  {
+                    "x": "76.32",
+                    "y": "26.05"
+                  }
+                ],
+                "clear_width_m": "2.4",
+                "codes": [],
+                "corridor_allowed": true,
+                "corridor_envelope": [],
+                "direct_allowed": true,
+                "edge_alignment_verified": true,
+                "edge_orientation_requirement": "packaging-sorting-edge-connection@1.0.0",
+                "flow_kind": "PACKAGING",
+                "from_ref": "packaging_material_storage",
+                "portal_clear_width_m": "2.4",
+                "portal_from": {
+                  "access_ref": "packaging_material_storage",
+                  "clear_width_m": "2.4",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:packaging_material_storage->sorting_packaging_room@1.0.0:packaging_material_storage@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "76.32",
+                      "y": "27.25"
+                    },
+                    "start": {
+                      "x": "76.32",
+                      "y": "24.85"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "portal_required": true,
+                "portal_to": {
+                  "access_ref": "sorting_packaging_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "SHORT_EDGE",
+                  "identity": "portal:access:packaging_material_storage->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "76.32",
+                      "y": "27.25"
+                    },
+                    "start": {
+                      "x": "76.32",
+                      "y": "24.85"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "profile_identity": "packaging-sorting-straight-access@1.0.0",
+                "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+                "requires_review": true,
+                "route_length_m": "0",
+                "route_shape": "STRAIGHT",
+                "route_shape_constraint": "STRAIGHT_ONLY",
+                "selection_basis": "LEGAL_SHARED_EDGE_OFFSET_AND_BODY_FREE_APPROACH",
+                "status": "PASS",
+                "to_ref": "sorting_packaging_room",
+                "topology": "DIRECT_SHARED_EDGE",
+                "transport_mode": "MANUAL_PALLET_JACK",
+                "turn_count": 0
+              },
+              {
+                "access_class": "MATERIAL_LOGISTICS",
+                "canonical_hash": "sha256:2b133cb198943793ee9dc75dea3f4cc5fc9a64034f4d510daad5a63d7a475b93",
+                "centerline": [
+                  {
+                    "x": "53.44",
+                    "y": "19.25"
+                  },
+                  {
+                    "x": "53.44",
+                    "y": "19.25"
+                  }
+                ],
+                "clear_width_m": "2.4",
+                "codes": [],
+                "corridor_allowed": true,
+                "corridor_envelope": [],
+                "direct_allowed": true,
+                "edge_alignment_verified": true,
+                "edge_orientation_requirement": null,
+                "flow_kind": "SECONDARY",
+                "from_ref": "sorting_packaging_room",
+                "portal_clear_width_m": "2.4",
+                "portal_from": {
+                  "access_ref": "sorting_packaging_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:sorting_packaging_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "54.64",
+                      "y": "19.25"
+                    },
+                    "start": {
+                      "x": "52.24",
+                      "y": "19.25"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "portal_required": true,
+                "portal_to": {
+                  "access_ref": "secondary_fruit_buffer",
+                  "clear_width_m": "2.4",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:secondary_fruit_buffer@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "54.64",
+                      "y": "19.25"
+                    },
+                    "start": {
+                      "x": "52.24",
+                      "y": "19.25"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+                "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+                "requires_review": true,
+                "route_length_m": "0",
+                "route_shape": "STRAIGHT",
+                "route_shape_constraint": "NOT_FROZEN",
+                "selection_basis": "LEGAL_SHARED_EDGE_OFFSET_AND_BODY_FREE_APPROACH",
+                "status": "PASS",
+                "to_ref": "secondary_fruit_buffer",
+                "topology": "DIRECT_SHARED_EDGE",
+                "transport_mode": "MANUAL_PALLET_JACK",
+                "turn_count": 0
+              },
+              {
+                "access_class": "MATERIAL_LOGISTICS",
+                "canonical_hash": "sha256:509e6e9d2811f8900ae94276a1e3c4266516802bc8a1fb36d6f6dce66da1362c",
+                "centerline": [
+                  {
+                    "x": "30.56",
+                    "y": "25.719"
+                  },
+                  {
+                    "x": "30.56",
+                    "y": "25.719"
+                  }
+                ],
+                "clear_width_m": "2.4",
+                "codes": [],
+                "corridor_allowed": true,
+                "corridor_envelope": [],
+                "direct_allowed": true,
+                "edge_alignment_verified": true,
+                "edge_orientation_requirement": null,
+                "flow_kind": "FROZEN",
+                "from_ref": "sorting_packaging_room",
+                "portal_clear_width_m": "2.4",
+                "portal_from": {
+                  "access_ref": "sorting_packaging_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "SHORT_EDGE",
+                  "identity": "portal:access:sorting_packaging_room->frozen_fruit_room@1.0.0:sorting_packaging_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "30.56",
+                      "y": "26.919"
+                    },
+                    "start": {
+                      "x": "30.56",
+                      "y": "24.519"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "portal_required": true,
+                "portal_to": {
+                  "access_ref": "frozen_fruit_room",
+                  "clear_width_m": "2.4",
+                  "edge_class": "SHORT_EDGE",
+                  "identity": "portal:access:sorting_packaging_room->frozen_fruit_room@1.0.0:frozen_fruit_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "30.56",
+                      "y": "26.919"
+                    },
+                    "start": {
+                      "x": "30.56",
+                      "y": "24.519"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+                "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+                "requires_review": true,
+                "route_length_m": "0",
+                "route_shape": "STRAIGHT",
+                "route_shape_constraint": "NOT_FROZEN",
+                "selection_basis": "LEGAL_SHARED_EDGE_OFFSET_AND_BODY_FREE_APPROACH",
+                "status": "PASS",
+                "to_ref": "frozen_fruit_room",
+                "topology": "DIRECT_SHARED_EDGE",
+                "transport_mode": "MANUAL_PALLET_JACK",
+                "turn_count": 0
+              },
+              {
+                "access_class": "PERSONNEL",
+                "canonical_hash": "sha256:fafdf52d8017a3cca620e646f8411ea1778741fd5bdcbee465db37b3d5569a75",
+                "centerline": [],
+                "clear_width_m": null,
+                "codes": [
+                  "ROUTE_SEARCH_EXHAUSTED",
+                  "CORRIDOR_UNRELATED_ZONE_INTERSECTION"
+                ],
+                "corridor_allowed": true,
+                "corridor_envelope": [],
+                "direct_allowed": true,
+                "edge_alignment_verified": false,
+                "edge_orientation_requirement": null,
+                "flow_kind": "PEOPLE",
+                "from_ref": "main_entrance",
+                "portal_from": null,
+                "portal_required": true,
+                "portal_to": null,
+                "profile_identity": "personnel-clear-envelope@1.0.0",
+                "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+                "requires_review": true,
+                "route_length_m": null,
+                "route_shape": null,
+                "route_shape_constraint": "NOT_FROZEN",
+                "status": "FAIL",
+                "to_ref": "changing_room",
+                "topology": null,
+                "turn_count": null
+              },
+              {
+                "access_class": "PERSONNEL",
+                "canonical_hash": "sha256:9904261b0a44f8875f02a57b677442c840d891f1b5ae6fdde4b9ed6317703d95",
+                "centerline": [
+                  {
+                    "x": "21.76",
+                    "y": "14.519"
+                  },
+                  {
+                    "x": "21.76",
+                    "y": "13.518"
+                  },
+                  {
+                    "x": "31.81",
+                    "y": "13.518"
+                  },
+                  {
+                    "x": "31.81",
+                    "y": "19.25"
+                  }
+                ],
+                "clear_width_m": "2",
+                "codes": [],
+                "corridor_allowed": true,
+                "corridor_clear_width_m": "2",
+                "corridor_envelope": [
+                  {
+                    "points": [
+                      {
+                        "x": "20.76",
+                        "y": "13.518"
+                      },
+                      {
+                        "x": "22.76",
+                        "y": "13.518"
+                      },
+                      {
+                        "x": "22.76",
+                        "y": "14.519"
+                      },
+                      {
+                        "x": "20.76",
+                        "y": "14.519"
+                      }
+                    ],
+                    "type": "polygon"
+                  },
+                  {
+                    "points": [
+                      {
+                        "x": "21.76",
+                        "y": "12.518"
+                      },
+                      {
+                        "x": "31.81",
+                        "y": "12.518"
+                      },
+                      {
+                        "x": "31.81",
+                        "y": "14.518"
+                      },
+                      {
+                        "x": "21.76",
+                        "y": "14.518"
+                      }
+                    ],
+                    "type": "polygon"
+                  },
+                  {
+                    "points": [
+                      {
+                        "x": "30.81",
+                        "y": "13.518"
+                      },
+                      {
+                        "x": "32.81",
+                        "y": "13.518"
+                      },
+                      {
+                        "x": "32.81",
+                        "y": "19.25"
+                      },
+                      {
+                        "x": "30.81",
+                        "y": "19.25"
+                      }
+                    ],
+                    "type": "polygon"
+                  },
+                  {
+                    "points": [
+                      {
+                        "x": "20.76",
+                        "y": "12.518"
+                      },
+                      {
+                        "x": "22.76",
+                        "y": "12.518"
+                      },
+                      {
+                        "x": "22.76",
+                        "y": "14.518"
+                      },
+                      {
+                        "x": "20.76",
+                        "y": "14.518"
+                      }
+                    ],
+                    "type": "polygon"
+                  },
+                  {
+                    "points": [
+                      {
+                        "x": "30.81",
+                        "y": "12.518"
+                      },
+                      {
+                        "x": "32.81",
+                        "y": "12.518"
+                      },
+                      {
+                        "x": "32.81",
+                        "y": "14.518"
+                      },
+                      {
+                        "x": "30.81",
+                        "y": "14.518"
+                      }
+                    ],
+                    "type": "polygon"
+                  }
+                ],
+                "direct_allowed": true,
+                "edge_alignment_verified": true,
+                "edge_orientation_requirement": null,
+                "flow_kind": "PEOPLE",
+                "from_ref": "changing_room",
+                "portal_clear_width_m": "1.5",
+                "portal_from": {
+                  "access_ref": "changing_room",
+                  "clear_width_m": "1.5",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "22.51",
+                      "y": "14.519"
+                    },
+                    "start": {
+                      "x": "21.01",
+                      "y": "14.519"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "portal_required": true,
+                "portal_to": {
+                  "access_ref": "sorting_packaging_room",
+                  "clear_width_m": "1.5",
+                  "edge_class": "LONG_EDGE",
+                  "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:sorting_packaging_room@1.0.0",
+                  "segment": {
+                    "end": {
+                      "x": "32.56",
+                      "y": "19.25"
+                    },
+                    "start": {
+                      "x": "31.06",
+                      "y": "19.25"
+                    }
+                  },
+                  "status": "VALID"
+                },
+                "profile_identity": "personnel-clear-envelope@1.0.0",
+                "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+                "requires_review": true,
+                "route_length_m": "16.783",
+                "route_shape": "ORTHOGONAL",
+                "route_shape_constraint": "NOT_FROZEN",
+                "selection_basis": "BODY_AWARE_CONTINUOUS_LEGAL_EDGE_OFFSETS_ORIGINAL_FULL_WIDTH_PREDICATES",
+                "status": "PASS",
+                "to_ref": "sorting_packaging_room",
+                "topology": "CORRIDOR_MEDIATED",
+                "transport_mode": "PEDESTRIAN",
+                "turn_count": 2
+              },
+              {
+                "flow_kind": "TRUCK",
+                "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+                "status": "INPUT_REQUIRED_ACTUAL_VEHICLE_AND_LAND_SITE",
+                "truck_pass": false
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "budget": {
+      "failed_necessary_gate_full_diagnostics": 1,
+      "full_pipeline_attempts_used": 2,
+      "limits": {
+        "accepted_limit": 2,
+        "feedback_children": 8,
+        "feedback_depth": 4,
+        "full_pipeline_limit": 12,
+        "nodes_per_root_search": 400,
+        "root_search_limit": 64,
+        "roots_per_search": 2,
+        "total_room_node_budget": 20000
+      },
+      "profile_search_allocations": {
+        "CENTRAL_PROCESS_CORE": 20,
+        "LINEAR_BANDED": 20,
+        "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 21
+      },
+      "remaining_descriptors": 520,
+      "room_nodes_used": 9546,
+      "root_search_calls_used": 64,
+      "stop_reason": "ROOT_SEARCH_LIMIT"
+    },
+    "operation_counts": {
+      "necessary_portal_prechecks": 1,
+      "process_route_grid_nodes": 0,
+      "selected_stock_event_grid_nodes": 201764,
+      "selected_stock_motion_attempts": 43034,
+      "stock_layout_trials": 844
+    },
+    "accounting_scope": {
+      "equipment_counts": "ACTUAL_LAYOUT_TRIALS_AND_SELECTED_ORDERED_STOCK_WITNESSES",
+      "reference_operations": "REPORTED_SEPARATELY_IN_REFERENCE_EXECUTION",
+      "room_nodes": "ACTUAL_ATTACHMENT_DFS_NODES_INCLUDING_REFERENCE_BOOTSTRAP",
+      "route_nodes": "ACTUAL_REPORTED_FULL_PIPELINE_TRANSPORT_GRID_NODES",
+      "stage_a_b_work_or_lease_issued": false,
+      "uninstrumented_operations": "NOT_INFERRED_NOT_TOTAL_CPU_WORK",
+      "work_counting_rules_changed": false
+    }
+  }
+]

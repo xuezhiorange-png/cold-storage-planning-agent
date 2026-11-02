@@ -1,0 +1,10 @@
+{
+  "root_search_limit": 64,
+  "total_room_node_budget": 20000,
+  "nodes_per_root_search": 400,
+  "roots_per_search": 2,
+  "full_pipeline_limit": 12,
+  "accepted_limit": 2,
+  "feedback_depth": 4,
+  "feedback_children": 8
+}

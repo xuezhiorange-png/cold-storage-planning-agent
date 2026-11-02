@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from cold_storage.modules.layout.domain.access_routing import _shared_edge_segment
@@ -133,53 +133,8 @@ def build_functional_equipment(
     ]
     layouts[code] = {"service_corridors": corr, "operator_positions": operators}
 
-    for code, prefix in (("primary_precooling_room", "PRI"), ("secondary_precooling_room", "SEC")):
-        q = rooms[code]
-        w, h = int(q.width_m * 1000), int(q.depth_m * 1000)
-        n = round(w / 4900)
-        north = code == "primary_precooling_room"
-        corridors = []
-        corridors.append(corridor(code, [0, h - 2500, w, h], prefix + "-NORTH", 2500))
-        if not north:
-            corridors.append(corridor(code, [0, 0, w, 2500], prefix + "-SOUTH", 2500))
-        for cell in range(n):
-            for side in range(2):
-                x = cell * 4900 + (100 if side == 0 else 3800)
-                for row in range(3):
-                    y = 3000 + row * 1300
-                    local_add(
-                        code,
-                        f"{prefix}-C{cell + 1}-P{side * 3 + row + 1}",
-                        prefix + "_pallet",
-                        [x, y, x + 1000, y + 1200],
-                        carrier="TURNOVER_CRATES" if north else "CARTONS_ON_PALLET",
-                    )
-            x = cell * 4900 + 100
-            y = 6850
-            local_add(
-                code,
-                f"{prefix}-FAN-{cell + 1}",
-                "forced_air_fan_allowance",
-                [x, y, x + 600, y + 600],
-                cooling_performance="INPUT_REQUIRED",
-            )
-            # At the incoming end only the lane aligned to the sort-feed
-            # aisle must reach the boundary. Other lanes join the north cross.
-            low = 0
-            test = corridor(
-                code, [cell * 4900 + 1250, 0, cell * 4900 + 3750, h], prefix + "-test", 2500
-            )
-            if north and any(positive_intersection(test["bbox_mm"], c["bbox_mm"]) for c in columns):
-                low = 2700
-            corridors.append(
-                corridor(
-                    code,
-                    [cell * 4900 + 1250, low, cell * 4900 + 3750, h],
-                    f"{prefix}-LANE-{cell + 1}",
-                    2500,
-                )
-            )
-        layouts[code] = {"service_corridors": corridors}
+    for code in ("primary_precooling_room", "secondary_precooling_room"):
+        layouts[code] = precooling_room_template(rooms[code], columns, local_add, corridor)
 
     code = "coating_room"
     q = rooms[code]
@@ -424,3 +379,60 @@ def build_functional_equipment(
             "manufacturer/vehicle/hygiene approval separate"
         ),
     }
+
+
+def precooling_room_template(
+    room: PlacedRectangleV1,
+    columns: Sequence[Mapping[str, Any]],
+    local_add: Callable[..., Any],
+    corridor: Callable[..., dict[str, Any]],
+) -> dict[str, Any]:
+    """Original full-cell physical template, callable for partial room search."""
+    code = room.zone_code
+    prefix = "PRI" if code == "primary_precooling_room" else "SEC"
+    q = room
+    w, h = int(q.width_m * 1000), int(q.depth_m * 1000)
+    n = round(w / 4900)
+    north = code == "primary_precooling_room"
+    corridors = []
+    corridors.append(corridor(code, [0, h - 2500, w, h], prefix + "-NORTH", 2500))
+    if not north:
+        corridors.append(corridor(code, [0, 0, w, 2500], prefix + "-SOUTH", 2500))
+    for cell in range(n):
+        for side in range(2):
+            x = cell * 4900 + (100 if side == 0 else 3800)
+            for row in range(3):
+                y = 3000 + row * 1300
+                local_add(
+                    code,
+                    f"{prefix}-C{cell + 1}-P{side * 3 + row + 1}",
+                    prefix + "_pallet",
+                    [x, y, x + 1000, y + 1200],
+                    carrier="TURNOVER_CRATES" if north else "CARTONS_ON_PALLET",
+                )
+        x = cell * 4900 + 100
+        y = 6850
+        local_add(
+            code,
+            f"{prefix}-FAN-{cell + 1}",
+            "forced_air_fan_allowance",
+            [x, y, x + 600, y + 600],
+            cooling_performance="INPUT_REQUIRED",
+        )
+        # At the incoming end only the lane aligned to the sort-feed
+        # aisle must reach the boundary. Other lanes join the north cross.
+        low = 0
+        test = corridor(
+            code, [cell * 4900 + 1250, 0, cell * 4900 + 3750, h], prefix + "-test", 2500
+        )
+        if north and any(positive_intersection(test["bbox_mm"], c["bbox_mm"]) for c in columns):
+            low = 2700
+        corridors.append(
+            corridor(
+                code,
+                [cell * 4900 + 1250, low, cell * 4900 + 3750, h],
+                f"{prefix}-LANE-{cell + 1}",
+                2500,
+            )
+        )
+    return {"service_corridors": corridors}

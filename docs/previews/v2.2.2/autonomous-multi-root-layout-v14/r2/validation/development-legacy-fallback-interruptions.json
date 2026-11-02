@@ -1,0 +1,10 @@
+{
+  "status": "INCOMPLETE_NOT_PASS",
+  "reason": "The original portal fallback bypassed the local pair budget; development executions stopped before the fixed final run",
+  "processes": [
+    90566,
+    90472
+  ],
+  "signal": "SIGTERM",
+  "native_solves": 0
+}
