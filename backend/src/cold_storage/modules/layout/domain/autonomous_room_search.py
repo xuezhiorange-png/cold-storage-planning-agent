@@ -12,6 +12,7 @@ from math import isqrt
 from typing import Any
 
 from cold_storage.modules.layout.domain.adjacency import process_graph
+from cold_storage.modules.layout.domain.dimensioning import canonical_hash
 from cold_storage.modules.layout.domain.placement import _ceil_area_depth
 from cold_storage.modules.layout.domain.site_geometry import (
     PlacedRectangleV1,
@@ -39,6 +40,32 @@ ORDER = (
     "frozen_fruit_room",
 )
 PROFILES = ("LINEAR_BANDED", "CENTRAL_PROCESS_CORE", "PROCESS_SPINE_WITH_PERIPHERAL_BANKS")
+CORE_ROLES = tuple(q for q in ORDER[:7] if q != "coating_room")
+CORE_PREFIX_END = 7
+
+
+def core_relationship_signature(rooms: Mapping[str, PlacedRectangleV1]) -> str:
+    """Translation-invariant actual core contacts/sides, not a profile label."""
+    rows = []
+    for i, a in enumerate(CORE_ROLES):
+        if a not in rooms:
+            continue
+        b = rooms[a].bounds_mm
+        for name in CORE_ROLES[i + 1 :]:
+            if name not in rooms:
+                continue
+            c = rooms[name].bounds_mm
+            rows.append(
+                [
+                    a,
+                    name,
+                    "W" if c[2] <= b[0] else "E" if c[0] >= b[2] else "X_OVERLAP",
+                    "S" if c[3] <= b[1] else "N" if c[1] >= b[3] else "Y_OVERLAP",
+                    _shared_boxes(b, c) > 0,
+                    rooms[name].rotation_deg,
+                ]
+            )
+    return canonical_hash(rows)
 
 
 def _m(n: int) -> Decimal:
@@ -100,11 +127,34 @@ def search_room_arrangements(
     functional_shapes: Mapping[str, Sequence[tuple[int, int]]] | None = None,
     functional_alignment: bool = False,
     functional_open_chain: bool = False,
+    root_index: int | None = None,
+    diverse_cores: bool = False,
+    side_preferences: Mapping[str, str] | None = None,
+    event_root_anchors: bool = False,
+    root_anchor_mm: tuple[int, int, int] | None = None,
+    root_rotation_deg: int | None = None,
 ) -> tuple[list[dict[str, PlacedRectangleV1]], dict[str, Any]]:
     if profile not in PROFILES or not 1 <= node_budget <= 60000 or not 1 <= complete_limit <= 4:
         raise ValueError("AUTONOMOUS_SEARCH_CONFIGURATION_INVALID")
     if set(authorities) != set(ORDER):
         raise ValueError("AUTONOMOUS_ROLE_SET_INVALID")
+    if root_index is not None and not 0 <= root_index < 240:
+        raise ValueError("AUTONOMOUS_ROOT_INDEX_INVALID")
+    if (
+        root_rotation_deg is not None
+        and root_rotation_deg not in authorities[ORDER[0]]["rotation_allowed"]
+    ):
+        raise ValueError("AUTONOMOUS_ROOT_ROTATION_INVALID")
+    if root_anchor_mm is not None and (
+        len(root_anchor_mm) != 3
+        or any(type(v) is not int for v in root_anchor_mm)
+        or root_anchor_mm[2] not in (0, 90)
+    ):
+        raise ValueError("AUTONOMOUS_ROOT_ANCHOR_INVALID")
+    if side_preferences and any(
+        k not in ORDER or v not in ("N", "S", "E", "W") for k, v in side_preferences.items()
+    ):
+        raise ValueError("AUTONOMOUS_ATTACHMENT_PREFERENCE_INVALID")
     bb = _bounds(boundary)
     obs = [(_bounds(q), q) for q in obstacles]
     columns = [_bounds(q) for q in internal_columns]
@@ -132,6 +182,31 @@ def search_room_arrangements(
         "new_hard_constraints": False,
     }
     graph = process_graph()
+    completed_cores: set[str] = set()
+    if diverse_cores:
+        stats["actual_root_trials"] = []
+        stats["duplicate_core_branches_pruned"] = 0
+        stats["rejection_counts"] = {}
+        stats["rejection_examples"] = []
+    rejection_keys: set[tuple[str, str]] = set()
+
+    def rejected(reason: str, role: str, bounds: tuple[int, int, int, int], objects: Any) -> None:
+        if not diverse_cores:
+            return
+        key = (role, reason)
+        counts = stats["rejection_counts"]
+        counts[role + ":" + reason] = counts.get(role + ":" + reason, 0) + 1
+        if key not in rejection_keys and len(rejection_keys) < 48:
+            rejection_keys.add(key)
+            stats["rejection_examples"].append(
+                {
+                    "zone_code": role,
+                    "predicate": reason,
+                    "candidate_bbox_mm": list(bounds),
+                    "objects": objects,
+                }
+            )
+
     extra = (
         ("packaging_material_storage", "sorting_packaging_room"),
         ("secondary_fruit_buffer", "sorting_packaging_room"),
@@ -190,6 +265,9 @@ def search_room_arrangements(
                 ys = {ey + 2500, bb[3] - hh - 2500}
                 root = placed["sorting_packaging_room"].bounds_mm
                 ys.update((root[1] - hh, root[3], root[3] + 2500))
+                if diverse_cores:
+                    xs.update((root[0], root[2]))
+                    ys.update((root[1], root[3]))
                 anchors.update((x, y) for x in xs for y in ys)
             elif not neighbors:
                 xs = {bb[0] + 100, bb[2] - ww - 100, (bb[0] + bb[2] - ww) // 2}
@@ -201,6 +279,15 @@ def search_room_arrangements(
                             xs.update((bb[0] + 100 + span, bb[2] - 100 - ww - span))
                 for y in fixed_ys:
                     anchors.update((x, yy) for x in xs for yy in (y, y - hh))
+                if event_root_anchors:
+                    ys = {o[3] + 100 for o in columns} | {o[1] - hh - 100 for o in columns}
+                    anchors.update((x, y) for x in xs for y in ys)
+                if root_anchor_mm is not None:
+                    anchors = (
+                        {(root_anchor_mm[0], root_anchor_mm[1])}
+                        if rot == root_anchor_mm[2]
+                        else set()
+                    )
             for q in neighbors:
                 x, y, r, t = q.bounds_mm
                 ys = {y, t - hh, (y + t - hh) // 2}
@@ -218,21 +305,52 @@ def search_room_arrangements(
                 stats["options_checked"] += 1
                 b = (x, y, x + ww, y + hh)
                 if x < bb[0] or y < bb[1] or b[2] > bb[2] or b[3] > bb[3]:
+                    rejected("ORIGINAL_BUILDABLE_BOUNDARY", code, b, [list(bb)])
                     continue
                 if any(
                     min(b[2], o[2]) > max(x, o[0]) and min(b[3], o[3]) > max(y, o[1])
                     for o in occupied
                 ):
+                    rejected(
+                        "ORIGINAL_ROOM_NON_OVERLAP",
+                        code,
+                        b,
+                        [
+                            {"room": k, "bbox_mm": list(q.bounds_mm)}
+                            for k, q in placed.items()
+                            if rectangles_overlap(
+                                q, PlacedRectangleV1(code, _m(x), _m(y), _m(w), _m(h), rot)
+                            )
+                        ]
+                        if diverse_cores
+                        else [],
+                    )
                     continue
                 if any(
                     _shared_boxes(b, n) < (1500 if code == "changing_room" else 2400)
                     for n in neighbor_boxes
                 ):
+                    rejected(
+                        "ORIGINAL_MUST_OR_ACCESS_SHARED_FRONTAGE",
+                        code,
+                        b,
+                        [
+                            {
+                                "room": q.zone_code,
+                                "bbox_mm": list(q.bounds_mm),
+                                "shared_mm": _shared_boxes(b, q.bounds_mm),
+                            }
+                            for q in neighbors
+                        ]
+                        if diverse_cores
+                        else [],
+                    )
                     continue
                 # All source obstacles are axis-aligned exact rectangles in
                 # this input. This cheap necessary filter precedes the same
                 # original exact polygon predicate below.
                 if any(x <= o[2] and b[2] >= o[0] and y <= o[3] and b[3] >= o[1] for o, _ in obs):
+                    rejected("ORIGINAL_RETAINED_WALL_OBSTACLE", code, b, [list(o) for o, _ in obs])
                     continue
                 # Separate, explicit real-building interpretation: a room may
                 # contain a retained column, but a new partition cannot cut it.
@@ -243,6 +361,18 @@ def search_room_arrangements(
                     and not (x <= o[0] and y <= o[1] and b[2] >= o[2] and b[3] >= o[3])
                     for o in columns
                 ):
+                    rejected(
+                        "PARTITION_CANNOT_CUT_RETAINED_COLUMN",
+                        code,
+                        b,
+                        [
+                            list(o)
+                            for o in columns
+                            if min(b[2], o[2]) > max(x, o[0]) and min(b[3], o[3]) > max(y, o[1])
+                        ]
+                        if diverse_cores
+                        else [],
+                    )
                     continue
                 rect = PlacedRectangleV1(code, _m(x), _m(y), _m(w), _m(h), rot)
                 if not clear(rect) or any(
@@ -319,7 +449,17 @@ def search_room_arrangements(
                 y,
             )
 
-        return sorted(found.values(), key=score)[
+        def preferred_score(q: PlacedRectangleV1) -> tuple[Any, ...]:
+            if not side_preferences or code not in side_preferences:
+                return score(q)
+            if not neighbors and code != "changing_room":
+                return score(q)
+            reference = neighbors[0] if neighbors else placed["sorting_packaging_room"]
+            a, b = q.bounds_mm, reference.bounds_mm
+            side = "E" if a[0] >= b[2] else "W" if a[2] <= b[0] else "N" if a[1] >= b[3] else "S"
+            return (int(side != side_preferences[code]), *score(q))
+
+        return sorted(found.values(), key=preferred_score)[
             : (240 if code == "sorting_packaging_room" else 80)
         ]
 
@@ -327,13 +467,27 @@ def search_room_arrangements(
         if stats["nodes_used"] >= node_budget or len(results) >= complete_limit:
             return
         stats["nodes_used"] += 1
+        if diverse_cores and index > stats["max_roles"]:
+            stats["deepest_partial_rooms"] = [
+                {"zone_code": k, "bbox_mm": list(q.bounds_mm), "rotation_deg": q.rotation_deg}
+                for k, q in placed.items()
+            ]
         stats["max_roles"] = max(stats["max_roles"], index)
+        if (
+            diverse_cores
+            and index >= CORE_PREFIX_END
+            and core_relationship_signature(placed) in completed_cores
+        ):
+            stats["duplicate_core_branches_pruned"] += 1
+            return
         if index == len(ORDER):
             if all(
                 rectangles_share_positive_edge(placed[a], placed[b])
                 for a, b in graph.must_adjacencies
             ):
                 results.append(dict(placed))
+                if diverse_cores:
+                    completed_cores.add(core_relationship_signature(placed))
             return
         code = ORDER[index]
         for rect in options(code):
@@ -344,15 +498,29 @@ def search_room_arrangements(
                 return
 
     roots = options(ORDER[0])
+    if root_rotation_deg is not None:
+        roots = [q for q in roots if q.rotation_deg == root_rotation_deg]
     stats["root_count"] = len(roots)
+    if root_index is not None:
+        roots = roots[root_index : root_index + 1]
     per_root = max(120, node_budget // max(1, len(roots)))
     for root in roots:
         start = stats["nodes_used"]
+        completed_before = len(results)
         total_limit = node_budget
         node_budget = min(total_limit, start + per_root)
         placed[ORDER[0]] = root
         walk(1)
         placed.pop(ORDER[0])
+        if diverse_cores:
+            stats["actual_root_trials"].append(
+                {
+                    "bbox_mm": list(root.bounds_mm),
+                    "rotation_deg": root.rotation_deg,
+                    "nodes_used": stats["nodes_used"] - start,
+                    "completed_in_root": len(results) - completed_before,
+                }
+            )
         node_budget = total_limit
         if stats["nodes_used"] >= node_budget or len(results) >= complete_limit:
             break

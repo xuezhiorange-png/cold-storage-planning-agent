@@ -160,7 +160,15 @@ class ProcessRoutePlanner:
             row["carrier_envelope_unchanged"] = [spec["tangent_mm"], spec["normal_mm"]]
         return identity
 
-    def choose_pallet_endpoint(self, room: str, *, target_room: str, rank: int = 0) -> str:
+    def choose_pallet_endpoint(
+        self,
+        room: str,
+        *,
+        target_room: str,
+        rank: int = 0,
+        carrier: str = "LOADED_PALLET",
+        role: str = "PALLET-TRANSFER",
+    ) -> str:
         """Choose a real accessible front load, not a previous run's slot ID."""
         storage = next(
             (
@@ -213,7 +221,7 @@ class ProcessRoutePlanner:
         ]
         viable = []
         for q in candidates:
-            id_ = self.endpoint(q["id"], "PALLET-TRANSFER", face, "LOADED_PALLET")
+            id_ = self.endpoint(q["id"], role, face, carrier)
             ep = self.endpoints[id_]
             dock = self._dock(
                 ep, self.obstacles(room, {q["id"]}), int(self.parameters["main_aisle_mm"])

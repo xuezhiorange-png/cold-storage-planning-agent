@@ -400,6 +400,7 @@ def _flow_routes(
     *,
     adaptive_endpoints: bool = False,
     endpoint_rank: int = 0,
+    multi_root_interfaces: bool = False,
 ) -> dict[str, Any]:
     p = ProcessRoutePlanner(c, parameters, walls, adaptive_loads=adaptive_endpoints)
     items = p.items
@@ -561,13 +562,22 @@ def _flow_routes(
         )
     # All five erectors receive blanks from a real front stock position. Their
     # output-to-line assignments are selected by verified path length, not XY.
-    package = [q for q in items.values() if q["kind"] == "packaging_material_storage_pallet"]
-    edge = max(q["bbox_mm"][2] for q in package)
-    blank = min(
-        (q for q in package if q["bbox_mm"][2] == edge),
-        key=lambda q: abs(q["bbox_mm"][1] - p.rooms["packaging_material_storage"][1] - 7000),
-    )
-    blank_ep = p.endpoint(blank["id"], "BLANKS", "E", "BLANK_BUNDLE")
+    if multi_root_interfaces:
+        blank_ep = p.choose_pallet_endpoint(
+            "packaging_material_storage",
+            target_room="sorting_packaging_room",
+            rank=endpoint_rank,
+            carrier="BLANK_BUNDLE",
+            role="BLANKS",
+        )
+    else:
+        package = [q for q in items.values() if q["kind"] == "packaging_material_storage_pallet"]
+        edge = max(q["bbox_mm"][2] for q in package)
+        blank = min(
+            (q for q in package if q["bbox_mm"][2] == edge),
+            key=lambda q: abs(q["bbox_mm"][1] - p.rooms["packaging_material_storage"][1] - 7000),
+        )
+        blank_ep = p.endpoint(blank["id"], "BLANKS", "E", "BLANK_BUNDLE")
     erectors = sorted(
         (q for q in items.values() if q["kind"] == "case_erector"), key=lambda q: q["id"]
     )
@@ -575,17 +585,25 @@ def _flow_routes(
     deliveries = []
     for machine in erectors:
         mid = machine["id"]
+        store_face = None
+        if multi_root_interfaces and mid == "ERECT-05":
+            layout = next(
+                s["layout"]
+                for s in c["equipment"]["storage"]
+                if s["layout"]["room"] == "packaging_material_storage"
+            )
+            store_face = {0: "S", 1: "E", 2: "N", 3: "W"}[layout["turn"]]
         inp = p.endpoint(
             mid,
             "BLANK-IN",
-            machine.get("magazine_face", "E"),
+            store_face or machine.get("magazine_face", "E"),
             "BLANK_BUNDLE",
             offset_tangent=-700 if mid == "ERECT-05" else 0,
         )
         output = p.endpoint(
             mid,
             "CASE-OUT",
-            machine.get("output_face", "E"),
+            store_face or machine.get("output_face", "E"),
             "CARTON_CARRY",
             offset_tangent=700 if mid == "ERECT-05" else 0,
         )
@@ -735,6 +753,8 @@ def evaluate_process_rooms(
     adaptive_endpoints: bool = False,
     endpoint_rank: int = 0,
     revalidate_changing: bool = False,
+    portal_preferences: Mapping[str, tuple[str, ...]] | None = None,
+    multi_root_interfaces: bool = False,
     progress: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """Rebuild device layout, P1 doors and the entire admitted process witness."""
@@ -754,6 +774,7 @@ def evaluate_process_rooms(
         context.boundary,
         context.columns + context.walls,
         entrances,
+        portal_preferences=portal_preferences,
     )
     c["access_results"] = access
     c["portal_approach_checks"] = approaches
@@ -789,7 +810,7 @@ def evaluate_process_rooms(
         c["changing_function"]["conditional_complete_sequence_verified"] = bool(
             c["changing_function"]["initial_53_people_verified"]
             and all(s["cycle_geometry_pass"] for s in c["changing_function"]["shifts"])
-            and check["entry_exit_verified"]
+            and check.get("entry_exit_verified", False)
         )
         c["changing_function"]["entry_exit_revalidation"] = "EXISTING_UNMODIFIED_ADAPTER_REEXECUTED"
     try:
@@ -799,12 +820,21 @@ def evaluate_process_rooms(
             "points_mm": [list(p) for p in fp],
         }
     except LayoutAuthorityError as error:
-        c["building_footprint"] = {"status": "NOT_VERIFIED", "code": error.code}
+        c["building_footprint"] = {
+            "status": "NOT_VERIFIED",
+            "code": error.code,
+            "details": error.details,
+        }
     if progress:
         progress("DEVICE_PORTS_PALLET_SWEEPS_AND_REAL_DOOR_CROSSINGS")
     walls = [list(b) for w in context.walls if (b := routing._rectangle_bounds(w))]
     flows = _flow_routes(
-        c, parameters, walls, adaptive_endpoints=adaptive_endpoints, endpoint_rank=endpoint_rank
+        c,
+        parameters,
+        walls,
+        adaptive_endpoints=adaptive_endpoints,
+        endpoint_rank=endpoint_rank,
+        multi_root_interfaces=multi_root_interfaces,
     )
     aisle_feedback = realize_coating_aisles(c, flows, arranged["static_conflicts"])
     c["coating_actual_aisle_feedback"] = aisle_feedback

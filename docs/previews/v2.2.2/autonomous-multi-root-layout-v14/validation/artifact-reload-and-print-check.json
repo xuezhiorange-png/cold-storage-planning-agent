@@ -1,0 +1,36 @@
+[
+  {
+    "days": 7,
+    "hash": "sha256:4645b26b088c193dde041d50416f4188593cda18c74817bd94b15e1d757a0f73",
+    "admission": true,
+    "main": 6,
+    "nontruck": 11
+  },
+  {
+    "days": 8,
+    "hash": "sha256:22dd6cf32ad850acc55d317ca6a38e5c94725a0c28c5dd269d0f84c18f758efc",
+    "admission": true,
+    "main": 6,
+    "nontruck": 11
+  },
+  {
+    "pdf": "7-days/autonomous-layout-A14-A.pdf",
+    "paper_mm": [
+      841.0000013563367,
+      594.0000047471788
+    ],
+    "axis_span_mm": 108000,
+    "scale": 200,
+    "printed_axis_span_mm": 540
+  },
+  {
+    "pdf": "8-days/autonomous-layout-A14-A.pdf",
+    "paper_mm": [
+      841.0000013563367,
+      594.0000047471788
+    ],
+    "axis_span_mm": 108000,
+    "scale": 200,
+    "printed_axis_span_mm": 540
+  }
+]

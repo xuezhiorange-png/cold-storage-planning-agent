@@ -85,6 +85,7 @@ jobs:
           tests/unit/test_v222_autonomous_functional_layout.py
           tests/unit/test_v222_autonomous_process_continuity.py
           tests/unit/test_v222_autonomous_adaptive_layout.py
+          tests/unit/test_v222_autonomous_multi_root_layout.py
           -m "not physical_rss_linux" -q
           --junitxml=../artifacts/ci-fast/backend-regression.xml
       - name: Preserve actual backend test execution report

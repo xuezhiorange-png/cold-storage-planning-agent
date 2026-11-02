@@ -48,11 +48,30 @@ def joint_portals(
     boundary: PolygonMM,
     obstacles: Sequence[PolygonMM],
     entrances: Mapping[str, SegmentMM],
+    *,
+    portal_preferences: Mapping[str, tuple[str, ...]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[PolygonMM], list[dict[str, Any]]]:
     results: list[dict[str, Any]] = []
     envelopes: list[PolygonMM] = []
     checks: list[dict[str, Any]] = []
     relations = {str(r["identity"]): r for r in relationships}
+
+    def preference(p: Mapping[str, Any], code: str) -> int:
+        if not portal_preferences or code not in portal_preferences or code not in rooms:
+            return 0
+        a, b = p["segment_mm"]
+        x, y, r, t = rooms[code].bounds_mm
+        side = (
+            "W"
+            if a[0] == b[0] == x
+            else "E"
+            if a[0] == b[0] == r
+            else "S"
+            if a[1] == b[1] == y
+            else "N"
+        )
+        order = portal_preferences[code]
+        return order.index(side) if side in order else len(order)
 
     def clear(portal: Mapping[str, Any], code: str, depth: int) -> bool:
         box = portal_approach(portal, rooms[code], depth)
@@ -207,6 +226,9 @@ def joint_portals(
             if first:
                 fo = (*corridor_options(fr), *fo)
             topts = (*corridor_options(to), *topts)
+            if portal_preferences:
+                fo = tuple(sorted(fo, key=lambda p: preference(p, fr)))
+                topts = tuple(sorted(topts, key=lambda p: preference(p, to)))
             floor = routing._rectangle_bounds(boundary)
             blockers = [q.bounds_mm for q in rooms.values()] + [
                 b for o in obstacles if (b := routing._rectangle_bounds(o))
