@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+from collections import Counter
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,25 @@ def export_multi_root_suite(
         dump(folder, "search-configuration.json", result["search_configuration"])
         dump(folder, "root-searches.json", result["root_searches"])
         dump(folder, "root-coordinate-and-failure-ledger.json", result["roots"])
+        stage_counts = Counter(q["status"] for q in result["roots"])
+        partial_counts: Counter[str] = Counter()
+        for search in result["root_searches"]:
+            partial_counts.update(search["stats"].get("partial_constraint_rejection_counts", {}))
+        stage_summary = {
+            "source_result_hash": result["result_hash"],
+            "root_option_evaluations": len(result["roots"]),
+            "unique_complete_room_geometries": len(
+                {q["room_geometry_hash"] for q in result["roots"]}
+            ),
+            "partial_rejection_event_counts": dict(partial_counts),
+            "complete_state_status_counts": dict(stage_counts),
+            "new_qualified_organisations": result.get("new_qualified_organisation_count", 0),
+            "qualified_non_novel_variants": result.get("qualified_variant_count", 0),
+            "full_pipeline_attempts": result["search_budget"]["full_pipeline_attempts_used"],
+            "local_search_limits": result.get("local_search_limits"),
+            "failure_counts_are_finite_search_events_not_global_unsat_proofs": True,
+        }
+        dump(folder, "constraint-stage-summary.json", stage_summary)
         dump(folder, "reference-execution.json", result["reference_execution"])
         rows = []
         coordinates: list[dict[str, Any]] = []
@@ -86,6 +106,7 @@ def export_multi_root_suite(
                 "changing_two_shifts_53": candidate["changing_function"][
                     "conditional_complete_sequence_verified"
                 ],
+                "candidate_classification": candidate.get("candidate_classification"),
             }
             rows.append(row)
             coordinates.extend({"candidate": label, **q} for q in candidate["equipment"]["items"])
@@ -170,6 +191,7 @@ def export_multi_root_suite(
                 "search_budget": result["search_budget"],
                 "resources": case["resources"],
                 "candidates": rows,
+                "constraint_stages": stage_summary,
             }
         )
         for root in result["roots"]:
@@ -185,14 +207,15 @@ def export_multi_root_suite(
                 draw_rejected_root(root, project, folder / (stem + ".svg"))
             root_links.append(
                 f"<li>{days}天 {escape(root['root_id'])}："
-                f'<a href="{days}-days/{stem}.svg">实际淘汰根图</a> · '
+                f'<a href="{days}-days/{stem}.svg">本次未通过选项图</a> · '
                 f'<a href="{days}-days/{stem}.json">坐标与拒绝</a> · '
                 f"{escape(root['status'])}</li>"
             )
     dump(output, "case-comparison.json", summary)
     execution_note = "；".join(
         f"{case['project']['business']['finished_storage_days']}天："
-        f"{len(case['result']['roots'])}个完整房间根，"
+        f"{len({q['room_geometry_hash'] for q in case['result']['roots']})}个不同完整房间几何 / "
+        f"{len(case['result']['roots'])}次房间与局部选项评估，"
         + (
             "有界搜索未取得新的合格组织"
             if case["result"]["status"] == "NO_NEW_ORGANISATION_WITHIN_BOUNDED_SEARCH"

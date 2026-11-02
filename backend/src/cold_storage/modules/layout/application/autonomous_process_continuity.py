@@ -6,6 +6,7 @@ Unsuccessful bounded arrangements and routes remain part of the output.
 
 from __future__ import annotations
 
+import copy
 import itertools
 from collections.abc import Callable, Mapping
 from dataclasses import replace
@@ -406,6 +407,8 @@ def _flow_routes(
     items = p.items
 
     def pal(id_: str, face: str = "N") -> str:
+        if multi_root_interfaces:
+            face = items[id_].get("front", face)
         return p.endpoint(id_, "PALLET-TRANSFER", face, "LOADED_PALLET")
 
     if adaptive_endpoints:
@@ -500,9 +503,11 @@ def _flow_routes(
     packing_outputs = []
     for i in range(1, 7):
         machine = f"PACK-{i:02}"
-        inp = p.endpoint(machine, "RAW-IN", "W", "FOOD_TOTE_CARRY")
-        out = p.endpoint(machine, "PRODUCT-OUT", "E", "CARTON_CARRY")
-        packing_inputs.append(p.endpoint(machine, "BOX-IN", "W", "CARTON_CARRY"))
+        in_face = items[machine].get("process_in_face", "W") if multi_root_interfaces else "W"
+        out_face = items[machine].get("process_out_face", "E") if multi_root_interfaces else "E"
+        inp = p.endpoint(machine, "RAW-IN", in_face, "FOOD_TOTE_CARRY")
+        out = p.endpoint(machine, "PRODUCT-OUT", out_face, "CARTON_CARRY")
+        packing_inputs.append(p.endpoint(machine, "BOX-IN", in_face, "CARTON_CARRY"))
         work = f"WORK-PACK-{i:02}"
         case_work = p.endpoint(work, "CASE-IN", "N", "CARTON_CARRY")
         work_ep = pal(work)
@@ -755,10 +760,16 @@ def evaluate_process_rooms(
     revalidate_changing: bool = False,
     portal_preferences: Mapping[str, tuple[str, ...]] | None = None,
     multi_root_interfaces: bool = False,
+    local_installation: Mapping[str, Any] | None = None,
+    portal_option_index: int = 0,
     progress: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """Rebuild device layout, P1 doors and the entire admitted process witness."""
-    arranged = arrange_process_workplaces(seed, parameters)
+    arranged = (
+        copy.deepcopy(dict(local_installation))
+        if local_installation is not None
+        else arrange_process_workplaces(seed, parameters)
+    )
     c: dict[str, Any] = arranged["candidate"]
     eq = c["equipment"]
     rooms = room_rectangles(c)
@@ -775,6 +786,8 @@ def evaluate_process_rooms(
         context.columns + context.walls,
         entrances,
         portal_preferences=portal_preferences,
+        option_index=portal_option_index,
+        candidate_pair_limit=8 if local_installation is not None else None,
     )
     c["access_results"] = access
     c["portal_approach_checks"] = approaches

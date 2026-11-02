@@ -1,0 +1,8 @@
+{
+  "status": "INTERRUPTED_DIAGNOSTIC_NO_PASS",
+  "cause": "External portal candidate-pair enumeration needs an explicit local budget",
+  "elapsed_before_stop_seconds": 510,
+  "signal": "SIGTERM",
+  "historical_evidence_modified": false,
+  "native_solves": 0
+}

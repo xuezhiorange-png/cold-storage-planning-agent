@@ -1,0 +1,29 @@
+{
+  "reports": [
+    {
+      "file": "release-whitelist.xml",
+      "testcases": 868,
+      "passed": 852,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 16
+    },
+    {
+      "file": "prior-autonomous.xml",
+      "testcases": 185,
+      "passed": 185,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "new_module_cases": 24,
+  "ci_contracts": 65,
+  "locked_python": "3.12",
+  "ruff": "PASS",
+  "format": "1190 files PASS",
+  "mypy": "553 src files + 2 CI scripts PASS",
+  "raw_development_failures": "Retained separately; not converted to PASS",
+  "local_native_solves": 0,
+  "ci_inherited_synthetic_native_tests": "UNCHANGED_NOT_A_ZERO_NATIVE_CI_CLAIM"
+}

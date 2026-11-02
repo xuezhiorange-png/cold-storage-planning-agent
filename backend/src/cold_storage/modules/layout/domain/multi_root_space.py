@@ -18,6 +18,37 @@ MATERIAL_CORE = (
 )
 
 
+def candidate_distinction(
+    reference: Mapping[str, Any], candidate: Mapping[str, Any]
+) -> dict[str, bool]:
+    """Engineering admission and three different notions of novelty are independent."""
+    diff = space_difference(reference, candidate)
+    qualified = candidate.get("process_admission", {}).get("accepted", False) is True
+    physical = physical_candidate_key(reference) != physical_candidate_key(candidate)
+    organisation = diff["different_main_process_relationships"]
+    material = diff["substantive_spatial_change"]
+    before = {q["zone_code"]: q["bbox_mm"] for q in reference["rooms"]}
+    after = {q["zone_code"]: q["bbox_mm"] for q in candidate["rooms"]}
+    connector_extension_only = bool(
+        "coating_room" in before
+        and "coating_room" in after
+        and before["coating_room"] != after["coating_room"]
+        and set(diff["changed_material_core_rooms"]) <= {"finished_goods_room", "shipping_channel"}
+    )
+    return {
+        "complete_process_qualified": qualified,
+        "physical_plan_different": physical,
+        "core_organisation_different": organisation,
+        "substantive_spatial_threshold_met": material,
+        "only_connector_and_downstream_change": connector_extension_only,
+        "new_qualified_organisation": qualified
+        and physical
+        and organisation
+        and material
+        and not connector_extension_only,
+    }
+
+
 def organisation_key(candidate: Mapping[str, Any]) -> str:
     """Ignore translation/reflection/quarter-turn and coating-only extensions.
 

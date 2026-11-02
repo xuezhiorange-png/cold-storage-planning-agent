@@ -1,0 +1,10 @@
+{
+  "status": "INTERRUPTED_NOT_PASS",
+  "reason": "Superseded by final stage-ranked search and corrected negative fixture; raw logs retained",
+  "processes": [
+    2031,
+    2032
+  ],
+  "signal": "SIGTERM",
+  "native_solves": 0
+}

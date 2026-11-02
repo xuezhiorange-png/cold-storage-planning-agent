@@ -31,8 +31,18 @@ from cold_storage.modules.layout.domain.adjacency import (
     evaluate_adjacency,
     process_graph,
 )
+from cold_storage.modules.layout.domain.autonomous_equipment import positive_intersection
 from cold_storage.modules.layout.domain.autonomous_room_search import (
     search_room_arrangements,
+)
+from cold_storage.modules.layout.domain.constraint_guided_feedback import (
+    passage_connection_feedback,
+)
+from cold_storage.modules.layout.domain.constraint_guided_installation import (
+    joint_installation_candidates,
+    precooling_installation_options,
+    sorting_installation_options,
+    storage_capacity_check,
 )
 from cold_storage.modules.layout.domain.current_process_requirements import (
     current_passage_requirements,
@@ -47,6 +57,7 @@ from cold_storage.modules.layout.domain.functional_equipment_layout import (
 from cold_storage.modules.layout.domain.functional_portal_layout import joint_portals
 from cold_storage.modules.layout.domain.functional_storage_layout import storage_layouts
 from cold_storage.modules.layout.domain.multi_root_space import (
+    candidate_distinction,
     organisation_key,
     physical_candidate_key,
     space_difference,
@@ -59,7 +70,7 @@ from cold_storage.modules.layout.domain.process_flow_arrangement import (
 )
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 
-VERSION = "autonomous-multi-root-layout@1.4.0"
+VERSION = "autonomous-multi-root-layout@1.4.1"
 
 DEFAULT_SEARCH: Mapping[str, int] = MappingProxyType(
     {
@@ -80,7 +91,11 @@ PORTAL_ORDER: Mapping[str, tuple[str, ...]] = MappingProxyType(
 
 
 def precheck_root_footprint(
-    candidate: Mapping[str, Any], project: Mapping[str, Any], context: AutonomousContext
+    candidate: Mapping[str, Any],
+    project: Mapping[str, Any],
+    context: AutonomousContext,
+    *,
+    option_index: int = 0,
 ) -> dict[str, Any]:
     """Cheap necessary gate; an eventual survivor still reruns full admission."""
     rooms = room_rectangles(candidate)
@@ -97,8 +112,12 @@ def precheck_root_footprint(
         context.columns + context.walls,
         entrances,
         portal_preferences=PORTAL_ORDER,
+        option_index=option_index,
+        candidate_pair_limit=8,
     )
     result: dict[str, Any] = {
+        "portal_option_index": option_index,
+        "failure_scope": "CURRENT_PORTAL_ORDER_ONLY_NOT_ALL_CONTINUOUS_PORTALS",
         "access_results": access,
         "portal_approaches": approaches,
         "full_admission_reuse": False,
@@ -131,7 +150,11 @@ def precheck_root_footprint(
 
 
 def prepare_root(
-    rooms: Mapping[str, PlacedRectangleV1], project: Mapping[str, Any], context: AutonomousContext
+    rooms: Mapping[str, PlacedRectangleV1],
+    project: Mapping[str, Any],
+    context: AutonomousContext,
+    *,
+    storage_choice_rank: Mapping[str, int] | None = None,
 ) -> dict[str, Any]:
     """Fresh room/equipment state, with no inherited path or acceptance flags."""
     _zone_authority_checks(
@@ -173,6 +196,7 @@ def prepare_root(
         project["building"]["columns"],
         context.binding.access_requirements,
         adaptive_storage=True,
+        storage_choice_rank=storage_choice_rank,
     )
     return {
         "schema_version": VERSION,
@@ -208,6 +232,11 @@ def room_roots(
     anchor: tuple[int, int, int] | None = None,
     root_index: int | None = None,
     rotation: int | None = None,
+    constraint_guided: bool = False,
+    partial_cache: dict[str, dict[str, Any]] | None = None,
+    attachment_offsets: Mapping[str, list[tuple[int, int]]] | None = None,
+    shape_variant: int = 0,
+    room_targets: Mapping[str, list[tuple[int, int]]] | None = None,
 ) -> tuple[list[dict[str, PlacedRectangleV1]], dict[str, Any]]:
     g = changing_dimensions()
     cw, _ = coating_dimensions(project["equipment_specs"]["case_film_line"])
@@ -215,6 +244,72 @@ def room_roots(
         "changing_room": [(g["width_mm"], g["depth_mm"])],
         "coating_room": [(cw, coating_service_depth(parameters)["depth_mm"])],
     }
+    if constraint_guided:
+        depth = shapes["coating_room"][0][1]
+        # Original device chain plus reserved full-width service sections.
+        # These are finite preferences inside the existing flexible Authority.
+        alternatives = [
+            (cw + dw, depth + dh)
+            for dw, dh in ((0, 0), (0, 1000), (0, 2000), (1000, 0), (2000, 0), (1000, 1000))
+        ]
+        shapes["coating_room"] = [alternatives[shape_variant % len(alternatives)]]
+    zones = {q["zone_code"]: q for q in context.plan["result"]["zones"]}
+    cache = partial_cache if partial_cache is not None else {}
+    binding_key = canonical_hash(
+        [canonical_hash(project), canonical_hash(parameters), context.binding.p1_handoff_hash]
+    )
+
+    def partial(state: Mapping[str, PlacedRectangleV1], role: str) -> Mapping[str, Any]:
+        rect = state[role]
+        key = canonical_hash(
+            [
+                binding_key,
+                role,
+                rect.bounds_mm,
+                rect.rotation_deg,
+            ]
+        )
+        if key not in cache:
+            if role in current_storage_requirements(context.plan):
+                cache[key] = storage_capacity_check(
+                    rect,
+                    zones[role],
+                    project["building"]["columns"],
+                    erector=project["equipment_specs"]["case_erector"]
+                    if role == "packaging_material_storage"
+                    else None,
+                )
+            elif role == "sorting_packaging_room":
+                opts, record = sorting_installation_options(
+                    rect,
+                    project["equipment_specs"],
+                    parameters,
+                    project["building"]["columns"],
+                    limit=1,
+                )
+                cache[key] = {
+                    "admissible": bool(opts),
+                    "status": record["status"],
+                    "room_bbox_mm": list(rect.bounds_mm),
+                    "installation": record,
+                    "global_infeasibility_proven": False,
+                }
+            elif role in ("primary_precooling_room", "secondary_precooling_room"):
+                opts, record = precooling_installation_options(
+                    rect, project["building"]["columns"], limit=1
+                )
+                cache[key] = {
+                    "admissible": bool(opts),
+                    "status": record["status"],
+                    "room_bbox_mm": list(rect.bounds_mm),
+                    "installation": record,
+                    "global_infeasibility_proven": False,
+                }
+            else:
+                cache[key] = {"admissible": True, "status": "NO_PARTIAL_REJECTION"}
+            cache[key]["check_id"] = key
+        return cache[key]
+
     ent = project["building"]["openings"][1]["segment_mm"]
     return search_room_arrangements(
         context.binding.dimension_authorities,
@@ -234,6 +329,9 @@ def room_roots(
         root_anchor_mm=anchor,
         root_index=root_index if anchor is None else None,
         root_rotation_deg=rotation,
+        partial_feasibility=partial if constraint_guided else None,
+        attachment_offsets=attachment_offsets,
+        room_targets=room_targets,
     )
 
 
@@ -367,6 +465,67 @@ def storage_interface_feedback(
     return alternatives
 
 
+def partial_constraint_feedback(
+    stats: Mapping[str, Any], preferences: Mapping[str, str]
+) -> list[dict[str, Any]]:
+    """Move the actual failed room/aisle at real obstruction events, not an unrelated root."""
+    result = []
+    seen = set()
+    for failure in stats.get("partial_constraint_rejections", []):
+        code = failure["room"]
+        if code in seen:
+            continue
+        seen.add(code)
+        r = failure["room_bbox_mm"]
+        if "best_layout" in failure:
+            a = failure["best_layout"]["main_aisle_bbox_mm"]
+            blockers = failure.get("columns", [])
+        else:
+            trial: dict[str, Any] = next(
+                (
+                    q
+                    for q in failure.get("installation", {}).get("trials", [])
+                    if q["body_failures"]
+                ),
+                {},
+            )
+            f: dict[str, Any] = next(
+                (q for q in trial.get("body_failures", []) if "obstacle_bbox_mm" in q), {}
+            )
+            a = f.get("bbox_mm", r)
+            blockers = [{"bbox_mm": f["obstacle_bbox_mm"]}] if "obstacle_bbox_mm" in f else []
+        for obstacle in blockers[:3]:
+            b = obstacle["bbox_mm"]
+            if not positive_intersection(a, b):
+                continue
+            for axis in (0, 1):
+                for delta in (b[axis] - a[axis + 2] - 50, b[axis + 2] - a[axis] + 50):
+                    p = r[:2].copy()
+                    p[axis] += delta
+                    result.append(
+                        {
+                            "room_targets": {code: [p]},
+                            "constraint": "PARTIAL_ROOM_OBSTACLE_EVENT",
+                            "failed_room": code,
+                            "room_bbox_mm": r,
+                            "necessary_width_mm": failure.get("main_aisle_mm"),
+                            "moving_bbox_mm": a,
+                            "obstacle_bbox_mm": b,
+                            "global_infeasibility_proven": False,
+                        }
+                    )
+        result.extend(
+            {
+                "preferences": {**preferences, code: side},
+                "constraint": "PARTIAL_CAPACITY_OR_INSTALLATION_ATTACHMENT",
+                "failed_room": code,
+                "room_bbox_mm": r,
+            }
+            for side in ("N", "S", "E", "W")
+        )
+    return result
+
+
 def generate_multi_root_layout(
     project: Mapping[str, Any],
     parameters: Mapping[str, Any],
@@ -418,6 +577,9 @@ def generate_multi_root_layout(
     reference_c = accepted[0] if accepted else None
     seen_candidates = {physical_candidate_key(c) for c in accepted}
     full_failure_families: set[str] = set()
+    partial_cache: dict[str, dict[str, Any]] = {}
+    same_organisation_variants: list[dict[str, Any]] = []
+    seen_organisations = {organisation_key(c) for c in accepted}
     seen_rooms: set[str] = set()
     root_rows: list[dict[str, Any]] = []
     search_rows: list[dict[str, Any]] = []
@@ -439,6 +601,7 @@ def generate_multi_root_layout(
                     "serial": len(pending),
                     "root_index": index,
                     "rotation": rotation,
+                    "shape_variant": 0,
                 }
             )
     serial = len(pending)
@@ -466,6 +629,21 @@ def generate_multi_root_layout(
                 "serial": serial,
                 "parent_root": row["root_id"],
                 "trigger": cause,
+                "attachment_offsets": cause.get(
+                    "attachment_offsets", desc.get("attachment_offsets")
+                ),
+                "shape_variant": cause.get("shape_variant", desc.get("shape_variant", 0)),
+                "room_targets": {
+                    **(desc.get("room_targets") or {}),
+                    **cause.get("room_targets", {}),
+                },
+                "storage_choice_rank": cause.get(
+                    "storage_choice_rank", desc.get("storage_choice_rank")
+                ),
+                "focus_role": cause.get(
+                    "focus_role", cause.get("failed_room", desc.get("focus_role"))
+                ),
+                "focus_rank": cause.get("focus_rank", 1),
             }
             serial += 1
             pending.append(child)
@@ -482,7 +660,22 @@ def generate_multi_root_layout(
         pending.sort(key=lambda d: (profile_uses[d["profile"]], d["priority"], d["serial"]))
         desc = pending.pop(0)
         dkey = canonical_hash(
-            {k: desc.get(k) for k in ("profile", "preferences", "anchor", "root_index", "rotation")}
+            {
+                k: desc.get(k)
+                for k in (
+                    "profile",
+                    "preferences",
+                    "anchor",
+                    "root_index",
+                    "rotation",
+                    "attachment_offsets",
+                    "shape_variant",
+                    "room_targets",
+                    "storage_choice_rank",
+                    "focus_role",
+                    "focus_rank",
+                )
+            }
         )
         if dkey in descriptors_seen:
             continue
@@ -501,6 +694,11 @@ def generate_multi_root_layout(
             anchor=tuple(desc["anchor"]) if desc.get("anchor") else None,
             root_index=desc.get("root_index"),
             rotation=desc.get("rotation"),
+            constraint_guided=True,
+            partial_cache=partial_cache,
+            attachment_offsets=desc.get("attachment_offsets"),
+            shape_variant=desc.get("shape_variant", 0),
+            room_targets=desc.get("room_targets"),
         )
         search_calls += 1
         room_nodes += stats["nodes_used"]
@@ -517,12 +715,24 @@ def generate_multi_root_layout(
                 f"MULTI_ROOT_SEARCH {search_calls} {desc['profile']} "
                 f"roots={len(groups)} nodes={stats['nodes_used']}"
             )
+        if not groups:
+            search_rows[-1]["root_id"] = f"PARTIAL-SEARCH-{search_calls}"
+            partial_causes = partial_constraint_feedback(stats, desc["preferences"])
+            enqueue(desc, search_rows[-1], 2000 + 100 * (12 - stats["max_roles"]), partial_causes)
         for state in groups:
             geometry_hash = room_state_hash(state)
-            if geometry_hash in seen_rooms:
+            room_option_key = canonical_hash(
+                [
+                    geometry_hash,
+                    desc.get("storage_choice_rank"),
+                    desc.get("focus_role"),
+                    desc.get("focus_rank"),
+                ]
+            )
+            if room_option_key in seen_rooms:
                 search_rows[-1].setdefault("duplicate_room_geometries", []).append(geometry_hash)
                 continue
-            seen_rooms.add(geometry_hash)
+            seen_rooms.add(room_option_key)
             row: dict[str, Any] = {
                 "root_id": f"ROOT-{len(root_rows) + 1:03}",
                 "search_number": search_calls,
@@ -552,7 +762,9 @@ def generate_multi_root_layout(
                 0,
             )
             try:
-                seed = prepare_root(state, project, context)
+                seed = prepare_root(
+                    state, project, context, storage_choice_rank=desc.get("storage_choice_rank")
+                )
             except LayoutAuthorityError as error:
                 row.update(
                     status="ORIGINAL_ROOM_AUTHORITY_REJECTED",
@@ -587,7 +799,18 @@ def generate_multi_root_layout(
                 "process_route_grid_nodes": 0,
                 "necessary_portal_prechecks": 0,
             }
-            arranged = arrange_process_workplaces(seed, parameters)
+            local_options, installation = joint_installation_candidates(
+                seed,
+                parameters,
+                project["equipment_specs"],
+                limit=4,
+                focus_role=desc.get("focus_role"),
+                focus_rank=desc.get("focus_rank", 1),
+            )
+            row["local_installation_search"] = installation
+            arranged = (
+                local_options[0] if local_options else arrange_process_workplaces(seed, parameters)
+            )
             c = arranged["candidate"]
             objects = {
                 q["id"]: q
@@ -628,32 +851,93 @@ def generate_multi_root_layout(
             causes = collision_root_feedback(
                 seed, arranged, max_proposals=config["feedback_children"]
             )
+            if installation["status"] == "BOUNDED_LOCAL_INSTALLATION_REJECTED":
+                failed_roles = [
+                    role
+                    for role, q in installation["rooms"].items()
+                    if q["status"] == "BOUNDED_INSTALLATION_NOT_FOUND"
+                ]
+                causes = [
+                    {
+                        "preferences": {**desc["preferences"], role: side},
+                        "failed_room": role,
+                        "constraint": "LOCAL_INSTALLATION_EXHAUSTED_ROOM_REATTACHMENT",
+                        "local_evidence": installation["rooms"][role],
+                    }
+                    for role in failed_roles
+                    for side in ("N", "S", "E", "W")
+                ] + causes
+            causes += [
+                {
+                    "shape_variant": i,
+                    "constraint": "FLEXIBLE_FUNCTIONAL_SECTION_ALTERNATIVE",
+                    "room": "coating_room",
+                }
+                for i in range(1, 6)
+                if i != desc.get("shape_variant", 0)
+            ]
             score = deficit + len(bad)
             precheck: dict[str, Any] = {}
             if not deficit and not bad and all(s["pick_put"] for s in stock):
-                precheck = precheck_root_footprint(c, project, context)
+                portal_trials = []
+                for local in (local_options or [arranged])[:2]:
+                    for portal_index in range(2):
+                        trial = precheck_root_footprint(
+                            local["candidate"], project, context, option_index=portal_index
+                        )
+                        portal_trials.append(trial)
+                        row["operation_counts"]["necessary_portal_prechecks"] += 1
+                        if trial["passed"]:
+                            arranged, c, precheck = local, local["candidate"], trial
+                            break
+                    if precheck.get("passed"):
+                        break
+                if not precheck:
+                    precheck = portal_trials[0]
+                row["portal_option_trials"] = portal_trials
                 row["current_necessary_portal_footprint_check"] = precheck
-                row["operation_counts"]["necessary_portal_prechecks"] += 1
+            row["equipment_coordinates"] = [
+                {k: q.get(k) for k in ("id", "room", "kind", "bbox_mm", "rotation_deg")}
+                for q in c["equipment"]["items"]
+            ]
+            row["selected_local_installation"] = arranged.get("local_option_selection")
             family = organisation_key(seed)
-            diagnose_failed_gate = bool(
-                precheck
-                and not precheck["passed"]
-                and len(full_failure_families) < 2
-                and family not in full_failure_families
-            )
+            diagnose_failed_gate = False  # Failed necessary checks feed spatial search directly.
             if precheck and not precheck["passed"]:
                 if precheck.get("uncovered_pockets"):
+                    involved = sorted(
+                        {
+                            r["zone_code"]
+                            for r in seed["rooms"]
+                            if any(
+                                positive_intersection(
+                                    r["bbox_mm"],
+                                    [
+                                        p["bbox_mm"][0] - 1,
+                                        p["bbox_mm"][1] - 1,
+                                        p["bbox_mm"][2] + 1,
+                                        p["bbox_mm"][3] + 1,
+                                    ],
+                                )
+                                for p in precheck["uncovered_pockets"]
+                            )
+                        }
+                    )
                     causes = [
                         {
                             "preferences": {**desc["preferences"], role: side},
                             "constraint": "ENCLOSED_EMPTY_POCKET_IN_ORIGINAL_ROOM_CORRIDOR_UNION",
                             "pockets": precheck["uncovered_pockets"],
                         }
-                        for role in ("coating_room", "primary_precooling_room")
+                        for role in involved
                         for side in ("S", "N", "E", "W")
                     ]
                 else:
                     causes = storage_interface_feedback(seed, project, context) + causes
+                causes = (
+                    passage_connection_feedback(c, precheck, context.binding.access_requirements)
+                    + causes
+                )
             if deficit or any(not s["pick_put"] for s in stock):
                 row["status"] = "CURRENT_P1_STORAGE_REJECTED"
                 room = next(
@@ -669,11 +953,17 @@ def generate_multi_root_layout(
                     for side in ("E", "N", "W", "S")
                 ]
                 causes = causes + capacity_causes if bad else capacity_causes + causes
+                score = 2000 + deficit
             elif bad:
                 row["status"] = "EQUIPMENT_OR_RESERVED_PASSAGE_REJECTED"
+                score = 1000 + len(bad)
             elif not precheck.get("passed") and not diagnose_failed_gate:
                 row["status"] = "ORIGINAL_PORTAL_OR_ZERO_HOLE_PRECHECK_REJECTED"
-                score = 0
+                score = (
+                    100
+                    + sum(q["status"] != "PASS" for q in precheck.get("original_predicates", []))
+                    + 10 * bool(precheck.get("uncovered_pockets"))
+                )
             elif (
                 c["equipment"]["layouts"]["changing_room"]
                 .get("functional_geometry", {})
@@ -699,6 +989,8 @@ def generate_multi_root_layout(
                         revalidate_changing=True,
                         multi_root_interfaces=True,
                         portal_preferences=PORTAL_ORDER,
+                        local_installation=arranged,
+                        portal_option_index=precheck.get("portal_option_index", 0),
                     )
                     row["process_admission"] = c["process_admission"]
                     if not c["process_admission"]["accepted"]:
@@ -728,21 +1020,60 @@ def generate_multi_root_layout(
                         c["adaptive_search_node"] = len(root_rows)
                         c["current_storage_requirements"] = requirements
                         key = physical_candidate_key(c)
-                        diff = space_difference(reference_c, c) if reference_c else None
-                        material = (
-                            not diff
-                            or not diff["different_main_process_relationships"]
-                            or (diff["substantive_spatial_change"])
+                        classification = (
+                            candidate_distinction(reference_c, c)
+                            if reference_c
+                            else {"new_qualified_organisation": True}
                         )
-                        if not material:
+                        row["candidate_classification"] = c["candidate_classification"] = (
+                            classification
+                        )
+                        if not classification["new_qualified_organisation"]:
                             row["qualified_but_not_materially_distinct_not_selected"] = True
+                            if key not in seen_candidates:
+                                same_organisation_variants.append(c)
+                                seen_candidates.add(key)
                         elif key not in seen_candidates:
-                            accepted.append(c)
-                            seen_candidates.add(key)
+                            if organisation_key(c) not in seen_organisations:
+                                accepted.append(c)
+                                seen_candidates.add(key)
+                                seen_organisations.add(organisation_key(c))
                         else:
                             row["duplicate_physical_candidate_not_counted"] = True
                     else:
-                        causes = storage_interface_feedback(seed, project, context) + causes
+                        failed_storage = [
+                            role
+                            for role in requirements
+                            if any(
+                                role in str(r.get("source_object", ""))
+                                or role in str(r.get("target_object", ""))
+                                for r in row.get("failed_route_witnesses", [])
+                            )
+                        ]
+                        if any(
+                            "FINISHED" in f.get("id", "")
+                            for f in c["process_admission"]["failures"]
+                        ):
+                            failed_storage.append("finished_goods_room")
+                        stock_causes = [
+                            {
+                                "storage_choice_rank": {
+                                    **(desc.get("storage_choice_rank") or {}),
+                                    role: rank,
+                                },
+                                "constraint": "CURRENT_FAILED_STORAGE_INTERFACE_ALTERNATIVE_GRID",
+                                "failed_room": role,
+                                "trigger": c["process_admission"]["failures"],
+                            }
+                            for role in sorted(set(failed_storage))
+                            for rank in (1, 3, 7)
+                            if rank != (desc.get("storage_choice_rank") or {}).get(role, 0)
+                        ]
+                        causes = (
+                            stock_causes
+                            + storage_interface_feedback(seed, project, context)
+                            + causes
+                        )
                         causes.extend(
                             {
                                 "preferences": {**desc["preferences"], "changing_room": side},
@@ -758,6 +1089,34 @@ def generate_multi_root_layout(
                         error=str(error),
                         details=getattr(error, "details", {}),
                     )
+                    details = getattr(error, "details", {})
+                    role = details.get("room")
+                    if role in requirements:
+                        causes = [
+                            {
+                                "storage_choice_rank": {
+                                    **(desc.get("storage_choice_rank") or {}),
+                                    role: rank,
+                                },
+                                "failed_room": role,
+                                "constraint": "ACTUAL_FAILED_LOAD_DOCK_REGRID",
+                                "failure_object": details,
+                            }
+                            for rank in (1, 3, 7)
+                            if rank != (desc.get("storage_choice_rank") or {}).get(role, 0)
+                        ] + causes
+                    elif role in state:
+                        causes = [
+                            {
+                                "focus_role": role,
+                                "focus_rank": rank,
+                                "failed_room": role,
+                                "constraint": "ACTUAL_FAILED_DEVICE_DOCK_LOCAL_OPTION",
+                                "failure_object": details,
+                            }
+                            for rank in (1, 2, 3)
+                            if rank != desc.get("focus_rank", 0)
+                        ] + causes
                     score += 1
             enqueue(desc, row, score, causes)
             if progress:
@@ -765,7 +1124,7 @@ def generate_multi_root_layout(
         families = {organisation_key(c) for c in accepted}
         if len(accepted) >= config["accepted_limit"] and len(families) > 1:
             break
-    for c in accepted:
+    for c in [*accepted, *same_organisation_variants]:
         c["organisation_key"] = organisation_key(c)
         c["difference_from_current_reference"] = (
             space_difference(reference_c, c) if reference_c else None
@@ -808,6 +1167,16 @@ def generate_multi_root_layout(
         "candidates": selected,
         "candidate_count": len(selected),
         "organisation_count": len({organisation_key(c) for c in selected}),
+        "new_qualified_organisation_count": sum(
+            c.get("candidate_classification", {}).get("new_qualified_organisation", False)
+            for c in selected
+        ),
+        "qualified_variant_count": len(same_organisation_variants),
+        "qualified_same_organisation_variant_count": sum(
+            not c["candidate_classification"]["core_organisation_different"]
+            for c in same_organisation_variants
+        ),
+        "qualified_non_novel_variants": same_organisation_variants,
         "status": "CONDITIONAL_MULTI_ROOT_ORGANISATIONS"
         if len({organisation_key(c) for c in selected}) > 1
         else "NO_NEW_ORGANISATION_WITHIN_BOUNDED_SEARCH",
@@ -845,6 +1214,23 @@ def generate_multi_root_layout(
                 "process_route_grid_nodes",
                 "necessary_portal_prechecks",
             )
+        },
+        "partial_capacity_installation_cache_entries": len(partial_cache),
+        "local_search_limits": {
+            "installation_trials_per_room": 48,
+            "installation_options_per_room": 4,
+            "precheck_installations_per_root": 2,
+            "precheck_portal_orders_per_installation": 2,
+            "portal_route_pairs_per_requirement": 8,
+            "portal_route_nodes_per_pair": 400,
+            "failed_precheck_full_diagnostics": 0,
+            "feedback_target_span_mm": 16000,
+            "scope": "FINITE_SEARCH_CHOICES_NOT_ENGINEERING_HARD_THRESHOLDS",
+        },
+        "partial_constraint_evidence": partial_cache,
+        "partial_constraint_check_counts": {
+            k: sum(s["stats"].get(k, 0) for s in search_rows)
+            for k in ("partial_constraint_checks",)
         },
         "accounting_scope": {
             "room_nodes": "ACTUAL_ATTACHMENT_DFS_NODES_INCLUDING_REFERENCE_BOOTSTRAP",

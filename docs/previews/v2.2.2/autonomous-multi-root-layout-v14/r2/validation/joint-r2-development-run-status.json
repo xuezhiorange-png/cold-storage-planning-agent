@@ -1,0 +1,7 @@
+{
+  "status": "INTERRUPTED_DEVELOPMENT_RUN_NOT_FINAL_EVIDENCE",
+  "reason": "Finalize explicit per-root portal trial budget before delivery run",
+  "elapsed_at_stop_seconds": 315,
+  "signal": "SIGTERM",
+  "native_solves": 0
+}

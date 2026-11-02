@@ -6,7 +6,7 @@ throat have separate witnesses; neither is a forklift kinematic approval.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from decimal import Decimal
 from typing import Any
 
@@ -40,6 +40,57 @@ def portal_approach(portal: Mapping[str, Any], room: PlacedRectangleV1, depth: i
     return [min(u, z), v, max(u, z), v + depth] if v == y else [min(u, z), v - depth, max(u, z), v]
 
 
+def _ranked_exterior_pairs(
+    fo: Sequence[dict[str, Any]],
+    topts: Sequence[dict[str, Any]],
+    outside: Callable[[Mapping[str, Any], str], tuple[int, int]],
+    fr: str,
+    to: str,
+    cw: int,
+    floor: Sequence[int],
+    blockers: Sequence[Sequence[int]],
+    option_index: int,
+    pair_limit: int,
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    """Rank only actual exterior-free poses; every chosen route still reruns P1."""
+
+    def exterior_free(p: Mapping[str, Any], code: str) -> bool:
+        center = outside(p, code)
+        b = (
+            center[0] - cw // 2,
+            center[1] - cw // 2,
+            center[0] + cw - cw // 2,
+            center[1] + cw - cw // 2,
+        )
+        return bounds_inside(b, floor) and not any(positive_intersection(b, o) for o in blockers)
+
+    feasible_from = [f for f in fo if exterior_free(f, fr)]
+    feasible_to = [t for t in topts if exterior_free(t, to)]
+
+    def pair_score(pair: tuple[dict[str, Any], dict[str, Any]]) -> tuple[Any, ...]:
+        start, end = outside(pair[0], fr), outside(pair[1], to)
+        bends = ((start, (start[0], end[1]), end), (start, (end[0], start[1]), end))
+        collisions = []
+        for path in bends:
+            boxes = routing._path_envelopes(routing._compact_path(path), cw)
+            collisions.append(
+                sum(positive_intersection(b.bounds_mm, o) for b in boxes for o in blockers)
+            )
+        return (
+            min(collisions),
+            abs(start[0] - end[0]) + abs(start[1] - end[1]),
+            pair[0]["segment_mm"],
+            pair[1]["segment_mm"],
+        )
+
+    ranked = sorted(((f, t) for f in feasible_from for t in feasible_to), key=pair_score)
+    begin = option_index * pair_limit
+    if begin >= len(ranked):
+        begin = 0
+    selected = ranked[begin : begin + pair_limit]
+    return selected
+
+
 def joint_portals(
     rooms: Mapping[str, PlacedRectangleV1],
     requirements: Sequence[Mapping[str, Any]],
@@ -50,7 +101,13 @@ def joint_portals(
     entrances: Mapping[str, SegmentMM],
     *,
     portal_preferences: Mapping[str, tuple[str, ...]] | None = None,
+    option_index: int = 0,
+    candidate_pair_limit: int | None = None,
 ) -> tuple[list[dict[str, Any]], list[PolygonMM], list[dict[str, Any]]]:
+    if not 0 <= option_index <= 3:
+        raise ValueError("BOUNDED_PORTAL_OPTION_REQUIRED")
+    if candidate_pair_limit is not None and not 1 <= candidate_pair_limit <= 256:
+        raise ValueError("BOUNDED_PORTAL_PAIR_BUDGET_REQUIRED")
     results: list[dict[str, Any]] = []
     envelopes: list[PolygonMM] = []
     checks: list[dict[str, Any]] = []
@@ -90,6 +147,7 @@ def joint_portals(
         )
 
     for req in requirements:
+        pairs_used = 0
         if req["flow_kind"] == "TRUCK":
             results.append(
                 {
@@ -102,6 +160,13 @@ def joint_portals(
             continue
         obj = routing._requirement_object(req)
         profile = resolve_access_profile(obj.profile_identity)
+        bound_relation = routing._relation_for(req, relations)
+        expected_from = (
+            routing._edge_class(bound_relation.get("from_edge_class")) if bound_relation else None
+        )
+        expected_to = (
+            routing._edge_class(bound_relation.get("to_edge_class")) if bound_relation else None
+        )
         pw = routing._mm(profile.portal_clear_width_m, field="portal")
         if obj.cold_room_refs:
             pw = max(
@@ -138,6 +203,35 @@ def joint_portals(
                             segment, edge_class=fc or "SHARED_EDGE", clear_width_mm=pw
                         )
                     )
+                    if candidate_pair_limit is not None:
+                        # The larger interior turning square needs real end
+                        # clearance. Trim the SEARCH segment, never the portal.
+                        trim = max(0, (cw - pw) // 2)
+                        if routing._segment_length_mm(segment) >= pw + 2 * trim:
+                            seg_a, seg_b = segment
+                            inner = (
+                                ((seg_a[0], seg_a[1] + trim), (seg_b[0], seg_b[1] - trim))
+                                if vertical
+                                else ((seg_a[0] + trim, seg_a[1]), (seg_b[0] - trim, seg_b[1]))
+                            )
+                            candidates.extend(
+                                routing._portal_candidates(
+                                    inner, edge_class=fc or "SHARED_EDGE", clear_width_mm=pw
+                                )
+                            )
+                if candidate_pair_limit is not None:
+                    unique = {p["segment_mm"]: p for p in reversed(candidates)}
+                    candidates = [
+                        p
+                        for p in reversed(list(unique.values()))
+                        if clear(routing._portal_record(req, fr, p), fr, cw)
+                        and clear(routing._portal_record(req, to, {**p, "edge_class": tc}), to, cw)
+                    ]
+                # Rotate only the search order. Every legal original candidate
+                # remains available and every returned portal reruns predicates.
+                if option_index and candidates:
+                    shift = option_index % len(candidates)
+                    candidates = candidates[shift:] + candidates[:shift]
                 seen = set()
                 for portal in candidates:
                     key = portal["segment_mm"]
@@ -183,15 +277,36 @@ def joint_portals(
                     continue
         hint: list[tuple[int, int]] = []
         external_result = None
-        if not shared:
+        if not shared or (candidate_pair_limit is not None and obj.corridor_allowed):
             fo = routing._edge_options(
-                first, required_class=None, clear_width_mm=pw, boundary_segment=entrances.get(fr)
+                first,
+                required_class=expected_from if candidate_pair_limit is not None else None,
+                clear_width_mm=pw,
+                boundary_segment=entrances.get(fr),
             )
-            topts = routing._edge_options(second, required_class=None, clear_width_mm=pw)
+            topts = routing._edge_options(
+                second,
+                required_class=expected_to if candidate_pair_limit is not None else None,
+                clear_width_mm=pw,
+            )
 
-            def corridor_options(code: str, pw: int = pw, cw: int = cw) -> list[dict[str, Any]]:
+            def corridor_options(
+                code: str,
+                pw: int = pw,
+                cw: int = cw,
+                from_code: str = fr,
+                ef: str | None = expected_from,
+                et: str | None = expected_to,
+            ) -> list[dict[str, Any]]:
                 opts: list[dict[str, Any]] = []
                 for _, cls, edge in routing._edge_segments(rooms[code]):
+                    required_class = ef if code == from_code else et
+                    if (
+                        candidate_pair_limit is not None
+                        and required_class is not None
+                        and cls != required_class
+                    ):
+                        continue
                     for aisle in equipment["layouts"][code]["service_corridors"]:
                         x, y, r, t = aisle["bbox_mm"]
                         if edge[0][0] == edge[1][0] and x <= edge[0][0] <= r:
@@ -229,6 +344,27 @@ def joint_portals(
             if portal_preferences:
                 fo = tuple(sorted(fo, key=lambda p: preference(p, fr)))
                 topts = tuple(sorted(topts, key=lambda p: preference(p, to)))
+            if candidate_pair_limit is not None:
+                # Spend the route budget on actual body-free approaches, not
+                # candidates already ruled out by the current installation.
+                if first:
+                    fo = tuple(
+                        {
+                            p["segment_mm"]: p
+                            for p in fo
+                            if clear(routing._portal_record(req, fr, p), fr, cw)
+                        }.values()
+                    )
+                topts = tuple(
+                    {
+                        p["segment_mm"]: p
+                        for p in topts
+                        if clear(routing._portal_record(req, to, p), to, cw)
+                    }.values()
+                )
+            if option_index:
+                fo = (*fo[option_index:], *fo[:option_index])
+                topts = (*topts[option_index:], *topts[:option_index])
             floor = routing._rectangle_bounds(boundary)
             blockers = [q.bounds_mm for q in rooms.values()] + [
                 b for o in obstacles if (b := routing._rectangle_bounds(o))
@@ -246,15 +382,50 @@ def joint_portals(
                 inward = _inward(rec, rooms[code], cw // 2 + 1)
                 return 2 * center[0] - inward[0], 2 * center[1] - inward[1]
 
+            selected_pairs: dict[Any, list[dict[str, Any]]] = {}
+            if candidate_pair_limit is not None and floor:
+                selected = _ranked_exterior_pairs(
+                    fo,
+                    topts,
+                    outside,
+                    fr,
+                    to,
+                    cw,
+                    floor,
+                    blockers,
+                    option_index,
+                    candidate_pair_limit,
+                )
+                ordered_from = {}
+                for f, t in selected:
+                    ordered_from[f["segment_mm"]] = f
+                    selected_pairs.setdefault(f["segment_mm"], []).append(t)
+                fo = tuple(ordered_from.values())
+
             for f in fo:
+                if candidate_pair_limit is not None and pairs_used >= candidate_pair_limit:
+                    break
                 if first and not clear(routing._portal_record(req, fr, f), fr, cw):
                     continue
-                for t in topts:
+                for t in (
+                    selected_pairs.get(f["segment_mm"], [])
+                    if candidate_pair_limit is not None
+                    else topts
+                ):
+                    if candidate_pair_limit is not None and pairs_used >= candidate_pair_limit:
+                        break
+                    pairs_used += 1
                     if not clear(routing._portal_record(req, to, t), to, cw) or not floor:
                         continue
                     start, end = outside(f, fr), outside(t, to)
                     path, _ = rectilinear_path(
-                        start, end, floor, blockers, cw, cw, node_budget=1500
+                        start,
+                        end,
+                        floor,
+                        blockers,
+                        cw,
+                        cw,
+                        node_budget=400 if candidate_pair_limit is not None else 1500,
                     )
                     if path:
                         hint = [
@@ -280,7 +451,12 @@ def joint_portals(
                             "transport_mode": profile.transport_mode,
                             "portal_clear_width_m": routing._metres(pw),
                             "corridor_clear_width_m": routing._metres(cw),
-                            "edge_alignment_verified": True,
+                            "edge_alignment_verified": (
+                                expected_from is None or f["edge_class"] == expected_from
+                            )
+                            and (expected_to is None or t["edge_class"] == expected_to)
+                            if candidate_pair_limit is not None
+                            else True,
                             "turn_count": routing._turn_count(hint),
                             "route_shape": "STRAIGHT"
                             if routing._turn_count(hint) == 0
@@ -320,8 +496,37 @@ def joint_portals(
                     break
         if external_result:
             row, polys = external_result
+            if candidate_pair_limit is not None:
+                row["portal_search"] = {
+                    "pairs_used": pairs_used,
+                    "pair_limit": candidate_pair_limit,
+                    "all_continuous_portals_exhausted": False,
+                }
+                row = routing._hashed(row)
             results.append(row)
             envelopes.extend(polys)
+            continue
+        if candidate_pair_limit is not None:
+            # Never silently escape into the legacy router's independent
+            # Cartesian portal search after this local budget is exhausted.
+            # No geometry or Authority is relaxed: this branch is unverified.
+            results.append(
+                routing._hashed(
+                    {
+                        **routing._access_result_base(req),
+                        "status": "BLOCKED",
+                        "codes": ["BOUNDED_LEGAL_PORTAL_OPTIONS_NOT_CONNECTED"],
+                        "portal_search": {
+                            "pairs_used": pairs_used,
+                            "pair_limit": candidate_pair_limit,
+                            "status": "PAIR_BUDGET_EXHAUSTED"
+                            if pairs_used >= candidate_pair_limit
+                            else "FINITE_OPTIONS_CHECKED",
+                            "all_continuous_portals_exhausted": False,
+                        },
+                    }
+                )
+            )
             continue
         row, polys = routing.route_access_requirement(
             req,

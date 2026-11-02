@@ -1,0 +1,143 @@
+{
+  "review_round": "R2_CONSTRAINT_GUIDED_JOINT_SEARCH",
+  "functional_goal": "NOT_ACHIEVED",
+  "cases": [
+    {
+      "days": 7,
+      "complete_state_status_counts": {
+        "CURRENT_PROCESS_INTERFACE_REJECTED": 8,
+        "EQUIPMENT_OR_RESERVED_PASSAGE_REJECTED": 3,
+        "ORIGINAL_PORTAL_OR_ZERO_HOLE_PRECHECK_REJECTED": 56
+      },
+      "failure_counts_are_finite_search_events_not_global_unsat_proofs": true,
+      "full_pipeline_attempts": 11,
+      "local_search_limits": {
+        "failed_precheck_full_diagnostics": 0,
+        "feedback_target_span_mm": 16000,
+        "installation_options_per_room": 4,
+        "installation_trials_per_room": 48,
+        "portal_route_nodes_per_pair": 400,
+        "portal_route_pairs_per_requirement": 8,
+        "precheck_installations_per_root": 2,
+        "precheck_portal_orders_per_installation": 2,
+        "scope": "FINITE_SEARCH_CHOICES_NOT_ENGINEERING_HARD_THRESHOLDS"
+      },
+      "new_qualified_organisations": 0,
+      "partial_rejection_event_counts": {
+        "finished_goods_room:FINITE_GRID_OPTIONS_EXHAUSTED": 32,
+        "frozen_fruit_room:FINITE_GRID_OPTIONS_EXHAUSTED": 1550,
+        "primary_precooling_room:BOUNDED_INSTALLATION_NOT_FOUND": 26,
+        "secondary_fruit_buffer:FINITE_GRID_OPTIONS_EXHAUSTED": 2360,
+        "sorting_packaging_room:BOUNDED_INSTALLATION_NOT_FOUND": 9
+      },
+      "qualified_non_novel_variants": 0,
+      "root_option_evaluations": 67,
+      "source_result_hash": "sha256:288f7e3e26251da5830b2becd267dd89aab65f2f350acbe49972976ba1353d88",
+      "unique_complete_room_geometries": 46,
+      "partial_capacity_rejection_events": 3942,
+      "partial_installation_rejection_events": 35,
+      "current_reference_stock": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 324,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "reference_full_admission": true,
+      "reference_attempts": 3,
+      "new_full_attempts": 8,
+      "search_budget": {
+        "failed_necessary_gate_full_diagnostics": 0,
+        "full_pipeline_attempts_used": 11,
+        "limits": {
+          "accepted_limit": 2,
+          "feedback_children": 8,
+          "feedback_depth": 4,
+          "full_pipeline_limit": 12,
+          "nodes_per_root_search": 400,
+          "root_search_limit": 64,
+          "roots_per_search": 2,
+          "total_room_node_budget": 20000
+        },
+        "profile_search_allocations": {
+          "CENTRAL_PROCESS_CORE": 21,
+          "LINEAR_BANDED": 20,
+          "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 20
+        },
+        "remaining_descriptors": 508,
+        "room_nodes_used": 13300,
+        "root_search_calls_used": 64,
+        "stop_reason": "ROOT_SEARCH_LIMIT"
+      }
+    },
+    {
+      "days": 8,
+      "complete_state_status_counts": {
+        "INTERRUPTED_PROCESS_CANDIDATE": 11,
+        "ORIGINAL_PORTAL_OR_ZERO_HOLE_PRECHECK_REJECTED": 21
+      },
+      "failure_counts_are_finite_search_events_not_global_unsat_proofs": true,
+      "full_pipeline_attempts": 12,
+      "local_search_limits": {
+        "failed_precheck_full_diagnostics": 0,
+        "feedback_target_span_mm": 16000,
+        "installation_options_per_room": 4,
+        "installation_trials_per_room": 48,
+        "portal_route_nodes_per_pair": 400,
+        "portal_route_pairs_per_requirement": 8,
+        "precheck_installations_per_root": 2,
+        "precheck_portal_orders_per_installation": 2,
+        "scope": "FINITE_SEARCH_CHOICES_NOT_ENGINEERING_HARD_THRESHOLDS"
+      },
+      "new_qualified_organisations": 0,
+      "partial_rejection_event_counts": {
+        "finished_goods_room:FINITE_GRID_OPTIONS_EXHAUSTED": 230,
+        "frozen_fruit_room:FINITE_GRID_OPTIONS_EXHAUSTED": 103,
+        "primary_precooling_room:BOUNDED_INSTALLATION_NOT_FOUND": 14,
+        "secondary_fruit_buffer:FINITE_GRID_OPTIONS_EXHAUSTED": 3404,
+        "sorting_packaging_room:BOUNDED_INSTALLATION_NOT_FOUND": 6
+      },
+      "qualified_non_novel_variants": 0,
+      "root_option_evaluations": 32,
+      "source_result_hash": "sha256:101a8b3c34c4f98c22e0e8a7dd7adacb7176227fc6a0a8c55c77e9ca4aca4d8e",
+      "unique_complete_room_geometries": 30,
+      "partial_capacity_rejection_events": 3737,
+      "partial_installation_rejection_events": 20,
+      "current_reference_stock": {
+        "packaging_material_storage": 67,
+        "finished_goods_room": 364,
+        "raw_fruit_buffer": 45,
+        "secondary_fruit_buffer": 21,
+        "frozen_fruit_room": 36
+      },
+      "reference_full_admission": true,
+      "reference_attempts": 1,
+      "new_full_attempts": 11,
+      "search_budget": {
+        "failed_necessary_gate_full_diagnostics": 0,
+        "full_pipeline_attempts_used": 12,
+        "limits": {
+          "accepted_limit": 2,
+          "feedback_children": 8,
+          "feedback_depth": 4,
+          "full_pipeline_limit": 12,
+          "nodes_per_root_search": 400,
+          "root_search_limit": 64,
+          "roots_per_search": 2,
+          "total_room_node_budget": 20000
+        },
+        "profile_search_allocations": {
+          "CENTRAL_PROCESS_CORE": 10,
+          "LINEAR_BANDED": 11,
+          "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 10
+        },
+        "remaining_descriptors": 344,
+        "room_nodes_used": 7553,
+        "root_search_calls_used": 34,
+        "stop_reason": "FULL_PIPELINE_LIMIT"
+      }
+    }
+  ],
+  "native_solves": 0,
+  "global_infeasibility_proven": false
+}

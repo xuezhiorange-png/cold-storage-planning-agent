@@ -152,15 +152,14 @@ def relocation_capacity_trials(
     return trials
 
 
-def arrange_process_workplaces(
-    candidate: Mapping[str, Any], parameters: Mapping[str, Any]
+def sorting_workplaces(
+    room: Mapping[str, Any],
+    original_items: Sequence[Mapping[str, Any]],
+    parameters: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Keep rooms and counts; rotate four erectors and re-space non-route gaps."""
-    c = copy.deepcopy(candidate)
-    eq = c["equipment"]
-    items = eq["items"]
-    rooms = {r["zone_code"]: r for r in c["rooms"]}
-    box = rooms["sorting_packaging_room"]["bbox_mm"]
+    """Original deterministic template, also available before twelve rooms exist."""
+    items = copy.deepcopy([dict(q) for q in original_items])
+    box = room["bbox_mm"]
     sx, sy, sr, st = box
     aisle = int(parameters["main_aisle_mm"])
     gap = int(parameters["interpair_nonroute_gap_mm"])
@@ -243,10 +242,6 @@ def arrange_process_workplaces(
             ("SORT-SOUTH", south),
         )
     ]
-    eq["layouts"]["sorting_packaging_room"] = {
-        "service_corridors": corridors,
-        "operator_positions": operators,
-    }
     # 7+7 waiting pallets plus SIX separate line-end work addresses. N/S are
     # service groups re-mapped into this single autonomous room, not B1 halls.
     y = max(q["bbox_mm"][3] for q in packing) + 100
@@ -286,7 +281,39 @@ def arrange_process_workplaces(
             "requires_review": True,
         }
         work.append(row)
-    items.extend(work)
+    return {
+        "items": items + work,
+        "service_corridors": corridors,
+        "operator_positions": operators,
+        "workplaces": work,
+    }
+
+
+def arrange_process_workplaces(
+    candidate: Mapping[str, Any], parameters: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Keep rooms and counts; rotate four erectors and re-space non-route gaps."""
+    c = copy.deepcopy(dict(candidate))
+    eq = c["equipment"]
+    items = eq["items"]
+    rooms = {r["zone_code"]: r for r in c["rooms"]}
+    sorting = sorting_workplaces(
+        rooms["sorting_packaging_room"],
+        [q for q in items if q["room"] == "sorting_packaging_room"],
+        parameters,
+    )
+    updated = {q["id"]: q for q in sorting["items"]}
+    original_ids = {q["id"] for q in items}
+    eq["items"] = items = [updated.get(q["id"], q) for q in items] + [
+        q for q in sorting["items"] if q["id"] not in original_ids
+    ]
+    eq["layouts"]["sorting_packaging_room"] = {
+        "service_corridors": sorting["service_corridors"],
+        "operator_positions": sorting["operator_positions"],
+    }
+    work = sorting["workplaces"]
+    aisle = int(parameters["main_aisle_mm"])
+    pw, pd = min(parameters["pallet_mm"]), max(parameters["pallet_mm"])
     coat = rooms["coating_room"]["bbox_mm"]
     cx, cy, cr, ct = coat
     film = sorted(
@@ -347,7 +374,37 @@ def arrange_process_workplaces(
             ("FILM-NORTH", [cx, ct - aisle, cr, ct]),
         )
     ]
+    static = process_static_conflicts(c)
+    eq["placed_counts"] = {
+        k: sum(q["kind"] == k for q in items) for k in sorted({q["kind"] for q in items})
+    }
+    return {
+        "candidate": c,
+        "static_conflicts": static,
+        "workplaces": work,
+        "operator_zones": operator_zones,
+        "group_mapping": {
+            "N": {"lines": [1, 2, 3], "slots": 7},
+            "S": {"lines": [4, 5, 6], "slots": 7},
+            "physical_location": (
+                "Two independent service groups in the regenerated north working strip, "
+                "NOT copied north/south B1 hall coordinates"
+            ),
+        },
+        "coating_service_depth": coating_service_depth(parameters),
+    }
+
+
+def process_static_conflicts(c: dict[str, Any]) -> list[dict[str, Any]]:
+    """Original body/column/aisle predicates, never an admission replacement."""
+    eq = c["equipment"]
+    rooms = {r["zone_code"]: r for r in c["rooms"]}
     static = []
+    items = eq["items"]
+    operator_zones = eq.get("process_operator_zones", [])
+    operators = [
+        q for layout in eq["layouts"].values() for q in layout.get("operator_positions", [])
+    ]
     fixed = [*items, *operator_zones, *operators]
     columns = c["original_building"]["columns"]
     for i, q in enumerate(fixed):
@@ -386,21 +443,4 @@ def arrange_process_workplaces(
         if code != "shipping_channel"
         for a in layout["service_corridors"]
     ]
-    eq["placed_counts"] = {
-        k: sum(q["kind"] == k for q in items) for k in sorted({q["kind"] for q in items})
-    }
-    return {
-        "candidate": c,
-        "static_conflicts": static,
-        "workplaces": work,
-        "operator_zones": operator_zones,
-        "group_mapping": {
-            "N": {"lines": [1, 2, 3], "slots": 7},
-            "S": {"lines": [4, 5, 6], "slots": 7},
-            "physical_location": (
-                "Two independent service groups in the regenerated north working strip, "
-                "NOT copied north/south B1 hall coordinates"
-            ),
-        },
-        "coating_service_depth": coating_service_depth(parameters),
-    }
+    return static

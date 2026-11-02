@@ -6,7 +6,7 @@ An exhausted template is explicitly not a proof of global infeasibility.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from decimal import Decimal
 from math import isqrt
 from typing import Any
@@ -133,6 +133,10 @@ def search_room_arrangements(
     event_root_anchors: bool = False,
     root_anchor_mm: tuple[int, int, int] | None = None,
     root_rotation_deg: int | None = None,
+    partial_feasibility: Callable[[Mapping[str, PlacedRectangleV1], str], Mapping[str, Any]]
+    | None = None,
+    attachment_offsets: Mapping[str, Sequence[tuple[int, int]]] | None = None,
+    room_targets: Mapping[str, Sequence[tuple[int, int]]] | None = None,
 ) -> tuple[list[dict[str, PlacedRectangleV1]], dict[str, Any]]:
     if profile not in PROFILES or not 1 <= node_budget <= 60000 or not 1 <= complete_limit <= 4:
         raise ValueError("AUTONOMOUS_SEARCH_CONFIGURATION_INVALID")
@@ -189,6 +193,11 @@ def search_room_arrangements(
         stats["rejection_counts"] = {}
         stats["rejection_examples"] = []
     rejection_keys: set[tuple[str, str]] = set()
+    if partial_feasibility is not None:
+        stats["partial_constraint_checks"] = 0
+        stats["partial_constraint_rejections"] = []
+        stats["partial_constraint_rejection_counts"] = {}
+        stats["partial_constraint_occurrences"] = []
 
     def rejected(reason: str, role: str, bounds: tuple[int, int, int, int], objects: Any) -> None:
         if not diverse_cores:
@@ -294,6 +303,14 @@ def search_room_arrangements(
                 xs = {x, r - ww, (x + r - ww) // 2}
                 if functional_alignment and code == "primary_precooling_room":
                     xs.update(x - 1250 - 4900 * j for j in range(3))
+                    if partial_feasibility is not None:
+                        # Derive alternative lane-to-boundary alignments from
+                        # the actual sorting frontage, never archived origins.
+                        xs.update(
+                            target - 1250 - 4900 * j
+                            for target in ((x + r) // 2, r - 1250)
+                            for j in range(3)
+                        )
                 for other in placed.values():
                     ob = other.bounds_mm
                     ys.update((ob[1], ob[3], ob[1] - hh, ob[3] - hh))
@@ -301,6 +318,11 @@ def search_room_arrangements(
                 ys.update(v for v in fixed_ys if y - hh + 2400 <= v <= t - 2400)
                 anchors.update((xx, yy) for xx in (x - ww, r) for yy in ys)
                 anchors.update((xx, yy) for yy in (y - hh, t) for xx in xs)
+                if attachment_offsets and code in attachment_offsets:
+                    for dx, dy in attachment_offsets[code]:
+                        anchors.update(((x + dx, t + dy), (r + dx, y + dy)))
+            if room_targets and code in room_targets:
+                anchors.update((p[0], p[1]) for p in room_targets[code])
             for x, y in anchors:
                 stats["options_checked"] += 1
                 b = (x, y, x + ww, y + hh)
@@ -414,7 +436,15 @@ def search_room_arrangements(
             if functional_alignment and code == "packaging_material_storage":
                 return abs(t - root[3]), side, x, y
             if functional_alignment and code == "primary_precooling_room":
-                aligned = min(abs(x + 1250 + 4900 * j - root[0]) for j in range(3))
+                target = root[0]
+                if partial_feasibility is not None and profile == "CENTRAL_PROCESS_CORE":
+                    target = (root[0] + root[2]) // 2
+                elif (
+                    partial_feasibility is not None
+                    and profile == "PROCESS_SPINE_WITH_PERIPHERAL_BANKS"
+                ):
+                    target = root[2] - 1250
+                aligned = min(abs(x + 1250 + 4900 * j - target) for j in range(3))
                 return int(q.rotation_deg != 0), aligned, abs(y - root[3]), side, x, y
             if functional_alignment and code == "raw_fruit_buffer":
                 primary = placed["primary_precooling_room"].bounds_mm
@@ -450,6 +480,12 @@ def search_room_arrangements(
             )
 
         def preferred_score(q: PlacedRectangleV1) -> tuple[Any, ...]:
+            if room_targets and code in room_targets:
+                b = q.bounds_mm
+                return (
+                    min(abs(b[0] - p[0]) + abs(b[1] - p[1]) for p in room_targets[code]),
+                    *score(q),
+                )
             if not side_preferences or code not in side_preferences:
                 return score(q)
             if not neighbors and code != "changing_room":
@@ -492,6 +528,31 @@ def search_room_arrangements(
         code = ORDER[index]
         for rect in options(code):
             placed[code] = rect
+            if partial_feasibility is not None:
+                stats["partial_constraint_checks"] += 1
+                check = partial_feasibility(placed, code)
+                stats["partial_constraint_occurrences"].append(
+                    {
+                        "check_id": check.get("check_id"),
+                        "room": code,
+                        "placed_roles": len(placed),
+                        "admissible": check["admissible"],
+                    }
+                )
+                if not check["admissible"]:
+                    label = code + ":" + str(check["status"])
+                    counts = stats["partial_constraint_rejection_counts"]
+                    counts[label] = counts.get(label, 0) + 1
+                    if len(stats["partial_constraint_rejections"]) < 64:
+                        stats["partial_constraint_rejections"].append(
+                            {"placed_roles": len(placed), "room": code, **check}
+                        )
+                    placed.pop(code)
+                    # Rejected partial branches also consume actual node budget.
+                    stats["nodes_used"] += 1
+                    if stats["nodes_used"] >= node_budget:
+                        return
+                    continue
             walk(index + 1)
             placed.pop(code)
             if stats["nodes_used"] >= node_budget or len(results) >= complete_limit:
@@ -510,7 +571,30 @@ def search_room_arrangements(
         total_limit = node_budget
         node_budget = min(total_limit, start + per_root)
         placed[ORDER[0]] = root
-        walk(1)
+        if partial_feasibility is not None:
+            stats["partial_constraint_checks"] += 1
+            check = partial_feasibility(placed, ORDER[0])
+            stats["partial_constraint_occurrences"].append(
+                {
+                    "check_id": check.get("check_id"),
+                    "room": ORDER[0],
+                    "placed_roles": 1,
+                    "admissible": check["admissible"],
+                }
+            )
+            if not check["admissible"]:
+                stats["nodes_used"] += 1
+                label = ORDER[0] + ":" + str(check["status"])
+                counts = stats["partial_constraint_rejection_counts"]
+                counts[label] = counts.get(label, 0) + 1
+                if len(stats["partial_constraint_rejections"]) < 64:
+                    stats["partial_constraint_rejections"].append(
+                        {"placed_roles": 1, "room": ORDER[0], **check}
+                    )
+            else:
+                walk(1)
+        else:
+            walk(1)
         placed.pop(ORDER[0])
         if diverse_cores:
             stats["actual_root_trials"].append(

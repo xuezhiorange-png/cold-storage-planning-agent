@@ -1,0 +1,20 @@
+[
+  {
+    "file": "results/7-days/autonomous-layout-A14-A.pdf",
+    "page_count": 1,
+    "width_mm": 841.0000013563367,
+    "height_mm": 594.0000047471788,
+    "scale": "1:200",
+    "axis_108000_mm_paper_length_mm": 540,
+    "source": "Existing exact SVG mm coordinate projection"
+  },
+  {
+    "file": "results/8-days/autonomous-layout-A14-A.pdf",
+    "page_count": 1,
+    "width_mm": 841.0000013563367,
+    "height_mm": 594.0000047471788,
+    "scale": "1:200",
+    "axis_108000_mm_paper_length_mm": 540,
+    "source": "Existing exact SVG mm coordinate projection"
+  }
+]
